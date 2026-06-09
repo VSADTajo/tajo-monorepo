@@ -1,0 +1,102 @@
+import { Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+// Database
+import { PostgresDatabaseProviderModule } from '@app/infrastructure/persistence/postgres-database-provider.module';
+
+// Domain Ports
+import { INotificationService } from '@domain/ports/notification-service.port';
+import { ICacheService } from '@domain/ports/cache-service.port';
+import { IMessageBroker } from '@domain/ports/message-broker.port';
+import { ITransactionManagerService } from '@domain/types/transaction-manager.type';
+import { IProviderConfigRepository } from '@domain/ports/provider-config-repository.port';
+import { IIngestionRunRepository } from '@domain/ports/ingestion-run-repository.port';
+
+// Infrastructure Implementations
+import { ProviderConfigRepository } from '@infrastructure/persistence/provider-config.repository';
+import { IngestionRunRepository } from '@infrastructure/persistence/ingestion-run.repository';
+import { NotificationService } from '@infrastructure/services/notification.service';
+import { TransactionManagerService } from '@infrastructure/services/transaction-manager.service';
+import { RedisCacheService } from '@infrastructure/services/redis-cache.service';
+import { RabbitmqService } from '@infrastructure/messaging/rabbitmq.service';
+import { FewsApiProviderService } from '@infrastructure/services/fews-api-provider.service';
+import { SftpFileProviderService } from '@infrastructure/services/sftp-file-provider.service';
+import { CsvFileProviderService } from '@infrastructure/services/csv-file-provider.service';
+import { DataProviderFactoryService } from '@infrastructure/services/data-provider-factory.service';
+import { ProviderSchedulerService } from '@infrastructure/services/provider-scheduler.service';
+
+// Cache
+import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service';
+
+// Config
+import { RedisConfigModule } from '@config/redis/redis-config.module';
+import { RabbitmqConfigModule } from '@config/rabbitmq/rabbitmq-config.module';
+import { FewsApiConfigModule } from '@config/fews-api/fews-api-config.module';
+import { SftpApiConfigModule } from '@config/sftp-api/sftp-api-config.module';
+
+// Entities
+import { ProviderConfig } from '@domain/entities/provider-config.entity';
+import { IngestionRun } from '@domain/entities/ingestion-run.entity';
+
+@Module({
+    imports: [
+        CqrsModule,
+        ScheduleModule.forRoot(),
+        PostgresDatabaseProviderModule,
+        RedisConfigModule,
+        RabbitmqConfigModule,
+        FewsApiConfigModule,
+        SftpApiConfigModule,
+        TypeOrmModule.forFeature([ProviderConfig, IngestionRun]),
+    ],
+    controllers: [],
+    providers: [
+        {
+            provide: IProviderConfigRepository,
+            useClass: ProviderConfigRepository,
+        },
+        {
+            provide: IIngestionRunRepository,
+            useClass: IngestionRunRepository,
+        },
+        {
+            provide: INotificationService,
+            useClass: NotificationService,
+        },
+        {
+            provide: ITransactionManagerService,
+            useClass: TransactionManagerService,
+        },
+        {
+            provide: ICacheService,
+            useClass: RedisCacheService,
+        },
+        {
+            provide: IMessageBroker,
+            useClass: RabbitmqService,
+        },
+        CachingQueryBus,
+        FewsApiProviderService,
+        SftpFileProviderService,
+        CsvFileProviderService,
+        DataProviderFactoryService,
+        ProviderSchedulerService,
+    ],
+    exports: [
+        IProviderConfigRepository,
+        IIngestionRunRepository,
+        INotificationService,
+        ITransactionManagerService,
+        ICacheService,
+        IMessageBroker,
+        CachingQueryBus,
+        FewsApiProviderService,
+        SftpFileProviderService,
+        CsvFileProviderService,
+        DataProviderFactoryService,
+        ProviderSchedulerService,
+    ],
+})
+export class InfrastructureModule {}
