@@ -1,0 +1,36 @@
+# ms-gateway-api is a pure proxy — no database, only the API
+services:
+    app:
+        container_name: ms-gateway-api
+        image: ms-gateway-api-dev
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: dev
+        volumes:
+            - .:/app
+            - /app/node_modules
+        env_file:
+            - .env
+        environment:
+            - NODE_ENV=local
+            - REDIS_HOST=ms-gateway-redis
+            - REDIS_PORT=6379
+            - RABBITMQ_ENABLED=true
+            - RABBITMQ_HOST=ms-gateway-rabbitmq
+            - RABBITMQ_PORT=5672
+            - RABBITMQ_USER=guest
+            - RABBITMQ_PASSWORD=guest
+        networks:
+            - app-network
+            - infra-network
+        ports:
+            - '3000:3000'
+        command: npm run start:dev
+
+networks:
+    app-network:
+    infra-network:
+        external: true
+        name: infra-network
