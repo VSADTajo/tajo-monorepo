@@ -1,0 +1,1 @@
+{"version":3,"file":"trace.module.d.ts","sourceRoot":"","sources":["../src/trace.module.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,aAAa,EAAE,kBAAkB,EAAU,UAAU,EAAE,MAAM,gBAAgB,CAAC;AAKvF,OAAO,EAAE,kBAAkB,EAAwB,MAAM,SAAS,CAAC;AAEnE,qBACa,WAAY,YAAW,UAAU;IAC5C,MAAM,CAAC,OAAO,CAAC,OAAO,EAAE,kBAAkB,GAAG,aAAa;IAsB1D,SAAS,CAAC,QAAQ,EAAE,kBAAkB,GAAG,IAAI;CAG9C"}

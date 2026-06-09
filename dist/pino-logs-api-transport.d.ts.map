@@ -1,0 +1,1 @@
+{"version":3,"file":"pino-logs-api-transport.d.ts","sourceRoot":"","sources":["../src/pino-logs-api-transport.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,yBAAyB,CAAC;AAmC5C,MAAM,WAAW,2BAA2B;IAC1C,UAAU,EAAE,MAAM,CAAC;IACnB,WAAW,EAAE,MAAM,CAAC;IACpB,MAAM,CAAC,EAAE,MAAM,CAAC;CACjB;AAED,MAAM,CAAC,OAAO,WAAW,IAAI,EAAE,2BAA2B,qDA4CzD"}
