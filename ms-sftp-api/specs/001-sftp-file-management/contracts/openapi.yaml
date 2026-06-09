@@ -1,0 +1,718 @@
+openapi: 3.0.3
+info:
+  title: Hub de Archivos API (Storage Local + Cliente SFTP)
+  description: Endpoints para gestionar archivos en storage local y consumir archivos de servidores SFTP externos
+  version: 1.0.0
+
+tags:
+  - name: Files
+    description: Operaciones de archivos en storage local
+  - name: SFTP
+    description: Operaciones en servidores SFTP externos
+
+# ─────────────────────────────────────────────────────────────
+# MODULO 1: Storage Local (/files/*)
+# ─────────────────────────────────────────────────────────────
+
+paths:
+  /files/upload:
+    post:
+      tags: [Files]
+      summary: Subir un archivo al storage
+      operationId: uploadFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [path, file]
+              properties:
+                path:
+                  type: string
+                  description: Ruta destino relativa al storage base
+                  example: 'inbox/partner-a/report.csv'
+                overwrite:
+                  type: boolean
+                  description: Permitir sobreescritura si el archivo ya existe
+                  default: false
+                file:
+                  type: string
+                  format: binary
+                  description: Archivo a subir
+      responses:
+        '201':
+          description: Archivo subido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadFileResponseDto'
+        '400':
+          description: Ruta invalida o path traversal detectado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Archivo ya existe en la ruta destino
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno (disco lleno, permisos, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /files:
+    get:
+      tags: [Files]
+      summary: Listar archivos en un directorio
+      operationId: listFiles
+      parameters:
+        - name: directory
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Ruta del directorio relativa al storage base
+          example: 'inbox/partner-a'
+      responses:
+        '200':
+          description: Listado exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListFilesResponseDto'
+        '400':
+          description: Ruta invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Directorio no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags: [Files]
+      summary: Eliminar un archivo
+      operationId: deleteFile
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Ruta del archivo relativa al storage base
+          example: 'processed/old-report.csv'
+      responses:
+        '200':
+          description: Archivo eliminado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteFileResponseDto'
+        '400':
+          description: Ruta invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Archivo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /files/download:
+    get:
+      tags: [Files]
+      summary: Descargar un archivo
+      operationId: downloadFile
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Ruta del archivo relativa al storage base
+          example: 'inbox/partner-a/report.csv'
+      responses:
+        '200':
+          description: Archivo descargado exitosamente
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="report.csv"'
+            Content-Length:
+              schema:
+                type: integer
+                example: 1048576
+        '400':
+          description: Ruta invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Archivo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /files/move:
+    post:
+      tags: [Files]
+      summary: Mover un archivo a otra ruta
+      operationId: moveFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveFileRequestDto'
+      responses:
+        '200':
+          description: Archivo movido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MoveFileResponseDto'
+        '400':
+          description: Ruta invalida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Archivo origen no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Archivo ya existe en la ruta destino
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ─────────────────────────────────────────────────────────────
+  # MODULO 2: Cliente SFTP (/sftp/*)
+  # ─────────────────────────────────────────────────────────────
+
+  /sftp/list:
+    post:
+      tags: [SFTP]
+      summary: Listar archivos en servidor SFTP externo
+      operationId: sftpListFiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SftpListFilesRequestDto'
+      responses:
+        '200':
+          description: Listado exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SftpListFilesResponseDto'
+        '401':
+          description: Credenciales SFTP invalidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Directorio remoto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error de conexion SFTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sftp/download:
+    post:
+      tags: [SFTP]
+      summary: Descargar archivo desde servidor SFTP externo
+      operationId: sftpDownloadFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SftpDownloadFileRequestDto'
+      responses:
+        '200':
+          description: Archivo descargado exitosamente
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="report.csv"'
+        '401':
+          description: Credenciales SFTP invalidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Archivo remoto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error de conexion SFTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sftp/download-to-local:
+    post:
+      tags: [SFTP]
+      summary: Descargar de SFTP externo y guardar en storage local
+      operationId: sftpDownloadToLocal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SftpDownloadToLocalRequestDto'
+      responses:
+        '201':
+          description: Archivo transferido exitosamente al storage local
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SftpDownloadToLocalResponseDto'
+        '401':
+          description: Credenciales SFTP invalidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Archivo remoto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Archivo ya existe en destino local
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error de conexion SFTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sftp/move:
+    post:
+      tags: [SFTP]
+      summary: Mover archivo en servidor SFTP externo
+      operationId: sftpMoveFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SftpMoveFileRequestDto'
+      responses:
+        '200':
+          description: Archivo movido exitosamente en servidor remoto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SftpMoveFileResponseDto'
+        '401':
+          description: Credenciales SFTP invalidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Archivo remoto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error de conexion SFTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sftp/delete:
+    post:
+      tags: [SFTP]
+      summary: Eliminar archivo en servidor SFTP externo
+      operationId: sftpDeleteFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SftpDeleteFileRequestDto'
+      responses:
+        '200':
+          description: Archivo eliminado exitosamente del servidor remoto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SftpDeleteFileResponseDto'
+        '401':
+          description: Credenciales SFTP invalidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Archivo remoto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error de conexion SFTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    # ─────────────────────────────────────────────────────────────
+    # Shared: SFTP Connection
+    # ─────────────────────────────────────────────────────────────
+
+    SftpConnectionDto:
+      type: object
+      required: [host, username]
+      properties:
+        host:
+          type: string
+          description: Hostname o IP del servidor SFTP
+          example: 'sftp.example.com'
+        port:
+          type: integer
+          description: Puerto del servidor SFTP
+          default: 22
+          example: 22
+        username:
+          type: string
+          description: Usuario SFTP
+          example: 'sftp-user'
+        password:
+          type: string
+          description: Password (opcional si se usa privateKey)
+          example: 'secret123'
+        privateKey:
+          type: string
+          description: Clave privada SSH en formato PEM (opcional si se usa password)
+
+    # ─────────────────────────────────────────────────────────────
+    # Storage Local: File Info
+    # ─────────────────────────────────────────────────────────────
+
+    FileInfoDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Nombre del archivo
+          example: 'report-2026-03.csv'
+        path:
+          type: string
+          description: Ruta relativa al storage base
+          example: 'inbox/partner-a/report-2026-03.csv'
+        size:
+          type: integer
+          description: Tamano en bytes
+          example: 1048576
+        modifiedAt:
+          type: string
+          format: date-time
+          description: Fecha de ultima modificacion
+          example: '2026-03-04T10:30:00Z'
+        isDirectory:
+          type: boolean
+          description: True si es un directorio
+          example: false
+
+    # ─────────────────────────────────────────────────────────────
+    # Storage Local: List Files
+    # ─────────────────────────────────────────────────────────────
+
+    ListFilesResponseDto:
+      type: object
+      properties:
+        directory:
+          type: string
+          example: 'inbox/partner-a'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileInfoDto'
+
+    # ─────────────────────────────────────────────────────────────
+    # Storage Local: Upload File
+    # ─────────────────────────────────────────────────────────────
+
+    UploadFileResponseDto:
+      type: object
+      properties:
+        path:
+          type: string
+          example: 'inbox/partner-a/report.csv'
+        size:
+          type: integer
+          example: 2097152
+
+    # ─────────────────────────────────────────────────────────────
+    # Storage Local: Move File
+    # ─────────────────────────────────────────────────────────────
+
+    MoveFileRequestDto:
+      type: object
+      required: [sourcePath, destinationPath]
+      properties:
+        sourcePath:
+          type: string
+          description: Ruta origen del archivo
+          example: 'inbox/partner-a/report.csv'
+        destinationPath:
+          type: string
+          description: Ruta destino del archivo
+          example: 'processed/partner-a/report.csv'
+        overwrite:
+          type: boolean
+          description: Permitir sobreescritura
+          default: false
+
+    MoveFileResponseDto:
+      type: object
+      properties:
+        sourcePath:
+          type: string
+          example: 'inbox/partner-a/report.csv'
+        destinationPath:
+          type: string
+          example: 'processed/partner-a/report.csv'
+
+    # ─────────────────────────────────────────────────────────────
+    # Storage Local: Delete File
+    # ─────────────────────────────────────────────────────────────
+
+    DeleteFileResponseDto:
+      type: object
+      properties:
+        deletedPath:
+          type: string
+          example: 'processed/old-report.csv'
+
+    # ─────────────────────────────────────────────────────────────
+    # SFTP: Remote File Info
+    # ─────────────────────────────────────────────────────────────
+
+    RemoteFileInfoDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Nombre del archivo remoto
+          example: 'data-2026-03.csv'
+        path:
+          type: string
+          description: Ruta completa en el servidor remoto
+          example: '/data/incoming/data-2026-03.csv'
+        size:
+          type: integer
+          description: Tamano en bytes
+          example: 5242880
+        modifiedAt:
+          type: string
+          format: date-time
+          description: Fecha de ultima modificacion
+          example: '2026-03-04T08:00:00Z'
+        isDirectory:
+          type: boolean
+          description: True si es un directorio
+          example: false
+
+    # ─────────────────────────────────────────────────────────────
+    # SFTP: List Files
+    # ─────────────────────────────────────────────────────────────
+
+    SftpListFilesRequestDto:
+      type: object
+      required: [connection, directory]
+      properties:
+        connection:
+          $ref: '#/components/schemas/SftpConnectionDto'
+        directory:
+          type: string
+          description: Ruta del directorio en el servidor remoto
+          example: '/data/incoming'
+
+    SftpListFilesResponseDto:
+      type: object
+      properties:
+        directory:
+          type: string
+          example: '/data/incoming'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/RemoteFileInfoDto'
+
+    # ─────────────────────────────────────────────────────────────
+    # SFTP: Download File
+    # ─────────────────────────────────────────────────────────────
+
+    SftpDownloadFileRequestDto:
+      type: object
+      required: [connection, path]
+      properties:
+        connection:
+          $ref: '#/components/schemas/SftpConnectionDto'
+        path:
+          type: string
+          description: Ruta del archivo en el servidor remoto
+          example: '/data/incoming/report.csv'
+
+    # ─────────────────────────────────────────────────────────────
+    # SFTP: Download to Local
+    # ─────────────────────────────────────────────────────────────
+
+    SftpDownloadToLocalRequestDto:
+      type: object
+      required: [connection, remotePath, localPath]
+      properties:
+        connection:
+          $ref: '#/components/schemas/SftpConnectionDto'
+        remotePath:
+          type: string
+          description: Ruta del archivo en el servidor SFTP
+          example: '/data/incoming/report.csv'
+        localPath:
+          type: string
+          description: Ruta destino en el storage local (relativa a STORAGE_BASE_PATH)
+          example: 'inbox/external/report.csv'
+        overwrite:
+          type: boolean
+          description: Permitir sobreescritura si el archivo ya existe en local
+          default: false
+
+    SftpDownloadToLocalResponseDto:
+      type: object
+      properties:
+        remotePath:
+          type: string
+          example: '/data/incoming/report.csv'
+        localPath:
+          type: string
+          example: 'inbox/external/report.csv'
+        size:
+          type: integer
+          example: 5242880
+
+    # ─────────────────────────────────────────────────────────────
+    # SFTP: Move File
+    # ─────────────────────────────────────────────────────────────
+
+    SftpMoveFileRequestDto:
+      type: object
+      required: [connection, sourcePath, destinationPath]
+      properties:
+        connection:
+          $ref: '#/components/schemas/SftpConnectionDto'
+        sourcePath:
+          type: string
+          description: Ruta origen en el servidor remoto
+          example: '/data/incoming/report.csv'
+        destinationPath:
+          type: string
+          description: Ruta destino en el servidor remoto
+          example: '/data/processed/report.csv'
+
+    SftpMoveFileResponseDto:
+      type: object
+      properties:
+        sourcePath:
+          type: string
+          example: '/data/incoming/report.csv'
+        destinationPath:
+          type: string
+          example: '/data/processed/report.csv'
+
+    # ─────────────────────────────────────────────────────────────
+    # SFTP: Delete File
+    # ─────────────────────────────────────────────────────────────
+
+    SftpDeleteFileRequestDto:
+      type: object
+      required: [connection, path]
+      properties:
+        connection:
+          $ref: '#/components/schemas/SftpConnectionDto'
+        path:
+          type: string
+          description: Ruta del archivo en el servidor remoto
+          example: '/data/processed/old-report.csv'
+
+    SftpDeleteFileResponseDto:
+      type: object
+      properties:
+        deletedPath:
+          type: string
+          example: '/data/processed/old-report.csv'
+
+    # ─────────────────────────────────────────────────────────────
+    # Error Response
+    # ─────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        StatusCode:
+          type: integer
+          example: 404
+        ErrorCode:
+          type: string
+          example: 'TR999'
+        ErrorDescription:
+          type: string
+          example: 'Archivo no encontrado en la ruta inbox/missing.csv'
