@@ -1,0 +1,39 @@
+services:
+    app:
+        container_name: ms-authentication-api
+        image: ms-authentication-api-dev
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: dev
+        volumes:
+            - .:/app
+            - /app/node_modules
+        env_file:
+            - .env
+        environment:
+            - NODE_ENV=local
+            - REDIS_HOST=ms-auth-redis
+            - REDIS_PORT=6379
+            - RABBITMQ_ENABLED=true
+            - RABBITMQ_HOST=ms-auth-rabbitmq
+            - RABBITMQ_PORT=5672
+            - RABBITMQ_USER=guest
+            - RABBITMQ_PASSWORD=guest
+        networks:
+            - app-network
+            - infra-network
+        # Commented for security reasons
+        # The port is used for the API
+        # ports:
+        #     - '3002:3002'
+        expose:
+            - '3002'
+        command: sh -c "npm run start:dev"
+
+networks:
+    app-network:
+    infra-network:
+        external: true
+        name: infra-network
