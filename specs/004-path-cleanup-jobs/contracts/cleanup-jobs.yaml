@@ -1,0 +1,270 @@
+openapi: 3.0.3
+info:
+  title: Cleanup Jobs API
+  version: "1.0"
+  description: CRUD endpoints for scheduled path cleanup jobs
+
+tags:
+  - name: CleanupJobs
+    description: Scheduled file deletion jobs per directory path
+
+paths:
+
+  /cleanup-jobs:
+    post:
+      tags: [CleanupJobs]
+      summary: Create a new cleanup job for a path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCleanupJobRequest'
+      responses:
+        '201':
+          description: Cleanup job created and scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupJobResponse'
+        '400':
+          description: Validation error (missing extensions, invalid frequency, invalid path)
+        '409':
+          description: A cleanup job already exists for this path
+
+  /cleanup-jobs/{id}:
+    get:
+      tags: [CleanupJobs]
+      summary: Get a cleanup job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cleanup job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupJobResponse'
+        '404':
+          description: Cleanup job not found
+
+    patch:
+      tags: [CleanupJobs]
+      summary: Update extensions and/or frequency of an existing cleanup job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCleanupJobRequest'
+      responses:
+        '200':
+          description: Cleanup job updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupJobResponse'
+        '400':
+          description: Validation error
+        '404':
+          description: Cleanup job not found
+
+    delete:
+      tags: [CleanupJobs]
+      summary: Permanently delete a cleanup job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cleanup job deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCleanupJobResponse'
+        '404':
+          description: Cleanup job not found
+
+  /cleanup-jobs/{id}/toggle:
+    patch:
+      tags: [CleanupJobs]
+      summary: Activate or deactivate a cleanup job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToggleCleanupJobRequest'
+      responses:
+        '200':
+          description: Cleanup job toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupJobResponse'
+        '404':
+          description: Cleanup job not found
+
+  /cleanup-jobs/by-path:
+    get:
+      tags: [CleanupJobs]
+      summary: Get cleanup job for a specific directory path
+      parameters:
+        - name: directoryPath
+          in: query
+          required: true
+          schema:
+            type: string
+          example: /data/files/forecast
+      responses:
+        '200':
+          description: Cleanup job for the given path (or null if none)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupJobOrNullResponse'
+        '400':
+          description: directoryPath query param required
+
+components:
+  schemas:
+
+    CreateCleanupJobRequest:
+      type: object
+      required: [directoryPath, extensions, frequency]
+      properties:
+        directoryPath:
+          type: string
+          description: Absolute directory path to clean
+          example: /data/files/forecast
+        extensions:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: File extensions to delete (normalized to lowercase with dot)
+          example: ['.xml', '.csv']
+        frequency:
+          type: string
+          enum:
+            - EVERY_5_MIN
+            - EVERY_15_MIN
+            - EVERY_30_MIN
+            - EVERY_HOUR
+            - EVERY_6_HOURS
+            - EVERY_12_HOURS
+            - EVERY_DAY
+            - EVERY_WEEK
+          example: EVERY_DAY
+
+    UpdateCleanupJobRequest:
+      type: object
+      properties:
+        extensions:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          example: ['.xml', '.csv', '.dat']
+        frequency:
+          type: string
+          enum:
+            - EVERY_5_MIN
+            - EVERY_15_MIN
+            - EVERY_30_MIN
+            - EVERY_HOUR
+            - EVERY_6_HOURS
+            - EVERY_12_HOURS
+            - EVERY_DAY
+            - EVERY_WEEK
+          example: EVERY_HOUR
+
+    ToggleCleanupJobRequest:
+      type: object
+      required: [isActive]
+      properties:
+        isActive:
+          type: boolean
+          example: false
+
+    CleanupJobResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        directoryPath:
+          type: string
+        extensions:
+          type: array
+          items:
+            type: string
+        frequency:
+          type: string
+        frequencyLabel:
+          type: string
+          example: Every day
+        isActive:
+          type: boolean
+        lastExecutedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastExecutionResult:
+          type: object
+          nullable: true
+          properties:
+            filesDeleted:
+              type: integer
+            error:
+              type: string
+              nullable: true
+        nextExecutionAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CleanupJobOrNullResponse:
+      type: object
+      properties:
+        job:
+          nullable: true
+          oneOf:
+            - $ref: '#/components/schemas/CleanupJobResponse'
+            - type: 'null'
+
+    DeleteCleanupJobResponse:
+      type: object
+      properties:
+        deletedId:
+          type: string
+          format: uuid

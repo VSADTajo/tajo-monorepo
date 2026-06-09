@@ -1,0 +1,193 @@
+openapi: 3.0.3
+info:
+  title: Paths Overview API Contract
+  description: New endpoint for the Paths & Files Manager feature
+  version: 1.0.0
+
+paths:
+  /api/files/paths-overview:
+    get:
+      summary: List all paths with their schema assignments
+      description: |
+        Returns all unique directory paths sourced from SFTP user root directories
+        and mapping schema directory paths, each with their associated parsing
+        schema (if any). Files are NOT included — use GET /api/files?directory=
+        to load files per path on demand.
+      tags:
+        - Files
+      responses:
+        '200':
+          description: List of paths with schema info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPathsOverviewResponse'
+              example:
+                paths:
+                  - path: "forecast"
+                    displayPath: "/data/files/forecast"
+                    canListFiles: true
+                    schema:
+                      id: "550e8400-e29b-41d4-a716-446655440000"
+                      name: "Forecast XML Parser"
+                      isActive: true
+                      inputFormat: "xml"
+                      outputFormat: "json"
+                  - path: "inbox"
+                    displayPath: "/data/files/inbox"
+                    canListFiles: true
+                    schema: null
+                  - path: "archive"
+                    displayPath: "/data/files/archive"
+                    canListFiles: true
+                    schema:
+                      id: "550e8400-e29b-41d4-a716-446655440001"
+                      name: "Archive CSV Parser"
+                      isActive: false
+                      inputFormat: "csv"
+                      outputFormat: "dat"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Existing endpoints reused (no changes)
+  /api/files:
+    get:
+      summary: List files in a directory (EXISTING — no changes)
+      parameters:
+        - name: directory
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "forecast"
+      responses:
+        '200':
+          description: Directory listing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListFilesResponse'
+
+  /api/files/download:
+    get:
+      summary: Download a file (EXISTING — no changes)
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "forecast/report-2026-03.xml"
+      responses:
+        '200':
+          description: File binary stream (transformed if active schema exists)
+
+  /api/mapping-schemas/{id}/toggle:
+    patch:
+      summary: Toggle schema active/inactive (EXISTING — no changes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated schema
+
+components:
+  schemas:
+    PathSchemaInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        isActive:
+          type: boolean
+        inputFormat:
+          type: string
+          enum: [xml, csv]
+        outputFormat:
+          type: string
+          enum: [json, csv, dat, parquet]
+      required: [id, name, isActive, inputFormat, outputFormat]
+
+    PathOverviewDto:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Relative path — use this with GET /api/files?directory=
+          example: "forecast"
+        displayPath:
+          type: string
+          description: Original path as stored (for display purposes)
+          example: "/data/files/forecast"
+        canListFiles:
+          type: boolean
+          description: False if path is outside the storage base directory
+        schema:
+          oneOf:
+            - $ref: '#/components/schemas/PathSchemaInfo'
+            - type: 'null'
+      required: [path, displayPath, canListFiles, schema]
+
+    ListPathsOverviewResponse:
+      type: object
+      properties:
+        paths:
+          type: array
+          items:
+            $ref: '#/components/schemas/PathOverviewDto'
+      required: [paths]
+
+    FileInfoDto:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        modifiedAt:
+          type: string
+          format: date-time
+        isDirectory:
+          type: boolean
+
+    ListFilesResponse:
+      type: object
+      properties:
+        directory:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileInfoDto'
+
+    ErrorResponse:
+      type: object
+      properties:
+        StatusCode:
+          type: integer
+        ErrorCode:
+          type: string
+        ErrorDescription:
+          type: string
