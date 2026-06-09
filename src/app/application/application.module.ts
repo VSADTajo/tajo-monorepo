@@ -1,0 +1,42 @@
+import { Module } from '@nestjs/common';
+import { CqrsModule } from '@nestjs/cqrs';
+
+// Infrastructure
+import { InfrastructureModule } from '@infrastructure/infrastructure.module';
+
+// Command Handlers
+import {
+    CreateProviderConfigHandler,
+    UpdateProviderConfigHandler,
+    DeleteProviderConfigHandler,
+    ToggleProviderConfigHandler,
+} from '@application/commands/provider-config.commands';
+import { ExecuteIngestionHandler, TriggerIngestionHandler } from '@application/commands/ingestion.commands';
+import { PurgeOldIngestionRunsHandler } from '@application/commands/cleanup.commands';
+
+// Query Handlers
+import { ListProviderConfigsHandler, GetProviderConfigByIdHandler } from '@application/queries/provider-config.queries';
+import { ListIngestionRunsHandler, GetIngestionRunByIdHandler } from '@application/queries/ingestion-run.queries';
+
+// Controllers
+import { ProviderConfigController } from '@api/controllers/provider-config.controller';
+import { IngestionRunController } from '@api/controllers/ingestion-run.controller';
+
+@Module({
+    imports: [CqrsModule, InfrastructureModule],
+    controllers: [ProviderConfigController, IngestionRunController],
+    providers: [
+        CreateProviderConfigHandler,
+        UpdateProviderConfigHandler,
+        DeleteProviderConfigHandler,
+        ToggleProviderConfigHandler,
+        ListProviderConfigsHandler,
+        GetProviderConfigByIdHandler,
+        ListIngestionRunsHandler,
+        GetIngestionRunByIdHandler,
+        ExecuteIngestionHandler,
+        TriggerIngestionHandler,
+        PurgeOldIngestionRunsHandler,
+    ],
+})
+export class ApplicationModule {}
