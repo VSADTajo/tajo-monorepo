@@ -1,0 +1,33 @@
+{
+  // ✅ 1. Fin de línea compatible con Windows
+  "files.eol": "\r\n",
+  // ✅ 2. Formateo automático al guardar
+
+
+  // ✅ 4. Anidamiento de archivos en el explorador
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "tsconfig.json": "tsconfig.*.json, env.d.ts",
+    "vite.config.*": "jsconfig*, vitest.config.*, cypress.config.*, playwright.config.*",
+    "package.json": "package-lock.json, pnpm*, .yarnrc*, yarn*, .eslint*, eslint*, .prettier*, prettier*, .editorconfig",
+    "*.vue": "${capture}.spec.ts",
+    "*.ts": "${capture}.test.ts"
+  },
+
+  // ✅ 3. Corrección de código y organización de imports
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit",
+    "source.organizeImports": "never",
+    //"source.fixAll.eslint": true
+  },
+
+  // ✅ 5. Etiquetas personalizadas en pestañas
+  "workbench.editor.customLabels.patterns": {
+    "**/*.spec.ts": "♻️ ${filename} ♻️",
+    "**/*.test.ts": "📐 ${filename} 📐"
+  },
+
+   // ✅ 6. Archivo de cobertura
+  "coverage-gutters.coverageFileNames": ["cobertura-coverage.xml"],
+
+}
