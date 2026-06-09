@@ -1,0 +1,11 @@
+{
+  "repository": "@owner/name",
+  "personalAccessToken": "<your-personal-access-token>",
+  "rules": [
+    {
+      "name": "Extract all tokens to JSON",
+      "path": "./output/all-tokens.json",
+      "parsers": []
+    }
+  ]
+}
