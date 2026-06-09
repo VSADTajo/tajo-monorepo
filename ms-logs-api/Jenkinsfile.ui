@@ -1,0 +1,99 @@
+pipeline {
+  agent any
+
+  environment {
+    APP_NAME     = 'ms-logs-ui'
+    UI_PORT      = '3005'
+    NODE_VERSION = '22'
+
+    VITE_API_URL         = 'http://65.21.97.113:3004'
+    VITE_URL_API_GATEWAY = 'http://65.21.97.113:3000'
+    // Red Docker por defecto; cámbiala aquí si en tu servidor se llama distinto
+    DOCKER_NETWORK       = 'infra-network'
+  }
+
+  options {
+    timeout(time: 30, unit: 'MINUTES')
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_COMMIT_SHORT = sh(
+            script: 'git rev-parse --short HEAD',
+            returnStdout: true
+          ).trim()
+          env.BRANCH_NAME_SAFE = env.BRANCH_NAME?.replaceAll('/', '-') ?: 'main'
+          env.IMAGE_TAG = "${env.BRANCH_NAME_SAFE}-${env.GIT_COMMIT_SHORT}"
+        }
+      }
+    }
+
+    stage('Install UI deps') {
+      steps {
+        dir('ui') {
+          sh 'npm ci'
+        }
+      }
+    }
+
+    stage('Build UI') {
+      steps {
+        dir('ui') {
+          sh """
+            VITE_API_URL=${VITE_API_URL} \\
+            VITE_URL_API_GATEWAY=${VITE_URL_API_GATEWAY} \\
+            npm run build
+          """
+        }
+      }
+    }
+
+    stage('Docker Build (nginx)') {
+      steps {
+        script {
+          sh """
+            docker build \\
+              -f ui/Dockerfile \\
+              --build-arg VITE_API_URL=${VITE_API_URL} \\
+              --build-arg VITE_URL_API_GATEWAY=${VITE_URL_API_GATEWAY} \\
+              -t ${APP_NAME}:${IMAGE_TAG} \\
+              .
+          """
+        }
+      }
+    }
+
+    stage('Deploy UI') {
+      steps {
+        script {
+          sh """
+            docker stop ${APP_NAME} || true
+            docker rm ${APP_NAME} || true
+
+            docker run -d \\
+              --name ${APP_NAME} \\
+              --network ${DOCKER_NETWORK} \\
+              --restart unless-stopped \\
+              -p ${UI_PORT}:80 \\
+              ${APP_NAME}:${IMAGE_TAG}
+          """
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "UI deployed: ${APP_NAME}:${IMAGE_TAG} on port ${UI_PORT}"
+    }
+    always {
+      deleteDir()
+    }
+  }
+}
+
