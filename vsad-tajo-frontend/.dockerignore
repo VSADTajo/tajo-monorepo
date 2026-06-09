@@ -1,0 +1,16 @@
+# Ignore everything
+*
+
+# Allow only what's needed for the build
+!src/
+!public/
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.app.json
+!tsconfig.node.json
+!vite.config.ts
+!index.html
+!nginx.conf
+!eslint.config.js
+!env.d.ts
