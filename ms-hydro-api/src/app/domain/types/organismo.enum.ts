@@ -1,0 +1,8 @@
+export enum Organismo {
+    EXPLOTACION = 'EXPLOTACION',
+    PROYECTOS_Y_OBRAS = 'PROYECTOS_Y_OBRAS',
+    CYII = 'CYII',
+    UNION_FENOSA = 'UNION_FENOSA',
+    IBERDROLA = 'IBERDROLA',
+    OTROS = 'OTROS',
+}
