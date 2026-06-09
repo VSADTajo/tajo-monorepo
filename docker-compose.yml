@@ -1,0 +1,75 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      target: dev
+    container_name: ms-logs-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3004}:${PORT:-3004}"
+    env_file:
+      - .env
+    environment:
+      PORT: ${PORT:-3004}
+      MONGO_URI: ${MONGO_URI}
+      FRONTEND_URL: ${FRONTEND_URL}
+      NODE_ENV: ${NODE_ENV:-development}
+    volumes:
+      - ./files_results:/app/dist/files_results
+      - ./src:/app/src
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./package.json:/app/package.json
+      - api_node_modules:/app/node_modules
+    command: npm run start:dev
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  ui:
+    build:
+      context: ./ui
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_PREDICTIONS_API_URL: ${VITE_PREDICTIONS_API_URL}
+        VITE_SCHEDULER_API_URL: ${VITE_SCHEDULER_API_URL}
+        VITE_AUTH_API_KEY: ${VITE_AUTH_API_KEY}
+        AUTH_API_URL: ${AUTH_API_URL}
+        VITE_APP_ENV: ${VITE_APP_ENV}
+    container_name: ui-logs
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-3005}:4173"
+    environment:
+      NODE_ENV: "production"
+    depends_on:
+      api:
+        condition: service_started
+
+  mongo:
+    image: mongo:7.0.28
+    container_name: ms-logs-api-mongo
+    restart: unless-stopped
+    # Puerto MongoDB expuesto para desarrollo local
+    ports:
+      - "27017:27017"
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-localdev}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-apilogs}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --username root --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  mongo_data:
+    name: ms_logs_api_mongo_data
+  api_node_modules:
