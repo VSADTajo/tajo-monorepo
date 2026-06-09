@@ -1,0 +1,321 @@
+openapi: 3.0.3
+info:
+  title: ms-predictions-api — Predictions & Simulations
+  version: 1.0.0
+  description: REST API for hydrological predictions, simulations, and threshold notifications.
+
+paths:
+  # ─────────────────────────────────────────────────
+  # Simulations
+  # ─────────────────────────────────────────────────
+
+  /simulations:
+    get:
+      tags: [Simulations]
+      summary: List simulations (paginated, filterable)
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [CREATED, MODEL_PROCESSING, IN_PROGRESS, FINALIZED, MODEL_FAILED] }
+        - name: startDate
+          in: query
+          schema: { type: string, description: "YYYYMMDDHHMMSS or ISO date" }
+        - name: endDate
+          in: query
+          schema: { type: string }
+        - name: modmeteo
+          in: query
+          schema: { type: string, enum: [WRF, ECMWF, SMC] }
+        - name: environment
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        200:
+          description: Paginated list of simulations
+        400:
+          description: Invalid query parameters
+
+  /simulations/latest:
+    get:
+      tags: [Simulations]
+      summary: Get latest finalized simulation
+      responses:
+        200:
+          description: Latest finalized simulation with prediction summary
+        404:
+          description: No finalized simulation found
+
+  /simulations/historical:
+    get:
+      tags: [Simulations]
+      summary: List historical simulations grouped by date
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        200:
+          description: Paginated historical simulations
+
+  /simulations/{simulationDate}:
+    get:
+      tags: [Simulations]
+      summary: Get simulation by date
+      parameters:
+        - name: simulationDate
+          in: path
+          required: true
+          schema: { type: string, description: "YYYYMMDDHHMMSS format" }
+      responses:
+        200:
+          description: Simulation with associated predictions
+        404:
+          description: Simulation not found
+
+  /simulations/{id}/finalize:
+    patch:
+      tags: [Simulations]
+      summary: Manually finalize a simulation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Simulation finalized
+        404:
+          description: Simulation not found
+        409:
+          description: Simulation not in a state that can be finalized
+
+  /simulations/with-predictions:
+    post:
+      tags: [Simulations]
+      summary: Batch ingest simulation + predictions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [simulationDate, predictions]
+              properties:
+                simulationDate:
+                  type: string
+                  description: "YYYYMMDDHHMMSS format"
+                method:
+                  type: string
+                modmeteo:
+                  type: string
+                environment:
+                  type: string
+                type:
+                  type: string
+                  enum: [AUTOMATIC, MANUAL, FORECAST]
+                  default: MANUAL
+                basin:
+                  type: string
+                createdBy:
+                  type: string
+                predictions:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [stationId, typeName, events]
+                    properties:
+                      stationId:
+                        type: string
+                        format: uuid
+                      stationName:
+                        type: string
+                      typeName:
+                        type: string
+                      units:
+                        type: string
+                      ensemble:
+                        type: string
+                      percentile:
+                        type: number
+                      predictionProvider:
+                        type: string
+                      predictedBy:
+                        type: string
+                      events:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: object
+                          required: [timestamp, value]
+                          properties:
+                            timestamp:
+                              type: string
+                              format: date-time
+                            value:
+                              type: number
+                            flag:
+                              type: integer
+                              default: 0
+      responses:
+        201:
+          description: Batch ingestion accepted
+        400:
+          description: Validation error
+
+  # ─────────────────────────────────────────────────
+  # Predictions
+  # ─────────────────────────────────────────────────
+
+  /predictions/historical/{stationId}:
+    get:
+      tags: [Predictions]
+      summary: Historical prediction time series by station
+      parameters:
+        - name: stationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date-time }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date-time }
+        - name: predictionType
+          in: query
+          schema: { type: string, description: "PredictionType name or 'all'" }
+        - name: predictedBy
+          in: query
+          schema: { type: string }
+      responses:
+        200:
+          description: Time series data for the station
+
+  /predictions/raw/{provider}/{simulationDate}:
+    get:
+      tags: [Predictions]
+      summary: Raw predictions by provider and simulation date
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+        - name: simulationDate
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Raw predictions for provider
+
+  /predictions/latest-by-ensemble/{simulationDate}:
+    get:
+      tags: [Predictions]
+      summary: Latest values per ensemble for a simulation
+      parameters:
+        - name: simulationDate
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Latest values grouped by ensemble
+
+  /predictions/available-dates:
+    get:
+      tags: [Predictions]
+      summary: List available simulation dates
+      responses:
+        200:
+          description: Distinct list of simulation dates
+
+  /predictions/max-and-latest-values:
+    get:
+      tags: [Predictions]
+      summary: Max and latest prediction values across stations
+      parameters:
+        - name: typeName
+          in: query
+          schema: { type: string }
+        - name: percentile
+          in: query
+          schema: { type: number }
+        - name: simulationDate
+          in: query
+          schema: { type: string }
+        - name: modmeteo
+          in: query
+          schema: { type: string }
+      responses:
+        200:
+          description: Aggregated max/latest values per station
+
+  # ─────────────────────────────────────────────────
+  # Notifications
+  # ─────────────────────────────────────────────────
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications (filterable)
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [PENDING, VERIFIED] }
+        - name: stationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: isRead
+          in: query
+          schema: { type: boolean }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        200:
+          description: Paginated list of notifications
+
+  /notifications/{id}/verify:
+    patch:
+      tags: [Notifications]
+      summary: Verify a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Notification verified
+        404:
+          description: Notification not found
+        409:
+          description: Already verified
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        200:
+          description: Notification marked as read
+        404:
+          description: Notification not found
