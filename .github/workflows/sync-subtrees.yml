@@ -73,7 +73,8 @@ jobs:
       - name: Install splitsh-lite
         run: |
           curl -fsSL https://github.com/splitsh/lite/releases/download/v1.0.1/lite_linux_amd64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin splitsh-lite
+            | sudo tar -xz -C /usr/local/bin
+          sudo chmod +x /usr/local/bin/splitsh-lite
           splitsh-lite --version
 
       - name: Push ${{ matrix.service }} to standalone repo
