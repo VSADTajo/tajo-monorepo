@@ -29,13 +29,19 @@ push to monorepo:main
     ▼
 .github/workflows/sync-subtrees.yml
     │
-    ├─ Matrix of 12 services in parallel
-    │   │
-    │   ├─ git diff <before>..<after> to detect if this subdir changed
-    │   │       (skipped if no change → fast no-op)
-    │   │
-    │   └─ git subtree split --prefix=<subdir> -b split-<subdir>
-    │      git push <standalone> split-<subdir>:main --force
+    ├─ Job 1: detect-changes
+    │    git diff HEAD~1..HEAD → list of subdirs that changed
+    │    emits a dynamic matrix with only those services
+    │    (manual workflow_dispatch forces all 12)
+    │
+    ▼
+    ├─ Job 2: sync (matrix, one parallel job per changed service)
+    │    │
+    │    ├─ install splitsh-lite (handles --squash subtrees;
+    │    │  the built-in `git subtree split` does not)
+    │    │
+    │    └─ splitsh-lite --prefix=<subdir>   → split SHA
+    │       git push <standalone> <SHA>:main --force
     │
     ▼
 Each touched standalone repo gets main force-pushed
@@ -45,6 +51,10 @@ Jenkins multibranch pipeline on each standalone fires its deploy as today
 ```
 
 The monorepo is the **source of truth**. Pushes directly to a standalone repo's `main` are overwritten on the next monorepo sync. Configure branch protection on each standalone to enforce this.
+
+### Why splitsh-lite instead of `git subtree split`
+
+The subtrees were bootstrapped with `git subtree add --squash`. The `--squash` flag drops the upstream history into a single squash-commit, which is what we want for the monorepo's log — but it also breaks the built-in `git subtree split` (it tries to rev-parse hashes that no longer exist locally and dies with `fatal: could not rev-parse split hash …`). `splitsh-lite` (the same tool Symfony / Laravel / Drupal use to split their monorepos) is a drop-in replacement that handles squashed subtrees correctly and is ~100× faster on large histories.
 
 ## Working in the monorepo
 
@@ -74,12 +84,12 @@ git log pre-monorepo --oneline | head -50
 ## One-time setup (already done, documented for transparency)
 
 1. **PAT for cross-repo push**: a Personal Access Token with `repo` scope on the `VSADTajo` org is stored as the secret `SUBTREE_PUSH_TOKEN` in this repo's settings. The sync workflow uses it to push to each standalone.
-2. **Bootstrap**: each subdir was added via `git subtree add --prefix=<dir> https://github.com/VSADTajo/<repo>.git main --squash`. The squash commit metadata is what lets future `git subtree split` commands faithfully extract per-subdir history.
+2. **Bootstrap**: each subdir was added via `git subtree add --prefix=<dir> https://github.com/VSADTajo/<repo>.git main --squash`. The `--squash` keeps the monorepo log clean (one squash-commit per subtree instead of importing the full upstream history). To extract per-subdir history from the squashed monorepo, the sync workflow uses `splitsh-lite` rather than the built-in `git subtree split` — see the section above for why.
 3. **`pre-monorepo` tag** was placed on each standalone before the first sync to preserve original history.
 
 ## Manual sync trigger
 
-If sync ever needs to run outside a push event (e.g., after a freeze, or to recover from an aborted run), go to **Actions → Sync to standalone repos → Run workflow**. With `workflow_dispatch`, every subdir is force-pushed regardless of whether it changed.
+If sync ever needs to run outside a push event (e.g., after a freeze, or to recover from an aborted run), go to **Actions → Sync Subtrees → Run workflow**. With `workflow_dispatch`, every subdir is force-pushed regardless of whether it changed.
 
 ## What lives where
 

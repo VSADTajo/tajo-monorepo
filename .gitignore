@@ -9,3 +9,4 @@ build/
 tmp/
 .idea/
 .vscode/
+.claude/settings.local.json
