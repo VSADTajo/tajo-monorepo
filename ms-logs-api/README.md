@@ -1,6 +1,6 @@
 # ms-logs-api
 
-
+> Source of truth: [`tajo-monorepo/ms-logs-api`](https://github.com/VSADTajo/tajo-monorepo/tree/main/ms-logs-api). This standalone repo is auto-synced on push.
 
 ## Getting started
 
