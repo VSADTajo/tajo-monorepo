@@ -148,7 +148,7 @@ export class SftpFileProviderService implements IDataProvider {
                 z: parseFloat(header.z),
                 units: header.units,
                 timeStep: { unit: header.timeStep.unit, multiplier: parseInt(header.timeStep.multiplier, 10) },
-                forecastDate: `${header.forecastDate.date}T${header.forecastDate.time}Z`,
+                forecastDate: header.forecastDate ? `${header.forecastDate.date}T${header.forecastDate.time}Z` : null,
                 startDate: `${header.startDate.date}T${header.startDate.time}Z`,
                 endDate: `${header.endDate.date}T${header.endDate.time}Z`,
                 events: mappedEvents,

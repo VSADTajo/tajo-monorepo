@@ -32,7 +32,7 @@ export interface INormalizedTimeSeriesResult {
     z?: number;
     units: string;
     timeStep: { unit: string; multiplier: number };
-    forecastDate: string;
+    forecastDate: string | null;
     startDate: string;
     endDate: string;
     events: TimeSeriesEventResult[];
@@ -51,7 +51,7 @@ export class NormalizedTimeSeriesResult {
     readonly z?: number;
     readonly units: string;
     readonly timeStep: { unit: string; multiplier: number };
-    readonly forecastDate: string;
+    readonly forecastDate: string | null;
     readonly startDate: string;
     readonly endDate: string;
     readonly events: TimeSeriesEventResult[];
