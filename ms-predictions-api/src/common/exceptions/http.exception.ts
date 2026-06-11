@@ -42,7 +42,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
             errorDescription = exception.message;
         }
 
-        this.logger.error({
+        const logPayload = {
             msg: errorDescription,
             type:
                 exception instanceof ApiError
@@ -55,7 +55,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
             statusCode: status,
             errorCode,
             stack: exception instanceof Error ? exception.stack : undefined,
-        });
+        };
+
+        if (status >= 500) {
+            this.logger.error(logPayload);
+        } else {
+            this.logger.warn(logPayload);
+        }
 
         response.status(status).json({
             StatusCode: status,
