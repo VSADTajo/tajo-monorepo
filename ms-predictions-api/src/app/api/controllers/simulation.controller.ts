@@ -14,7 +14,7 @@ import {
     HistoricalSimulationsResponseDto,
     FinalizeSimulationResponseDto,
     AvailableDatesQueryDto,
-    AvailableDatesResponseDto,
+    SimulationAvailableDatesResponseDto,
     BatchIngestRequestDto,
     BatchIngestResponseDto,
 } from '@api/dtos/simulation.dtos';
@@ -166,9 +166,9 @@ export class SimulationController {
     @Get('available-dates')
     @ApiEndpoint({
         summary: 'Get available simulation dates',
-        response: { status: 200, type: AvailableDatesResponseDto, description: 'List of available dates' },
+        response: { status: 200, type: SimulationAvailableDatesResponseDto, description: 'List of available dates' },
     })
-    async getAvailableDates(@Query() dto: AvailableDatesQueryDto): Promise<AvailableDatesResponseDto> {
+    async getAvailableDates(@Query() dto: AvailableDatesQueryDto): Promise<SimulationAvailableDatesResponseDto> {
         this.logger.log('Get available dates request');
         try {
             const result = await this.cachingQueryBus.execute<string[]>(

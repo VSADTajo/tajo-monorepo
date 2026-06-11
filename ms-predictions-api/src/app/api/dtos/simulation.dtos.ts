@@ -147,7 +147,7 @@ export class AvailableDatesQueryDto {
     dataOrigin?: string;
 }
 
-export class AvailableDatesResponseDto {
+export class SimulationAvailableDatesResponseDto {
     @ApiProperty({ type: [String] }) dates: string[];
 }
 

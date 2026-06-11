@@ -5,7 +5,7 @@ import {
     LatestSimulationResponseDto,
     HistoricalSimulationsResponseDto,
     FinalizeSimulationResponseDto,
-    AvailableDatesResponseDto,
+    SimulationAvailableDatesResponseDto,
     BatchIngestRequestDto,
     BatchIngestResponseDto,
 } from '@api/dtos/simulation.dtos';
@@ -100,7 +100,7 @@ export class FinalizeSimulationMapper {
 // ─────────────────────────────────────────────────────────────
 
 export class AvailableDatesMapper {
-    static toResponseDto(dates: string[]): AvailableDatesResponseDto {
+    static toResponseDto(dates: string[]): SimulationAvailableDatesResponseDto {
         return { dates };
     }
 }
