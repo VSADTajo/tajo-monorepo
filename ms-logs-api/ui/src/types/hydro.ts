@@ -40,8 +40,8 @@ export interface StationThreshold {
     umbralVolumen1: number | null;
     umbralVolumen2: number | null;
     umbralVolumen3: number | null;
-    caudalEntrada: number | null;
-    caudalSalida: number | null;
+    caudalEntrada: string | null;
+    caudalSalida: string | null;
     capacidad: number | null;
 }
 

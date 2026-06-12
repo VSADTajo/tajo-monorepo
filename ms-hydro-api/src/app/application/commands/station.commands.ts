@@ -179,8 +179,8 @@ export interface IUpdateStationThresholdCommand {
     umbralVolumen1?: number | null;
     umbralVolumen2?: number | null;
     umbralVolumen3?: number | null;
-    caudalEntrada?: number | null;
-    caudalSalida?: number | null;
+    caudalEntrada?: string | null;
+    caudalSalida?: string | null;
     capacidad?: number | null;
 }
 
@@ -228,10 +228,10 @@ export class UpdateStationThresholdCommand {
     get umbralVolumen3(): number | null | undefined {
         return this.parameters.umbralVolumen3;
     }
-    get caudalEntrada(): number | null | undefined {
+    get caudalEntrada(): string | null | undefined {
         return this.parameters.caudalEntrada;
     }
-    get caudalSalida(): number | null | undefined {
+    get caudalSalida(): string | null | undefined {
         return this.parameters.caudalSalida;
     }
     get capacidad(): number | null | undefined {

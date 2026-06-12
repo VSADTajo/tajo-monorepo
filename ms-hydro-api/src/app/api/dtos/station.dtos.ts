@@ -53,11 +53,11 @@ export class StationThresholdDto {
     @ApiProperty({ description: 'Volume threshold 3', nullable: true })
     umbralVolumen3: number | null;
 
-    @ApiProperty({ description: 'Inflow rate', nullable: true })
-    caudalEntrada: number | null;
+    @ApiProperty({ description: 'Inflow signal code (SAIH)', nullable: true })
+    caudalEntrada: string | null;
 
-    @ApiProperty({ description: 'Outflow rate', nullable: true })
-    caudalSalida: number | null;
+    @ApiProperty({ description: 'Outflow signal code (SAIH)', nullable: true })
+    caudalSalida: string | null;
 
     @ApiProperty({ description: 'Reservoir capacity', nullable: true })
     capacidad: number | null;
@@ -396,17 +396,17 @@ export class UpdateThresholdRequestDto {
     @IsNumber()
     umbralVolumen3?: number | null;
 
-    @ApiProperty({ description: 'Inflow rate', required: false, nullable: true })
+    @ApiProperty({ description: 'Inflow signal code (SAIH)', required: false, nullable: true })
     @IsOptional()
     @ValidateIf((_obj, value) => value !== null)
-    @IsNumber()
-    caudalEntrada?: number | null;
+    @IsString()
+    caudalEntrada?: string | null;
 
-    @ApiProperty({ description: 'Outflow rate', required: false, nullable: true })
+    @ApiProperty({ description: 'Outflow signal code (SAIH)', required: false, nullable: true })
     @IsOptional()
     @ValidateIf((_obj, value) => value !== null)
-    @IsNumber()
-    caudalSalida?: number | null;
+    @IsString()
+    caudalSalida?: string | null;
 
     @ApiProperty({ description: 'Reservoir capacity', required: false, nullable: true })
     @IsOptional()

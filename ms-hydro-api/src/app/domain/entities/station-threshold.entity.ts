@@ -68,11 +68,11 @@ export class StationThreshold extends BaseAuditEntity implements IValidable {
     @Column('double precision', { nullable: true })
     umbralVolumen3: number | null;
 
-    @Column('double precision', { nullable: true })
-    caudalEntrada: number | null;
+    @Column('varchar', { length: 20, nullable: true })
+    caudalEntrada: string | null;
 
-    @Column('double precision', { nullable: true })
-    caudalSalida: number | null;
+    @Column('varchar', { length: 20, nullable: true })
+    caudalSalida: string | null;
 
     @Column('double precision', { nullable: true })
     capacidad: number | null;

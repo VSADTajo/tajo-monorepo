@@ -87,8 +87,8 @@ export class StationThresholdDto {
     @ApiProperty({ nullable: true }) umbralVolumen1: number | null;
     @ApiProperty({ nullable: true }) umbralVolumen2: number | null;
     @ApiProperty({ nullable: true }) umbralVolumen3: number | null;
-    @ApiProperty({ nullable: true }) caudalEntrada: number | null;
-    @ApiProperty({ nullable: true }) caudalSalida: number | null;
+    @ApiProperty({ nullable: true }) caudalEntrada: string | null;
+    @ApiProperty({ nullable: true }) caudalSalida: string | null;
     @ApiProperty({ nullable: true }) capacidad: number | null;
 }
 
