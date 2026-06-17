@@ -66,6 +66,32 @@ export interface Station {
     updatedAt: string;
 }
 
+// ── Resguardos ────────────────────────────────────────────────
+
+export interface RawResguardoValues {
+    reserveVolume: number | null;
+    reserveLevel: number | null;
+    minimumVolume: number | null;
+}
+
+// GET /resguardos/:stationCode — time series of resolved values per date
+export interface ResguardosByStation {
+    stationCode: string;
+    stationName: string;
+    entries: Record<string, RawResguardoValues>;
+    total: number;
+}
+
+// GET /resguardos/:stationCode/:date — raw original + edited + resolved
+export interface ResguardoByDate {
+    stationCode: string;
+    stationName: string;
+    date: string;
+    original: RawResguardoValues;
+    edited: RawResguardoValues;
+    resolved: RawResguardoValues;
+}
+
 export const STATION_TYPES = [
     'AFORO_EN_RIO',
     'AFOROS_EN_CANAL',

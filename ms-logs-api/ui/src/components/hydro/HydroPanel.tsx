@@ -3,13 +3,15 @@ import { Droplets } from 'lucide-react';
 import BasinsTab from './BasinsTab';
 import SubBasinsTab from './SubBasinsTab';
 import StationsTab from './StationsTab';
+import ResguardosTab from './ResguardosTab';
 
-type Tab = 'basins' | 'sub-basins' | 'stations';
+type Tab = 'basins' | 'sub-basins' | 'stations' | 'resguardos';
 
 const TAB_LABELS: Record<Tab, string> = {
     basins: 'Cuencas',
     'sub-basins': 'Subcuencas',
     stations: 'Estaciones',
+    resguardos: 'Resguardos',
 };
 
 export default function HydroPanel() {
@@ -24,11 +26,11 @@ export default function HydroPanel() {
                     </div>
                     <div>
                         <h1 className="text-lg font-semibold text-slate-100">Hidrologia</h1>
-                        <p className="text-xs text-slate-400">Gestion de cuencas, subcuencas y estaciones</p>
+                        <p className="text-xs text-slate-400">Gestion de cuencas, subcuencas, estaciones y resguardos</p>
                     </div>
                 </div>
                 <div className="flex gap-1">
-                    {(['basins', 'sub-basins', 'stations'] as Tab[]).map((tab) => (
+                    {(['basins', 'sub-basins', 'stations', 'resguardos'] as Tab[]).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -47,6 +49,7 @@ export default function HydroPanel() {
                 {activeTab === 'basins' && <BasinsTab />}
                 {activeTab === 'sub-basins' && <SubBasinsTab />}
                 {activeTab === 'stations' && <StationsTab />}
+                {activeTab === 'resguardos' && <ResguardosTab />}
             </div>
         </div>
     );
