@@ -53,7 +53,10 @@ export class GetResguardoByDateMapper {
         return {
             stationCode: result.stationCode,
             stationName: result.stationName,
-            entry: result.entry,
+            date: result.date,
+            original: result.original,
+            edited: result.edited,
+            resolved: result.resolved,
         };
     }
 }

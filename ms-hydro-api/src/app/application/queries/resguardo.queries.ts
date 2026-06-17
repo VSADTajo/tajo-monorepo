@@ -8,6 +8,7 @@ import { StationResguardo } from '@domain/entities/station-resguardo.entity';
 import {
     GetResguardoByDateResult,
     GetResguardosByStationResult,
+    RawResguardoValues,
     ResolvedResguardoEntry,
 } from '@domain/results/resguardo.results';
 
@@ -133,10 +134,25 @@ export class GetResguardoByDateHandler implements IQueryHandler<GetResguardoByDa
             );
         }
 
+        const original: RawResguardoValues = {
+            reserveVolume: resguardo.originalReserveVolume,
+            reserveLevel: resguardo.originalReserveLevel,
+            minimumVolume: resguardo.originalMinimumVolume,
+        };
+
+        const edited: RawResguardoValues = {
+            reserveVolume: resguardo.reserveVolume,
+            reserveLevel: resguardo.reserveLevel,
+            minimumVolume: resguardo.minimumVolume,
+        };
+
         return new GetResguardoByDateResult({
             stationCode: station.stationCode,
             stationName: station.name,
-            entry: resolveEntry(resguardo),
+            date: resguardo.date,
+            original,
+            edited,
+            resolved: resolveEntry(resguardo),
         });
     }
 }

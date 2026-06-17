@@ -54,15 +54,34 @@ export class GetResguardosByStationResult {
 // GetResguardoByDate
 // ─────────────────────────────────────────────────────────────
 
+export interface RawResguardoValues {
+    reserveVolume: number | null;
+    reserveLevel: number | null;
+    minimumVolume: number | null;
+}
+
 export class GetResguardoByDateResult {
     readonly stationCode: string;
     readonly stationName: string;
-    readonly entry: ResolvedResguardoEntry;
+    readonly date: string;
+    readonly original: RawResguardoValues;
+    readonly edited: RawResguardoValues;
+    readonly resolved: ResolvedResguardoEntry;
 
-    constructor(params: { stationCode: string; stationName: string; entry: ResolvedResguardoEntry }) {
+    constructor(params: {
+        stationCode: string;
+        stationName: string;
+        date: string;
+        original: RawResguardoValues;
+        edited: RawResguardoValues;
+        resolved: ResolvedResguardoEntry;
+    }) {
         this.stationCode = params.stationCode;
         this.stationName = params.stationName;
-        this.entry = params.entry;
+        this.date = params.date;
+        this.original = params.original;
+        this.edited = params.edited;
+        this.resolved = params.resolved;
     }
 }
 
