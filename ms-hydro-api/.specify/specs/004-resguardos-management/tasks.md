@@ -28,8 +28,8 @@
 - [~] **T015**: ❌ NO NECESARIA (ver T001). La invalidación `delByPattern('resguardo:*')` del `UpdateResguardoHandler` ya cubre la clave by-date.
   - File: `/home/tony/proyectos/tajo-monorepo/ms-hydro-api/src/app/application/commands/resguardo.commands.ts`
 - [x] **T016**: Verificar que T010 pasa: `cd ms-hydro-api && npm run test:e2e -- --testPathPattern=get-resguardo-by-date`
-- [x] **T017**: Actualizar contrato público en doc del servicio si corresponde (nuevo shape del by-date). ✅ NO aplica: el contrato del by-date no estaba documentado en CLAUDE.md ni en ningún README de resguardos.
-  - File: `/home/tony/proyectos/tajo-monorepo/ms-hydro-api/CLAUDE.md` (o README de resguardos si existe)
+- [x] **T017**: Documentado el contrato del by-date en `ms-hydro-api/docs/resguardos.md` (endpoints + shape original/edited/resolved + cache + invalidación).
+  - File: `/home/tony/proyectos/tajo-monorepo/ms-hydro-api/docs/resguardos.md`
 
 ## Phase 2: Frontend — Tab Resguardos en el backoffice (`ms-logs-api/ui`)
 
