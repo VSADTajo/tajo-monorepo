@@ -59,6 +59,17 @@ export class GetResguardosByStationResponseDto {
     total: number;
 }
 
+export class RawResguardoValuesDto {
+    @ApiProperty({ description: 'Reserve volume (Hm3)', example: 802.563, nullable: true })
+    reserveVolume: number | null;
+
+    @ApiProperty({ description: 'Reserve level (m)', example: 718, nullable: true })
+    reserveLevel: number | null;
+
+    @ApiProperty({ description: 'Minimum volume (Hm3)', example: 51.15, nullable: true })
+    minimumVolume: number | null;
+}
+
 export class GetResguardoByDateResponseDto {
     @ApiProperty({ description: 'Station code', example: 'E_01' })
     stationCode: string;
@@ -66,8 +77,17 @@ export class GetResguardoByDateResponseDto {
     @ApiProperty({ description: 'Station name', example: 'ENTREPEÑAS' })
     stationName: string;
 
-    @ApiProperty({ description: 'Resolved resguardo values', type: ResolvedResguardoEntryDto })
-    entry: ResolvedResguardoEntryDto;
+    @ApiProperty({ description: 'Date (YYYY-MM-DD)', example: '2025-10-01' })
+    date: string;
+
+    @ApiProperty({ description: 'Original (immutable) resguardo values', type: RawResguardoValuesDto })
+    original: RawResguardoValuesDto;
+
+    @ApiProperty({ description: 'Edited resguardo values (nullable per field)', type: RawResguardoValuesDto })
+    edited: RawResguardoValuesDto;
+
+    @ApiProperty({ description: 'Resolved values (edited ?? original per field)', type: ResolvedResguardoEntryDto })
+    resolved: ResolvedResguardoEntryDto;
 }
 
 // ─────────────────────────────────────────────────────────────

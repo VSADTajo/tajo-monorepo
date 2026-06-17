@@ -48,6 +48,25 @@ import { cleanDatabase } from '../../helpers/db.helper';
 import { buildCreateBasinDto } from '../../factories/basin.factory';
 import { buildCreateSubBasinDto } from '../../factories/sub-basin.factory';
 import { buildCreateStationDto } from '../../factories/station.factory';
+import { buildResguardoXlsBuffer, ResguardoXlsRow } from '../../factories/resguardo-xls.factory';
+
+/**
+ * Maps a 1-based day-in-October to a hydrological date string and the expected ISO date.
+ * day=1 → dateStr='1oct', isoDate='2025-10-01'
+ */
+function octEntry(dayOfMonth: number): { dateStr: string; isoDate: string; vol: number; cota: number; volMin: number } {
+    const vol = 800 + (dayOfMonth - 1) * 10;
+    const cota = 700 + (dayOfMonth - 1);
+    const volMin = 50 + (dayOfMonth - 1);
+    const day = String(dayOfMonth).padStart(2, '0');
+    return {
+        dateStr: `${dayOfMonth}oct`,
+        isoDate: `2025-10-${day}`,
+        vol,
+        cota,
+        volMin,
+    };
+}
 
 describe('Resguardos (e2e)', () => {
     let app: INestApplication;
@@ -99,6 +118,11 @@ describe('Resguardos (e2e)', () => {
 
     // ─── Helpers ──────────────────────────────────────────────
 
+    /**
+     * Creates basin → sub-basin → EMBALSE_SAIH station.
+     * Uses stationCode='E_01' which maps to 'ENTREPEÑAS' in EMBALSE_TO_CODE,
+     * enabling the XLS import to resolve the station.
+     */
     async function setupEmbalseStation(): Promise<{ stationCode: string }> {
         const basinDto = buildCreateBasinDto();
         const { body: basin } = await request(app.getHttpServer())
@@ -112,7 +136,7 @@ describe('Resguardos (e2e)', () => {
             .send(subBasinDto)
             .expect(HttpStatus.CREATED);
 
-        const stationCode = `E_${Date.now().toString().slice(-2)}`;
+        const stationCode = 'E_01';
         const stationDto = buildCreateStationDto(subBasin.id, {
             stationCode,
             stationType: 'EMBALSE_SAIH',
@@ -122,28 +146,31 @@ describe('Resguardos (e2e)', () => {
         return { stationCode };
     }
 
+    /**
+     * Seeds N resguardo rows via POST /resguardos/import (multipart XLS).
+     * Generates October dates 2025-10-01, 2025-10-02, ... for count days.
+     * Original values follow the same formula as the old seed helper:
+     *   vol = 800 + i*10, cota = 700 + i, volMin = 50 + i (i = 0-based index)
+     */
     async function seedResguardos(stationCode: string, count: number = 3): Promise<void> {
-        const repo = dataSource.getRepository(StationResguardo);
-        const stationRepo = dataSource.getRepository(Station);
-        const station = await stationRepo.findOneOrFail({ where: { stationCode } });
-
-        const entities: Partial<StationResguardo>[] = [];
+        const xlsRows: ResguardoXlsRow[] = [];
         for (let i = 0; i < count; i++) {
-            const day = String(i + 1).padStart(2, '0');
-            entities.push({
-                stationId: station.id,
-                date: `2025-10-${day}`,
-                organismo: 'EXPLOTACION' as any,
-                originalReserveVolume: 800 + i * 10,
-                originalReserveLevel: 700 + i,
-                originalMinimumVolume: 50 + i,
-                reserveVolume: null,
-                reserveLevel: null,
-                minimumVolume: null,
+            const entry = octEntry(i + 1);
+            xlsRows.push({
+                embalseName: 'ENTREPEÑAS',
+                dateStr: entry.dateStr,
+                vol: entry.vol,
+                cota: entry.cota,
+                volMin: entry.volMin,
             });
         }
 
-        await repo.save(entities.map((e) => repo.create(e)));
+        const buffer = buildResguardoXlsBuffer(xlsRows);
+
+        await request(app.getHttpServer())
+            .post('/resguardos/import?baseYear=2025')
+            .attach('file', buffer, 'resguardos.xlsx')
+            .expect(HttpStatus.CREATED);
     }
 
     function getResguardosByStation(stationCode: string, query?: Record<string, string | number>) {
@@ -204,17 +231,28 @@ describe('Resguardos (e2e)', () => {
     });
 
     describe('GET /resguardos/:stationCode/:date', () => {
-        it('should return resolved values for a single date', async () => {
+        it('should return original, edited and resolved values for a single date', async () => {
             const { stationCode } = await setupEmbalseStation();
             await seedResguardos(stationCode, 3);
 
             const { body } = await getResguardoByDate(stationCode, '2025-10-02').expect(HttpStatus.OK);
 
             expect(body.stationCode).toBe(stationCode);
-            expect(body.entry).toMatchObject({
+            expect(body.date).toBe('2025-10-02');
+            expect(body.resolved).toMatchObject({
                 minimumVolume: 51,
                 reserveVolume: 810,
                 reserveLevel: 701,
+            });
+            expect(body.original).toMatchObject({
+                minimumVolume: 51,
+                reserveVolume: 810,
+                reserveLevel: 701,
+            });
+            expect(body.edited).toMatchObject({
+                reserveVolume: null,
+                reserveLevel: null,
+                minimumVolume: null,
             });
         });
 
