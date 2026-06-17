@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { TOKEN_KEY } from '../../api/auth';
-import type { Basin, SubBasin, Station } from '../../types/hydro';
+import type { Basin, SubBasin, Station, ResguardosByStation, ResguardoByDate, RawResguardoValues } from '../../types/hydro';
 
 const GATEWAY_URL = import.meta.env.VITE_URL_API_GATEWAY || 'http://65.21.97.113';
 
@@ -120,4 +120,24 @@ export async function deleteStation(id: string) {
 export async function updateThreshold(id: string, payload: Record<string, number | string | null>) {
     const { data } = await gatewayClient.put(`/stations/${id}/threshold`, payload);
     return data;
+}
+
+// ── Resguardos ────────────────────────────────────────────────
+
+export async function getResguardosByStation(stationCode: string, filters?: { from?: string; to?: string }) {
+    const params: Record<string, string> = {};
+    if (filters?.from) params.from = filters.from;
+    if (filters?.to) params.to = filters.to;
+    const { data } = await gatewayClient.get(`/resguardos/${stationCode}`, { params });
+    return data as ResguardosByStation;
+}
+
+export async function getResguardoByDate(stationCode: string, date: string) {
+    const { data } = await gatewayClient.get(`/resguardos/${stationCode}/${date}`);
+    return data as ResguardoByDate;
+}
+
+export async function updateResguardo(stationCode: string, date: string, payload: RawResguardoValues) {
+    const { data } = await gatewayClient.put(`/resguardos/${stationCode}/${date}`, payload);
+    return data as { entry: RawResguardoValues };
 }
