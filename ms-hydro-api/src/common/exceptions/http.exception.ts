@@ -42,8 +42,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
             errorDescription = exception.message;
         }
 
+        const requestPath = (request.url ?? '').split('?')[0];
+        const pathSegments = requestPath.split('/').filter(Boolean);
+        const domain = (pathSegments[0] === 'api' ? pathSegments[1] : pathSegments[0]) ?? 'root';
+
         const logPayload = {
             msg: errorDescription,
+            entity: domain,
             type:
                 exception instanceof ApiError
                     ? 'ApiError'
