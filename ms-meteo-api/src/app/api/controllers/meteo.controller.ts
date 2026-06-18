@@ -218,6 +218,8 @@ export class MeteoController {
             entity: 'MeteoSync',
             provider: dto.provider,
             variable: dto.variable ?? 'all',
+            from: dto.from,
+            to: dto.to,
         });
 
         try {
