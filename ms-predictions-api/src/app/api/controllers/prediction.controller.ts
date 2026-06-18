@@ -50,7 +50,7 @@ export class PredictionController {
         response: { status: 200, type: AvailableDatesResponseDto, description: 'Available dates with optional detail' },
     })
     async getAvailableDates(@Query() dto: AvailableDatesQueryDto): Promise<AvailableDatesResponseDto> {
-        this.logger.log(`Get available dates request: ${JSON.stringify(dto)}`);
+        this.logger.log({ msg: 'Get available dates request', entity: 'Predictions', filters: dto });
         try {
             if (dto.stationId) {
                 const query = SimulationDatesByStationMapper.toQuery(dto.stationId, dto.predictionType);
@@ -122,7 +122,7 @@ export class PredictionController {
         response: { status: 200, type: ForecastPredictionsResponseDto, description: 'Forecast predictions' },
     })
     async getForecast(@Query() dto: ForecastPredictionsQueryDto): Promise<ForecastPredictionsResponseDto> {
-        this.logger.log(`Get forecast predictions request: ${JSON.stringify(dto)}`);
+        this.logger.log({ msg: 'Get forecast predictions request', entity: 'Predictions', filters: dto });
         try {
             const query = ForecastPredictionsMapper.toQuery(dto);
             const result = await this.cachingQueryBus.execute<LegacyPredictionsResult>(query);
@@ -147,7 +147,7 @@ export class PredictionController {
         },
     })
     async getHistorical(@Query() dto: HistoricalPredictionsQueryDto): Promise<HistoricalPredictionsResponseDto> {
-        this.logger.log(`Reconstruct historical timeline request: ${JSON.stringify(dto)}`);
+        this.logger.log({ msg: 'Reconstruct historical timeline request', entity: 'Predictions', filters: dto });
         try {
             const query = HistoricalPredictionsMapper.toQuery(dto);
             const result = await this.cachingQueryBus.execute<HistoricalPredictionsResult>(query);

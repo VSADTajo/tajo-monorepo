@@ -12,12 +12,12 @@ export class ExampleConsumer {
     ) {}
 
     @MessagePattern(Queues.EXAMPLE_PROCESSING)
-    async handleExampleMessage(@Payload() data: unknown, @Ctx() context: RmqContext): Promise<void> {
+    async handleExampleMessage(@Payload() _data: unknown, @Ctx() context: RmqContext): Promise<void> {
         const channel = context.getChannelRef();
         const originalMsg = context.getMessage();
 
         try {
-            this.logger.log(`Processing message from queue "${Queues.EXAMPLE_PROCESSING}": ${JSON.stringify(data)}`);
+            this.logger.log({ msg: 'Processing message', entity: 'MessageConsumer', queue: Queues.EXAMPLE_PROCESSING });
 
             // TODO: Replace with actual processing logic
             // e.g., await this.commandBus.execute(new SomeCommand(data));

@@ -42,7 +42,7 @@ export class HttpService implements IHttpService {
     }
 
     async request<T>(config: AxiosRequestConfig): Promise<T> {
-        this.logger.debug(`Making request to: ${config.url} - ${JSON.stringify(config?.data)}`);
+        this.logger.debug(`Making request to: ${config.url}`);
         const response = await axios.request<T>(config);
         return response.data;
     }
