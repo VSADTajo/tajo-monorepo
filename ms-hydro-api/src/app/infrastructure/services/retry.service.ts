@@ -29,7 +29,7 @@ export class RetryService implements IRetryService {
                     });
                     throw new RetryError('Task failed after all attempts');
                 }
-                this.logger.warn(`Task failed on attempt ${attempt}, retrying...`);
+                this.logger.warn({ msg: 'Task failed, retrying', entity: 'Retry', attempt });
             }
         }
 

@@ -85,7 +85,7 @@ export class RoleController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error deleting role: ${error}`);
+            this.logger.error({ msg: 'Error deleting role', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -113,7 +113,7 @@ export class RoleController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error creating role: ${error}`);
+            this.logger.error({ msg: 'Error creating role', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -132,7 +132,7 @@ export class RoleController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error listing roles: ${error}`);
+            this.logger.error({ msg: 'Error listing roles', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -159,7 +159,7 @@ export class RoleController {
             return GetBulkPermissionsMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error getting bulk permissions: ${error}`);
+            this.logger.error({ msg: 'Error getting bulk permissions', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -186,7 +186,7 @@ export class RoleController {
         } catch (error) {
             if (error instanceof EntityError) throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error syncing permissions: ${error}`);
+            this.logger.error({ msg: 'Error syncing permissions', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -206,7 +206,7 @@ export class RoleController {
             return GetRolePermissionsMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error getting permissions: ${error}`);
+            this.logger.error({ msg: 'Error getting permissions', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -238,7 +238,7 @@ export class RoleController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error assigning role to user: ${error}`);
+            this.logger.error({ msg: 'Error assigning role to user', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -258,7 +258,7 @@ export class RoleController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting user roles: ${error}`);
+            this.logger.error({ msg: 'Error getting user roles', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -282,7 +282,7 @@ export class RoleController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error removing role from user: ${error}`);
+            this.logger.error({ msg: 'Error removing role from user', entity: 'Role', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

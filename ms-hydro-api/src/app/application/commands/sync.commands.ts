@@ -111,7 +111,7 @@ export class SyncGeoserverHandler implements ICommandHandler<SyncGeoserverComman
                 const basin = basinCodeMap.get(basinCode);
 
                 if (!basin) {
-                    this.logger.warn(`Skipping sub-basin "${subcuenca.code}" — basin "${basinCode}" not found`);
+                    this.logger.warn({ msg: 'Skipping sub-basin — basin not found', entity: 'Sync', subBasin: subcuenca.code, basinCode });
                     continue;
                 }
 
@@ -239,7 +239,7 @@ export class SyncGeoserverHandler implements ICommandHandler<SyncGeoserverComman
             try {
                 const station = await this.stationRepository.findByStationCode(geoThreshold.codigo);
                 if (!station) {
-                    this.logger.warn(`Threshold for "${geoThreshold.codigo}" skipped — station not found`);
+                    this.logger.warn({ msg: 'Threshold skipped — station not found', entity: 'Sync', threshold: geoThreshold.codigo });
                     continue;
                 }
 

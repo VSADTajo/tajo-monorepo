@@ -84,7 +84,7 @@ export class ResguardoController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error importing resguardos: ${error}`);
+            this.logger.error({ msg: 'Error importing resguardos', entity: 'Resguardo', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -109,7 +109,7 @@ export class ResguardoController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting resguardos: ${error}`);
+            this.logger.error({ msg: 'Error getting resguardos', entity: 'Resguardo', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -134,7 +134,7 @@ export class ResguardoController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting resguardo by date: ${error}`);
+            this.logger.error({ msg: 'Error getting resguardo by date', entity: 'Resguardo', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -167,7 +167,7 @@ export class ResguardoController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error updating resguardo: ${error}`);
+            this.logger.error({ msg: 'Error updating resguardo', entity: 'Resguardo', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

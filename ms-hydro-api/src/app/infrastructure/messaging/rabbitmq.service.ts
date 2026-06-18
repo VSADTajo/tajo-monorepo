@@ -43,7 +43,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
             });
 
             this.connection.on('close', () => {
-                this.logger.warn('RabbitMQ connection closed');
+                this.logger.warn({ msg: 'RabbitMQ connection closed', entity: 'Messaging' });
                 this.channel = null;
                 this.connection = null;
                 this.assertedQueues.clear();
@@ -63,7 +63,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
             if (this.connection) await this.connection.close();
             this.logger.log('RabbitMQ disconnected');
         } catch (error) {
-            this.logger.warn(`RabbitMQ disconnect error: ${error}`);
+            this.logger.warn({ msg: 'RabbitMQ disconnect error', entity: 'Messaging', error: String(error) });
         }
     }
 
@@ -91,7 +91,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
 
     async publish<T>(queue: string, message: T): Promise<void> {
         if (!this.rabbitmqConfig.enabled) {
-            this.logger.warn(`RabbitMQ is disabled — message to queue "${queue}" was discarded`);
+            this.logger.warn({ msg: 'RabbitMQ is disabled — message discarded', entity: 'Messaging', queue });
             return;
         }
 
@@ -110,7 +110,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
 
     async publishToTopic<T>(exchange: string, routingKey: string, message: T): Promise<void> {
         if (!this.rabbitmqConfig.enabled) {
-            this.logger.warn(`RabbitMQ is disabled — message to exchange "${exchange}" [${routingKey}] was discarded`);
+            this.logger.warn({ msg: 'RabbitMQ is disabled — message discarded', entity: 'Messaging', exchange, routingKey });
             return;
         }
 

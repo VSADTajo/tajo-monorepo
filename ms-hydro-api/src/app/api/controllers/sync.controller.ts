@@ -38,7 +38,7 @@ export class SyncController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error syncing GeoServer: ${error}`);
+            this.logger.error({ msg: 'Error syncing GeoServer', entity: 'GeoServerSync', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

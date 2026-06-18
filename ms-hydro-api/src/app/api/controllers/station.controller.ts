@@ -90,7 +90,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error creating station: ${error}`);
+            this.logger.error({ msg: 'Error creating station', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -110,7 +110,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error listing stations: ${error}`);
+            this.logger.error({ msg: 'Error listing stations', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -131,7 +131,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting station by code: ${error}`);
+            this.logger.error({ msg: 'Error getting station by code', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -152,7 +152,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting station: ${error}`);
+            this.logger.error({ msg: 'Error getting station', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -176,7 +176,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting station by sub-basin name: ${error}`);
+            this.logger.error({ msg: 'Error getting station by sub-basin name', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -208,7 +208,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error updating station: ${error}`);
+            this.logger.error({ msg: 'Error updating station', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -229,7 +229,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error toggling station: ${error}`);
+            this.logger.error({ msg: 'Error toggling station', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -260,7 +260,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error updating threshold: ${error}`);
+            this.logger.error({ msg: 'Error updating threshold', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -281,7 +281,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting threshold: ${error}`);
+            this.logger.error({ msg: 'Error getting threshold', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -302,7 +302,7 @@ export class StationController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error deleting station: ${error}`);
+            this.logger.error({ msg: 'Error deleting station', entity: 'Station', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

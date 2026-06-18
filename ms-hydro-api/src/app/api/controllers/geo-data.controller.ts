@@ -44,7 +44,7 @@ export class GeoDataController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error searching geo data: ${error}`);
+            this.logger.error({ msg: 'Error searching geo data', entity: 'GeoData', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

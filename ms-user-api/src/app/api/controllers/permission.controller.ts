@@ -45,7 +45,7 @@ export class PermissionController {
             return ListPermissionsMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error listing permissions: ${error}`);
+            this.logger.error({ msg: 'Error listing permissions', entity: 'Permission', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -69,7 +69,7 @@ export class PermissionController {
         } catch (error) {
             if (error instanceof EntityError) throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error creating permission: ${error}`);
+            this.logger.error({ msg: 'Error creating permission', entity: 'Permission', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -88,7 +88,7 @@ export class PermissionController {
             return SyncPermissionsMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error syncing permissions: ${error}`);
+            this.logger.error({ msg: 'Error syncing permissions', entity: 'Permission', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -108,7 +108,7 @@ export class PermissionController {
             await this.commandBus.execute(new DeletePermissionCommand({ permissionId: id }));
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error deleting permission: ${error}`);
+            this.logger.error({ msg: 'Error deleting permission', entity: 'Permission', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

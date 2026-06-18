@@ -92,7 +92,7 @@ export class UserController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error listing users: ${error}`);
+            this.logger.error({ msg: 'Error listing users', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -116,7 +116,7 @@ export class UserController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting user by email: ${error}`);
+            this.logger.error({ msg: 'Error getting user by email', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -139,7 +139,7 @@ export class UserController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting user status: ${error}`);
+            this.logger.error({ msg: 'Error getting user status', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -163,7 +163,7 @@ export class UserController {
                 throw new HttpException(error.message, error.statusCode);
             }
 
-            this.logger.error(`Error getting user: ${error}`);
+            this.logger.error({ msg: 'Error getting user', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -192,7 +192,7 @@ export class UserController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error registering user: ${error}`);
+            this.logger.error({ msg: 'Error registering user', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -217,7 +217,7 @@ export class UserController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error updating password: ${error}`);
+            this.logger.error({ msg: 'Error updating password', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -247,7 +247,7 @@ export class UserController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error updating user: ${error}`);
+            this.logger.error({ msg: 'Error updating user', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -271,7 +271,7 @@ export class UserController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error deleting user: ${error}`);
+            this.logger.error({ msg: 'Error deleting user', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -291,7 +291,7 @@ export class UserController {
             return GetUserGroupsMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error getting user groups: ${error}`);
+            this.logger.error({ msg: 'Error getting user groups', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -318,7 +318,7 @@ export class UserController {
             return AssignGroupToUserMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error assigning group to user: ${error}`);
+            this.logger.error({ msg: 'Error assigning group to user', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -339,7 +339,7 @@ export class UserController {
             return { message: result.message };
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error removing group from user: ${error}`);
+            this.logger.error({ msg: 'Error removing group from user', entity: 'User', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

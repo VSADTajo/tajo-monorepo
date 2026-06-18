@@ -82,7 +82,7 @@ export class SubBasinController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error creating sub-basin: ${error}`);
+            this.logger.error({ msg: 'Error creating sub-basin', entity: 'SubBasin', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -102,7 +102,7 @@ export class SubBasinController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error listing sub-basins: ${error}`);
+            this.logger.error({ msg: 'Error listing sub-basins', entity: 'SubBasin', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -123,7 +123,7 @@ export class SubBasinController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error getting sub-basin: ${error}`);
+            this.logger.error({ msg: 'Error getting sub-basin', entity: 'SubBasin', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -155,7 +155,7 @@ export class SubBasinController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error updating sub-basin: ${error}`);
+            this.logger.error({ msg: 'Error updating sub-basin', entity: 'SubBasin', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -176,7 +176,7 @@ export class SubBasinController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error toggling sub-basin: ${error}`);
+            this.logger.error({ msg: 'Error toggling sub-basin', entity: 'SubBasin', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -197,7 +197,7 @@ export class SubBasinController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error deleting sub-basin: ${error}`);
+            this.logger.error({ msg: 'Error deleting sub-basin', entity: 'SubBasin', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

@@ -45,7 +45,7 @@ export class GroupController {
             return ListGroupsMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error listing groups: ${error}`);
+            this.logger.error({ msg: 'Error listing groups', entity: 'Group', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -69,7 +69,7 @@ export class GroupController {
         } catch (error) {
             if (error instanceof EntityError) throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error creating group: ${error}`);
+            this.logger.error({ msg: 'Error creating group', entity: 'Group', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -86,7 +86,7 @@ export class GroupController {
             await this.commandBus.execute(new DeleteGroupCommand({ groupId: id }));
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error deleting group: ${error}`);
+            this.logger.error({ msg: 'Error deleting group', entity: 'Group', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -111,7 +111,7 @@ export class GroupController {
             return AssignRoleToGroupMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error assigning role to group: ${error}`);
+            this.logger.error({ msg: 'Error assigning role to group', entity: 'Group', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -132,7 +132,7 @@ export class GroupController {
             return { message: result.message };
         } catch (error) {
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
-            this.logger.error(`Error removing role from group: ${error}`);
+            this.logger.error({ msg: 'Error removing role from group', entity: 'Group', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
