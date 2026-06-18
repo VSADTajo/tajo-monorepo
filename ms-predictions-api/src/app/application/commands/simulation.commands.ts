@@ -37,7 +37,7 @@ export class FinalizeSimulationHandler implements ICommandHandler<FinalizeSimula
     ) {}
 
     async execute(command: FinalizeSimulationCommand): Promise<Simulation> {
-        this.logger.log(`Finalizing simulation: ${command.id}`);
+        this.logger.log({ msg: 'Finalizing simulation', entity: 'Simulations', simulationId: command.id });
 
         // 1. Find simulation by id
         let simulation: Simulation;
@@ -128,9 +128,12 @@ export class BatchIngestHandler implements ICommandHandler<BatchIngestCommand, B
 
     async execute(command: BatchIngestCommand): Promise<BatchIngestResult> {
         const startTime = Date.now();
-        this.logger.log(
-            `Batch ingest: simulationDate=${command.simulationDate}, predictions=${command.predictions.length}`,
-        );
+        this.logger.log({
+            msg: 'Batch ingest started',
+            entity: 'Simulations',
+            simulationDate: command.simulationDate,
+            totalPredictions: command.predictions.length,
+        });
 
         // 1. Validate simulation date
         const simDateVO = new SimulationDateValueObject(command.simulationDate);

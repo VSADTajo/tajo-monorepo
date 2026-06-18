@@ -63,7 +63,7 @@ export class LoginUserHandler implements ICommandHandler<LoginUserCommand, Login
     ) {}
 
     async execute(command: LoginUserCommand): Promise<LoginUserResult> {
-        this.logger.log(`Login attempt for email: ${command.email}`);
+        this.logger.log({ msg: 'Login attempt', entity: 'Auth' });
         const correlationId = command.correlationId ?? randomUUID();
 
         // 1. Fetch user from user-api by email (pass same x-correlation-id for tracing)
@@ -75,7 +75,7 @@ export class LoginUserHandler implements ICommandHandler<LoginUserCommand, Login
         // 2. Compare password
         const isPasswordValid = await bcrypt.compare(command.password, user.password);
         if (!isPasswordValid) {
-            this.logger.warn({ msg: 'Login failed: invalid credentials', entity: 'Auth', email: command.email });
+            this.logger.warn({ msg: 'Login failed: invalid credentials', entity: 'Auth', userId: user.id });
             throw new ApiError(HttpStatus.UNAUTHORIZED, 'Invalid credentials');
         }
 
@@ -145,7 +145,7 @@ export class RegisterUserHandler implements ICommandHandler<RegisterUserCommand,
     ) {}
 
     async execute(command: RegisterUserCommand): Promise<RegisterUserResult> {
-        this.logger.log(`Register attempt for email: ${command.email}`);
+        this.logger.log({ msg: 'Register attempt', entity: 'Auth' });
         const correlationId = command.correlationId ?? randomUUID();
 
         // 1. Check if user with this email already exists
@@ -383,7 +383,7 @@ export class ChangePasswordHandler implements ICommandHandler<ChangePasswordComm
     ) {}
 
     async execute(command: ChangePasswordCommand): Promise<ChangePasswordResult> {
-        this.logger.log(`Change password attempt for email: ${command.email}`);
+        this.logger.log({ msg: 'Change password attempt', entity: 'Auth' });
         const correlationId = command.correlationId ?? randomUUID();
 
         // 1. Fetch user from user-api by email (pass same x-correlation-id for tracing)
@@ -398,7 +398,7 @@ export class ChangePasswordHandler implements ICommandHandler<ChangePasswordComm
             this.logger.warn({
                 msg: 'Password change failed: incorrect password',
                 entity: 'Auth',
-                email: command.email,
+                userId: user.id,
             });
             throw new ApiError(HttpStatus.UNAUTHORIZED, 'Current password is incorrect');
         }

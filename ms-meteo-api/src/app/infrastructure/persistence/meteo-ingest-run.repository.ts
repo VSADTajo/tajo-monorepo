@@ -34,8 +34,9 @@ export class MeteoIngestRunRepository extends IMeteoIngestRunRepository {
             return await this.repo.save(run);
         } catch (error) {
             this.logger.error({
-                msg: `Failed to update meteo_ingest_run ${run.id}`,
+                msg: 'Failed to update meteo_ingest_run',
                 entity: 'MeteoSync',
+                runId: run.id,
                 error: (error as Error).message,
             });
             throw new RepositoryError('Failed to update meteo ingest run', error as Error);

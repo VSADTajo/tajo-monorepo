@@ -40,18 +40,26 @@ export class PurgeOldSimulationsHandler implements ICommandHandler<
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - command.retentionDays);
 
-        this.logger.log(
-            `Purging simulations older than ${cutoffDate.toISOString()} (${command.retentionDays} days retention)`,
-        );
+        this.logger.log({
+            msg: 'Purging old simulations',
+            entity: 'Simulations',
+            cutoffDate: cutoffDate.toISOString(),
+            retentionDays: command.retentionDays,
+        });
 
         const deletedCount = await this.simulationRepository.deleteOlderThan(cutoffDate);
 
         if (deletedCount > 0) {
             await this.cacheService.delByPattern(SimulationCacheKeys.pattern());
             await this.cacheService.delByPattern(PredictionCacheKeys.pattern());
-            this.logger.log(`Purged ${deletedCount} old simulations and invalidated cache`);
+            this.logger.log({
+                msg: 'Old simulations purged',
+                entity: 'Simulations',
+                deletedCount,
+                cacheInvalidated: true,
+            });
         } else {
-            this.logger.log('No old simulations to purge');
+            this.logger.log({ msg: 'No simulations to purge', entity: 'Simulations', deletedCount: 0 });
         }
 
         return { deletedCount };

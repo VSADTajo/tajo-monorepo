@@ -230,7 +230,7 @@ export class LocalFileStorageService extends IFileStorageService {
             case 'ENOSPC':
                 throw new ApiError(500, 'Disk full: unable to complete operation');
             default:
-                this.logger.error(`Filesystem error: ${fsError.message}`, fsError.stack);
+                this.logger.error({ msg: 'Filesystem error', entity: 'Storage', error: fsError.message, code: fsError.code });
                 throw new ProviderError(`Storage operation failed: ${fsError.message}`);
         }
     }

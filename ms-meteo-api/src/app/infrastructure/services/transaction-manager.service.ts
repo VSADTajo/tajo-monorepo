@@ -18,7 +18,12 @@ export class TransactionManagerService implements ITransactionManagerService {
                 return operation(entityManager);
             });
         } catch (error) {
-            this.logger.error(`Error executing transaction: ${error}`);
+            this.logger.error({
+                msg: 'Transaction execution failed',
+                entity: 'Database',
+                error: String(error),
+                stack: (error as Error)?.stack,
+            });
             throw error;
         }
     }

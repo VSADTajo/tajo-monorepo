@@ -194,7 +194,7 @@ export class SftpUserController {
         if (error instanceof ApiError) {
             throw new HttpException(error.message, error.statusCode);
         }
-        this.logger.error(`SFTP user operation error: ${error}`);
+        this.logger.error({ msg: 'SFTP user operation error', entity: 'SFTPUser', error: String(error) });
         throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

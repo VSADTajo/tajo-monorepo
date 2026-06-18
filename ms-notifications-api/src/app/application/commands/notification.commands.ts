@@ -64,7 +64,7 @@ export class CreateNotificationHandler implements ICommandHandler<CreateNotifica
     ) {}
 
     async execute(command: CreateNotificationCommand): Promise<NotificationResult> {
-        this.logger.log(`Creating notification: type=${command.type}, source=${command.source}`);
+        this.logger.log({ msg: 'Creating notification', entity: 'Notifications', type: command.type, source: command.source });
 
         const notification = new Notification({
             type: command.type,

@@ -34,7 +34,13 @@ export class FileTransformerService extends IFileTransformer {
     }
 
     async transform(data: Buffer, schema: MappingSchema): Promise<TransformResult> {
-        this.logger.log(`Transforming file: ${schema.inputFormat} -> ${schema.outputFormat} (${data.length} bytes)`);
+        this.logger.log({
+            msg: 'File transformation started',
+            entity: 'MappingSchema',
+            inputFormat: schema.inputFormat,
+            outputFormat: schema.outputFormat,
+            sizeBytes: data.length,
+        });
 
         // 1. Parse input
         const rows = this.parseInput(data, schema);
@@ -48,7 +54,12 @@ export class FileTransformerService extends IFileTransformer {
             };
         }
 
-        this.logger.log(`Parsed ${rows.length} rows, applying ${schema.fieldMappings.length} field mappings`);
+        this.logger.log({
+            msg: 'File parsed and mapped',
+            entity: 'MappingSchema',
+            rowCount: rows.length,
+            fieldMappingsCount: schema.fieldMappings.length,
+        });
 
         // 2. Format output
         const buffer = await this.formatOutput(rows, schema);

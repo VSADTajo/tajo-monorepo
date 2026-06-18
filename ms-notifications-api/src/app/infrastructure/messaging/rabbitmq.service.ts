@@ -39,7 +39,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
             await this.channel.prefetch(this.rabbitmqConfig.prefetch);
 
             this.connection.on('error', (err: Error) => {
-                this.logger.error({ msg: `RabbitMQ connection error: ${err.message}`, entity: 'Messaging' });
+                this.logger.error({ msg: 'RabbitMQ connection error', entity: 'Messaging', error: err.message });
             });
 
             this.connection.on('close', () => {
@@ -52,7 +52,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
 
             this.logger.debug(`RabbitMQ connected: ${this.rabbitmqConfig.host}:${this.rabbitmqConfig.port}`);
         } catch (error) {
-            this.logger.error({ msg: `RabbitMQ connection failed: ${error}`, entity: 'Messaging' });
+            this.logger.error({ msg: 'RabbitMQ connection failed', entity: 'Messaging', error: String(error) });
             throw new ProviderError(`Failed to connect to RabbitMQ: ${error}`);
         }
     }
@@ -63,7 +63,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
             if (this.connection) await this.connection.close();
             this.logger.log('RabbitMQ disconnected');
         } catch (error) {
-            this.logger.warn({ msg: `RabbitMQ disconnect error: ${error}`, entity: 'Messaging' });
+            this.logger.warn({ msg: 'RabbitMQ disconnect error', entity: 'Messaging', error: String(error) });
         }
     }
 

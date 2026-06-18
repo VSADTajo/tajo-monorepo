@@ -11,15 +11,15 @@ export class NotificationService implements INotificationService {
         private readonly logger: Logger,
     ) {}
 
-    async sendWelcomeEmail(to: string, userName: string): Promise<SendEmailResult> {
-        this.logger.log(`Sending welcome email to ${to} for user ${userName}`);
+    async sendWelcomeEmail(_to: string, _userName: string): Promise<SendEmailResult> {
+        this.logger.log({ msg: 'Sending welcome email', entity: 'Notifications' });
 
         // Mock: simulate external email provider latency
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         const emailId = uuidv4();
 
-        this.logger.log({ msg: 'Welcome email sent', entity: 'Notifications', to, emailId });
+        this.logger.log({ msg: 'Welcome email sent', entity: 'Notifications', emailId });
 
         return {
             emailId,

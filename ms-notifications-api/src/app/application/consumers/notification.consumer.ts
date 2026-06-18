@@ -21,13 +21,20 @@ export class NotificationConsumer {
         const originalMsg = context.getMessage();
 
         try {
-            this.logger.log(`Received notification event: type=${data.type}, source=${data.source}`);
+            this.logger.log({
+                msg: 'Notification event received',
+                entity: 'Notifications',
+                type: data.type,
+                source: data.source,
+            });
 
             if (!data.type || !data.source || !data.title || !data.message || !data.severity) {
                 this.logger.error({
                     msg: 'Invalid notification payload',
                     entity: 'Notifications',
-                    payload: JSON.stringify(data),
+                    missingFields: ['type', 'source', 'title', 'message', 'severity'].filter(
+                        (f) => !(data as Record<string, unknown>)[f],
+                    ),
                 });
                 channel.nack(originalMsg, false, false); // reject without requeue
                 return;

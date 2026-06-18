@@ -23,8 +23,9 @@ export class RetryService implements IRetryService {
             } catch (error: Error | any) {
                 if (attempt === retries) {
                     this.logger.error({
-                        msg: `Task failed after ${retries} attempts`,
+                        msg: 'Task failed after all retry attempts',
                         entity: 'Retry',
+                        attempts: retries,
                         error: error.message,
                     });
                     throw new RetryError('Task failed after all attempts');

@@ -44,7 +44,7 @@ export class MeteoSyncScheduler implements OnModuleInit {
         });
         this.schedulerRegistry.addCronJob(SYNC_JOB_NAME, job);
         job.start();
-        this.logger.log(`Registered meteo sync cron: ${expression}`);
+        this.logger.log({ msg: 'Cron registered', entity: 'MeteoSync', cronName: 'sync', expression });
     }
 
     /**
@@ -66,7 +66,7 @@ export class MeteoSyncScheduler implements OnModuleInit {
         });
         this.schedulerRegistry.addCronJob(RETENTION_JOB_NAME, job);
         job.start();
-        this.logger.log(`Registered meteo retention cron: ${expression}`);
+        this.logger.log({ msg: 'Cron registered', entity: 'MeteoSync', cronName: 'retention', expression });
     }
 
     /** Public so tests can invoke retention directly. */

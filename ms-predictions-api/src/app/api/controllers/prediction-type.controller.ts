@@ -47,7 +47,7 @@ export class PredictionTypeController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error listing prediction types: ${error}`);
+            this.logger.error({ msg: 'Error listing prediction types', entity: 'PredictionType', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -63,7 +63,7 @@ export class PredictionTypeController {
         ],
     })
     async create(@Body() dto: CreatePredictionTypeRequestDto): Promise<CreatePredictionTypeResponseDto> {
-        this.logger.log(`Create prediction type request: name=${dto.name}, unit=${dto.unit}`);
+        this.logger.log({ msg: 'Create prediction type request', entity: 'PredictionType', typeName: dto.name, unit: dto.unit });
         try {
             const command = CreatePredictionTypeMapper.toCommand(dto);
             const result = await this.commandBus.execute<typeof command, PredictionTypeResult>(command);
@@ -75,7 +75,7 @@ export class PredictionTypeController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error creating prediction type: ${error}`);
+            this.logger.error({ msg: 'Error creating prediction type', entity: 'PredictionType', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

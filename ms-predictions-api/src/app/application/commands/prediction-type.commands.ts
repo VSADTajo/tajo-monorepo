@@ -39,7 +39,7 @@ export class CreatePredictionTypeHandler implements ICommandHandler<CreatePredic
     ) {}
 
     async execute(command: CreatePredictionTypeCommand): Promise<PredictionTypeResult> {
-        this.logger.log(`Creating prediction type: name=${command.name}, unit=${command.unit}`);
+        this.logger.log({ msg: 'Creating prediction type', entity: 'PredictionType', typeName: command.name, unit: command.unit });
 
         // 1. Build entity and validate
         const predictionType = new PredictionType({ name: command.name, unit: command.unit });

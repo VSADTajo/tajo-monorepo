@@ -57,7 +57,7 @@ export class AuthController {
         @Body() dto: LoginRequestDto,
         @Headers('x-correlation-id') correlationId?: string,
     ): Promise<LoginResponseDto> {
-        this.logger.log(`Login request for email: ${dto.email}`);
+        this.logger.log({ msg: 'Login request', entity: 'Auth' });
         const command = LoginMapper.toCommand(dto, correlationId);
         try {
             const result = await this.commandBus.execute(command);
@@ -92,7 +92,7 @@ export class AuthController {
         @Body() dto: RegisterRequestDto,
         @Headers('x-correlation-id') correlationId?: string,
     ): Promise<RegisterResponseDto> {
-        this.logger.log(`Register request for email: ${dto.email}`);
+        this.logger.log({ msg: 'Register request', entity: 'Auth' });
         const command = RegisterMapper.toCommand(dto, correlationId);
         try {
             const result = await this.commandBus.execute(command);
@@ -210,7 +210,7 @@ export class AuthController {
         @Body() dto: ChangePasswordRequestDto,
         @Headers('x-correlation-id') correlationId?: string,
     ): Promise<ChangePasswordResponseDto> {
-        this.logger.log(`Change password request for email: ${dto.email}`);
+        this.logger.log({ msg: 'Change password request', entity: 'Auth' });
         const command = ChangePasswordMapper.toCommand(dto, correlationId);
         try {
             const result = await this.commandBus.execute(command);

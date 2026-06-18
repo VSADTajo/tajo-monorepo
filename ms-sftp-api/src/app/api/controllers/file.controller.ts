@@ -219,7 +219,7 @@ export class FileController {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Read file text error: ${error}`);
+            this.logger.error({ msg: 'Failed to read file text', entity: 'File', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -366,7 +366,7 @@ export class FileController {
         if (error instanceof ApiError) {
             throw new HttpException(error.message, error.statusCode);
         }
-        this.logger.error(`File operation error: ${error}`);
+        this.logger.error({ msg: 'File operation error', entity: 'File', error: String(error) });
         throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

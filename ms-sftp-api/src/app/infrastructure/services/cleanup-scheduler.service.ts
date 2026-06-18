@@ -25,13 +25,13 @@ export class CleanupSchedulerService implements ICleanupScheduler, OnModuleInit 
         for (const job of activeJobs) {
             this.scheduleJob(job);
         }
-        this.logger.log(`CleanupSchedulerService: scheduled ${activeJobs.length} active cleanup jobs`);
+        this.logger.log({ msg: 'Cleanup jobs scheduled', entity: 'CleanupJob', jobCount: activeJobs.length });
     }
 
     scheduleJob(job: CleanupJob): void {
         const cronExpression = FREQUENCY_CRON_MAP[job.frequency as CleanupFrequency];
         if (!cronExpression) {
-            this.logger.error(`Invalid frequency for job ${job.id}: ${job.frequency}`);
+            this.logger.error({ msg: 'Invalid cleanup job frequency', entity: 'CleanupJob', jobId: job.id, frequency: job.frequency });
             return;
         }
 
@@ -41,7 +41,7 @@ export class CleanupSchedulerService implements ICleanupScheduler, OnModuleInit 
 
         this.schedulerRegistry.addCronJob(job.id, cronJob);
         cronJob.start();
-        this.logger.log(`Scheduled cleanup job ${job.id} for path ${job.directoryPath} with cron: ${cronExpression}`);
+        this.logger.log({ msg: 'Cleanup job scheduled', entity: 'CleanupJob', jobId: job.id, directoryPath: job.directoryPath, cronExpression });
     }
 
     unscheduleJob(jobId: string): void {
@@ -71,7 +71,7 @@ export class CleanupSchedulerService implements ICleanupScheduler, OnModuleInit 
     }
 
     private async executeCleanup(jobId: string, directoryPath: string, extensions: string[]): Promise<void> {
-        this.logger.log(`Executing cleanup job ${jobId} on ${directoryPath} for extensions: ${extensions.join(', ')}`);
+        this.logger.log({ msg: 'Cleanup job execution started', entity: 'CleanupJob', jobId, directoryPath, extensions: extensions.join(',') });
 
         let filesDeleted = 0;
         let executionError: string | undefined;
@@ -98,7 +98,7 @@ export class CleanupSchedulerService implements ICleanupScheduler, OnModuleInit 
                 }
             }
         } catch (err) {
-            this.logger.error(`Cleanup job ${jobId} failed during file listing: ${err}`);
+            this.logger.error({ msg: 'Cleanup job failed during file listing', entity: 'CleanupJob', jobId, error: String(err) });
             executionError = String(err);
         }
 
@@ -112,9 +112,9 @@ export class CleanupSchedulerService implements ICleanupScheduler, OnModuleInit 
                 await this.cleanupJobRepository.update(job);
             }
         } catch (err) {
-            this.logger.error(`Failed to persist cleanup job ${jobId} execution result: ${err}`);
+            this.logger.error({ msg: 'Failed to persist cleanup job execution result', entity: 'CleanupJob', jobId, error: String(err) });
         }
 
-        this.logger.log(`Cleanup job ${jobId} completed: ${filesDeleted} files deleted`);
+        this.logger.log({ msg: 'Cleanup job completed', entity: 'CleanupJob', jobId, filesDeleted });
     }
 }

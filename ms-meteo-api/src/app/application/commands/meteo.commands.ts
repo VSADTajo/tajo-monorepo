@@ -277,7 +277,7 @@ export class SyncMeteoHandler implements ICommandHandler<SyncMeteoCommand, SyncR
     private async processOne(dataset: DiscoveredDataset, triggeredBy: TriggerSource): Promise<DatasetSyncResult> {
         const release = this.mutex.tryAcquire(dataset.provider, dataset.variable);
         if (!release) {
-            this.logger.log(`Skipping ${this.label(dataset)}: another sync is already running`);
+            this.logger.log({ msg: 'Sync skipped', entity: 'MeteoSync', dataset: this.label(dataset), reason: 'concurrent run' });
             const noopRun = await this.persistNoopRun(dataset, triggeredBy, 'concurrent run already in progress');
             return new DatasetSyncResult(dataset.provider, dataset.variable, IngestStatus.NOOP, 0, 0, noopRun.id);
         }
@@ -318,7 +318,7 @@ export class SyncMeteoHandler implements ICommandHandler<SyncMeteoCommand, SyncR
                 persistedRun.markNoop();
                 persistedRun.validate();
                 await this.runRepository.update(persistedRun);
-                this.logger.log(`${this.label(dataset)}: nothing to do (already published)`);
+                this.logger.log({ msg: 'Sync skipped', entity: 'MeteoSync', dataset: this.label(dataset), reason: 'already published' });
                 return new DatasetSyncResult(
                     dataset.provider,
                     dataset.variable,

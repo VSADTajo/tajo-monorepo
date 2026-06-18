@@ -201,7 +201,7 @@ export class MappingSchemaController {
         if (error instanceof ApiError) {
             throw new HttpException(error.message, error.statusCode);
         }
-        this.logger.error(`Mapping schema operation error: ${error}`);
+        this.logger.error({ msg: 'Mapping schema operation error', entity: 'MappingSchema', error: String(error) });
         throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

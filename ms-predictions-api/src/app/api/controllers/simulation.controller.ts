@@ -191,7 +191,7 @@ export class SimulationController {
         errors: [{ status: 404, description: 'Simulation not found' }],
     })
     async getByDate(@Param('simulationDate') simulationDate: string): Promise<GetSimulationByDateResponseDto> {
-        this.logger.log(`Get simulation by date request: ${simulationDate}`);
+        this.logger.log({ msg: 'Get simulation by date request', entity: 'Simulations', simulationDate });
         try {
             const result = await this.cachingQueryBus.execute<Simulation>(
                 new GetSimulationByDateQuery({ simulationDate }),
@@ -220,7 +220,7 @@ export class SimulationController {
         ],
     })
     async finalize(@Param('id') id: string): Promise<FinalizeSimulationResponseDto> {
-        this.logger.log(`Finalize simulation request: ${id}`);
+        this.logger.log({ msg: 'Finalize simulation request', entity: 'Simulations', simulationId: id });
         try {
             const command = new FinalizeSimulationCommand({ id });
             const result = await this.commandBus.execute(command);

@@ -26,7 +26,7 @@ export class AuthValidationService implements IAuthValidationService {
                 roles: response.data?.roles,
             };
         } catch (error) {
-            this.logger.error(`Auth validation request failed: ${error}`);
+            this.logger.error({ msg: 'Auth validation failed', entity: 'Authentication', error: String(error) });
             throw new ProviderError('Authentication service unavailable');
         }
     }

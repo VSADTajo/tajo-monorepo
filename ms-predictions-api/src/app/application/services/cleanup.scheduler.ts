@@ -28,7 +28,7 @@ export class CleanupScheduler implements OnModuleInit {
             this.registerCleanupJob();
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
-            this.logger.error(`Failed to register cleanup cron job: ${message}`);
+            this.logger.error({ msg: 'Failed to register cleanup cron job', entity: 'Scheduler', error: message });
         }
     }
 
@@ -39,7 +39,12 @@ export class CleanupScheduler implements OnModuleInit {
         });
         this.schedulerRegistry.addCronJob(CLEANUP_JOB_NAME, job);
         job.start();
-        this.logger.log(`Registered simulations cleanup cron: ${expression} (retention: ${this.retentionDays} days)`);
+        this.logger.log({
+            msg: 'Cleanup cron registered',
+            entity: 'Scheduler',
+            cronExpression: expression,
+            retentionDays: this.retentionDays,
+        });
     }
 
     async runCleanup(): Promise<void> {
@@ -48,7 +53,7 @@ export class CleanupScheduler implements OnModuleInit {
             await this.commandBus.execute(new PurgeOldSimulationsCommand({ retentionDays: this.retentionDays }));
         } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
-            this.logger.error(`Cleanup cron tick failed: ${message}`);
+            this.logger.error({ msg: 'Cleanup cron tick failed', entity: 'Scheduler', error: message });
         }
     }
 }

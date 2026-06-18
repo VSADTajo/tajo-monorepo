@@ -24,7 +24,7 @@ export class NotificationRepository implements INotificationRepository {
         try {
             return await this.repository.save(notification);
         } catch (error) {
-            this.logger.error({ msg: `Failed to create notification: ${error}`, entity: 'Notifications' });
+            this.logger.error({ msg: 'Failed to create notification', entity: 'Notifications', error: String(error) });
             throw new RepositoryError('Failed to create notification', error);
         }
     }
@@ -33,7 +33,7 @@ export class NotificationRepository implements INotificationRepository {
         try {
             return await this.repository.findOne({ where: { id } });
         } catch (error) {
-            this.logger.error({ msg: `Failed to find notification by ID: ${error}`, entity: 'Notifications' });
+            this.logger.error({ msg: 'Failed to find notification by ID', entity: 'Notifications', error: String(error) });
             throw new RepositoryError('Failed to find notification', error);
         }
     }
@@ -92,7 +92,7 @@ export class NotificationRepository implements INotificationRepository {
 
             return { data, total };
         } catch (error) {
-            this.logger.error({ msg: `Failed to list notifications: ${error}`, entity: 'Notifications' });
+            this.logger.error({ msg: 'Failed to list notifications', entity: 'Notifications', error: String(error) });
             throw new RepositoryError('Failed to list notifications', error);
         }
     }
@@ -101,7 +101,7 @@ export class NotificationRepository implements INotificationRepository {
         try {
             return await this.repository.save(notification);
         } catch (error) {
-            this.logger.error({ msg: `Failed to update notification: ${error}`, entity: 'Notifications' });
+            this.logger.error({ msg: 'Failed to update notification', entity: 'Notifications', error: String(error) });
             throw new RepositoryError('Failed to update notification', error);
         }
     }
@@ -111,7 +111,7 @@ export class NotificationRepository implements INotificationRepository {
             const result = await this.repository.update({ id: In(ids) }, partial as any);
             return result.affected ?? 0;
         } catch (error) {
-            this.logger.error({ msg: `Failed to bulk update notifications: ${error}`, entity: 'Notifications' });
+            this.logger.error({ msg: 'Failed to bulk update notifications', entity: 'Notifications', error: String(error) });
             throw new RepositoryError('Failed to bulk update notifications', error);
         }
     }
@@ -120,7 +120,7 @@ export class NotificationRepository implements INotificationRepository {
         try {
             return await this.repository.find({ where: { id: In(ids) } });
         } catch (error) {
-            this.logger.error({ msg: `Failed to find notifications by IDs: ${error}`, entity: 'Notifications' });
+            this.logger.error({ msg: 'Failed to find notifications by IDs', entity: 'Notifications', error: String(error) });
             throw new RepositoryError('Failed to find notifications by IDs', error);
         }
     }

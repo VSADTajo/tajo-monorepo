@@ -24,8 +24,9 @@ export class RedisCacheService implements ICacheService, OnModuleDestroy {
 
         this.redis.connect().catch((err: Error) => {
             this.logger.warn({
-                msg: `Redis connection failed: ${err.message}. Cache will be disabled.`,
+                msg: 'Redis connection failed. Cache will be disabled.',
                 entity: 'Cache',
+                error: err.message,
             });
         });
     }

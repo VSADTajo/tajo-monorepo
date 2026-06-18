@@ -42,9 +42,12 @@ export class TimeSeriesIngestedConsumer {
 
         await this.traceContext.runInContext(traceId, async () => {
             try {
-                this.logger.log(
-                    `Received timeseries.ingested: ${data.seriesCount || data.timeSeries?.length} series, ${data.eventsCount || 0} events`,
-                );
+                this.logger.log({
+                    msg: 'Timeseries ingested received',
+                    entity: 'Predictions',
+                    seriesCount: data.seriesCount ?? data.timeSeries?.length,
+                    eventsCount: data.eventsCount ?? 0,
+                });
 
                 const timeSeries = data.timeSeries || [];
                 const simulationIds = new Set<string>();
@@ -67,12 +70,16 @@ export class TimeSeriesIngestedConsumer {
                     if (simulation && simulation.status !== SimulationStatus.FINALIZED) {
                         simulation.finalize();
                         await this.simulationRepository.update(simulation);
-                        this.logger.log(`Simulation ${simId} auto-finalized`);
+                        this.logger.log({ msg: 'Simulation auto-finalized', entity: 'Predictions', simulationId: simId });
                     }
                 }
 
                 channel.ack(originalMsg);
-                this.logger.log(`Successfully processed ${timeSeries.length} time series`);
+                this.logger.log({
+                    msg: 'Timeseries batch processed',
+                    entity: 'Predictions',
+                    processedCount: timeSeries.length,
+                });
             } catch (error) {
                 this.logger.error({
                     msg: 'Failed to process timeseries.ingested message — rejecting without requeue to prevent infinite loop',

@@ -24,7 +24,7 @@ export class ExampleConsumer {
 
             channel.ack(originalMsg);
         } catch (error) {
-            this.logger.error(`Failed to process message: ${error}`);
+            this.logger.error({ msg: 'Failed to process message', entity: 'MessageConsumer', error: String(error) });
             channel.nack(originalMsg, false, true);
         }
     }

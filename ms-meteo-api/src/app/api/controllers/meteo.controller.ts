@@ -63,7 +63,12 @@ export class MeteoController {
         ],
     })
     async getMeteoInfo(@Query() query: MeteoFilterQueryDto): Promise<MeteoInfoResponseDto[]> {
-        this.logger.log(`MeteoInfo request: provider=${query.provider ?? '*'} variable=${query.variable ?? '*'}`);
+        this.logger.log({
+            msg: 'MeteoInfo request',
+            entity: 'MeteoSync',
+            provider: query.provider ?? 'all',
+            variable: query.variable ?? 'all',
+        });
 
         try {
             // Pass plain object to mapper (decoupled from DTO class)
@@ -125,7 +130,12 @@ export class MeteoController {
         ],
     })
     async syncMeteo(@Query() query: MeteoFilterQueryDto): Promise<SyncResultDto> {
-        this.logger.log(`Sync request: provider=${query.provider ?? '*'} variable=${query.variable ?? '*'}`);
+        this.logger.log({
+            msg: 'Sync request',
+            entity: 'MeteoSync',
+            provider: query.provider ?? 'all',
+            variable: query.variable ?? 'all',
+        });
 
         try {
             // Pass plain object to mapper (decoupled from DTO class)
@@ -167,9 +177,14 @@ export class MeteoController {
         ],
     })
     async accumulate(@Body() dto: AccumulateRequestDto): Promise<AccumulateResponseDto> {
-        this.logger.log(
-            `Accumulate request: provider=${dto.provider} variable=${dto.variable ?? '*'} from=${dto.from} to=${dto.to}`,
-        );
+        this.logger.log({
+            msg: 'Accumulate request',
+            entity: 'MeteoSync',
+            provider: dto.provider,
+            variable: dto.variable ?? 'all',
+            from: dto.from,
+            to: dto.to,
+        });
 
         try {
             const command = AccumulateMeteoMapper.toCommand(dto);
@@ -198,9 +213,12 @@ export class MeteoController {
     @ApiOperation({ summary: 'Compute accumulated layer for a date range and proxy GeoServer WMS response as image' })
     @ApiProduces('image/png', 'image/jpeg')
     async accumulateMap(@Query() dto: AccumulateMapQueryDto, @Res() res: Response): Promise<void> {
-        this.logger.log(
-            `AccumulateMap: provider=${dto.provider} variable=${dto.variable ?? '*'} from=${dto.from} to=${dto.to}`,
-        );
+        this.logger.log({
+            msg: 'AccumulateMap request',
+            entity: 'MeteoSync',
+            provider: dto.provider,
+            variable: dto.variable ?? 'all',
+        });
 
         try {
             // 1. Compute (or hit cache) accumulated layer.

@@ -100,7 +100,13 @@ export class ProcessTimeSeriesHandler implements ICommandHandler<ProcessTimeSeri
         //     "P.ens.forecast.75" → "P.ens.forecast", "P.ens.forecast.Med" → "P.ens.forecast"
         const typeName = series.parameterId.replace(/\.\d+$/, '').replace(/\.Med$/, '');
 
-        this.logger.log(`Processing time series: station=${stationId}, type=${typeName}, percentile=${percentile}`);
+        this.logger.log({
+            msg: 'Time series processing started',
+            entity: 'Predictions',
+            stationId,
+            typeName,
+            percentile,
+        });
 
         // 1. Find or create PredictionType
         const predictionType = await this.predictionTypeRepository.findOrCreateByName(
@@ -124,9 +130,13 @@ export class ProcessTimeSeriesHandler implements ICommandHandler<ProcessTimeSeri
 
         if (simulation) {
             if (simulation.status === SimulationStatus.FINALIZED) {
-                this.logger.log(
-                    `Simulation ${simulationDate} already finalized for provider=${modmeteo} — skipping station=${stationId}`,
-                );
+                this.logger.log({
+                    msg: 'Simulation already finalized - skipping',
+                    entity: 'Predictions',
+                    simulationDate,
+                    modmeteo,
+                    stationId,
+                });
                 return {
                     simulationId: simulation.id,
                     predictionId: '',
@@ -158,9 +168,14 @@ export class ProcessTimeSeriesHandler implements ICommandHandler<ProcessTimeSeri
         );
 
         if (existingPrediction) {
-            this.logger.log(
-                `Prediction already exists for sim=${simulation.id}, station=${stationId}, type=${predictionType.name}, percentile=${percentile} — skipping`,
-            );
+            this.logger.log({
+                msg: 'Prediction already exists - skipping',
+                entity: 'Predictions',
+                simulationId: simulation.id,
+                stationId,
+                predictionTypeName: predictionType.name,
+                percentile,
+            });
             return {
                 simulationId: simulation.id,
                 predictionId: existingPrediction.id,
@@ -228,9 +243,13 @@ export class ProcessTimeSeriesHandler implements ICommandHandler<ProcessTimeSeri
                 );
 
                 notificationCreated = true;
-                this.logger.log(
-                    `Notification published: station=${stationId}, value=${maxValue} > threshold=${threshold}`,
-                );
+                this.logger.log({
+                    msg: 'Threshold exceeded notification published',
+                    entity: 'Predictions',
+                    stationId,
+                    actualValue: maxValue,
+                    thresholdValue: threshold,
+                });
             }
         }
 

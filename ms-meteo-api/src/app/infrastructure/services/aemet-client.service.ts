@@ -36,7 +36,7 @@ export class AemetClientService implements IAemetClient {
             this.logger.log({ msg: 'AEMET avisos fetched', area: 'esp', totalFeatures: features.length });
             return { type: 'FeatureCollection', features };
         } catch (error) {
-            this.logger.error({ msg: 'Error fetching AEMET avisos', error: String(error) });
+            this.logger.error({ msg: 'Error fetching AEMET avisos', entity: 'AEMET', error: String(error) });
             throw new ProviderError(`AEMET avisos fetch failed: ${error}`);
         }
     }
@@ -87,7 +87,7 @@ export class AemetClientService implements IAemetClient {
                     features.push(...alertFeatures);
                 }
             } catch (error) {
-                this.logger.warn({ msg: 'Failed to parse CAP XML', error: String(error) });
+                this.logger.warn({ msg: 'Failed to parse CAP XML', entity: 'AEMET', error: String(error) });
             }
         }
 

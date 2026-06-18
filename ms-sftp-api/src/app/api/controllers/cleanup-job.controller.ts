@@ -214,7 +214,7 @@ export class CleanupJobController {
         if (error instanceof ApiError) {
             throw new HttpException(error.message, error.statusCode);
         }
-        this.logger.error(`Cleanup job operation error: ${error}`);
+        this.logger.error({ msg: 'Cleanup job operation error', entity: 'CleanupJob', error: String(error) });
         throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
