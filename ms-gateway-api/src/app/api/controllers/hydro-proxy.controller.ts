@@ -603,6 +603,9 @@ export class HydroProxyController {
         response: { status: 200, type: GetResguardosByStationResponseDto, description: 'Resguardo time series' },
         errors: [{ status: 404, description: 'Station not found' }],
     })
+    @ApiQuery({ name: 'year', required: false, type: Number, description: 'Filter by year', example: 2025 })
+    @ApiQuery({ name: 'from', required: false, type: String, description: 'Filter from date (YYYY-MM-DD)', example: '2025-01-01' })
+    @ApiQuery({ name: 'to', required: false, type: String, description: 'Filter to date (YYYY-MM-DD)', example: '2025-12-31' })
     async getResguardosByStation(
         @Param('stationCode') stationCode: string,
         @Req() req: express.Request,
@@ -612,6 +615,7 @@ export class HydroProxyController {
             method: 'GET',
             baseUrl: this.servicesConfig.hydroApiUrl,
             path: `/resguardos/${encodeURIComponent(stationCode)}`,
+            query: req.query as Record<string, string | string[]>,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,
