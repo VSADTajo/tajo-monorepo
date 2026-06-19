@@ -72,7 +72,7 @@
         "rxjs": "^7.8.1",
         "ssh2": "^1.17.0",
         "ssh2-sftp-client": "^12.0.1",
-        "tajo-toolkit": "github:VSADTajo/tajo-toolkit",
+        "tajo-toolkit": "github:VSADTajo/tajo-toolkit#v1.1.0",
         "tsconfig-paths": "^4.2.0",
         "typeorm": "^0.3.20",
         "uuid": "^10.0.0"
