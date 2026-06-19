@@ -77,3 +77,30 @@ Comando: `rg -o 'tajo-toolkit.git#[a-f0-9]+' ms-*/package-lock.json | sort -u`
 | 5 | Verificación cross-service: un `correlationId` único atraviesa toda la cadena | — |
 
 Más: versionar la toolkit (2.6) antes del roll-out, para que el pin tenga sentido.
+
+## 4. Estado de implementación
+
+Rama: `refactor/logging-consistency`.
+
+| Fase | Estado | Detalle |
+|------|--------|---------|
+| 1 — Toolkit (`buildPinoOptions`) | ✅ hecho | mixin trace-id, niveles, redact, transport único; 17 unit tests |
+| 2 — Piloto `ms-gateway-api` | ✅ hecho | typecheck limpio |
+| 3 — Roll-out 9 servicios | ✅ hecho | sin config copy-pasteada; sftp normalizado |
+| 4a — Trace saliente RMQ | ✅ hecho | 7/7 services attach `x-trace-id` en publish |
+| 4b — Trace entrante RMQ | ✅ hecho | 4/4 consumers continúan el trace vía `runInContext` |
+| 5 — Versionado toolkit | ✅ hecho | `tajo-toolkit` bump a `1.1.0` |
+
+### Verificado por
+- Tipos (`tsc --noEmit`) en toolkit + 9 servicios.
+- 17 unit tests de la toolkit (mapeo, niveles, correlationId, redact, mixin).
+
+### Pendiente — operativo (requiere acceso a infra / Docker)
+1. **Publicar la toolkit**: sincronizar `tajo-toolkit` al repo `VSADTajo/tajo-toolkit` y crear el tag `v1.1.0`.
+2. **Pinnear** en los 9 `package.json`: `"tajo-toolkit": "github:VSADTajo/tajo-toolkit#v1.1.0"` + `npm install` para fijar el commit en cada lock.
+3. **Verificación end-to-end** (levantar el stack): disparar un flujo que cruce gateway → hydro → (evento RMQ) → consumer, y confirmar en `ms-logs-api` que un único `correlationId` atraviesa toda la cadena, que los 4xx son `warn` y que no hay PII en los logs.
+
+### Decisiones tomadas
+- `2xx` se persisten como `info` (reversible si el volumen molesta).
+- `entity` = serviceName; el dominio de la ruta va a `meta.domain`.
+- `correlationId` = trace-id del CLS, único, propagado por HTTP y RabbitMQ.

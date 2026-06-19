@@ -1,6 +1,6 @@
 {
   "name": "tajo-toolkit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shared distributed tracing toolkit for North Labs microservices",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
