@@ -258,7 +258,9 @@ export class SearchGeoDataResponseDto {
 
 export class ResolvedResguardoEntryDto {
     @ApiProperty({ description: 'Minimum volume (Hm3)', example: 51.15, nullable: true }) minimumVolume: number | null;
-    @ApiProperty({ description: 'Reserve volume (Hm3)', example: 802.563, nullable: true }) reserveVolume: number | null;
+    @ApiProperty({ description: 'Reserve volume (Hm3)', example: 802.563, nullable: true }) reserveVolume:
+        | number
+        | null;
     @ApiProperty({ description: 'Reserve level (m)', example: 718, nullable: true }) reserveLevel: number | null;
 }
 
@@ -276,7 +278,9 @@ export class GetResguardosByStationResponseDto {
 }
 
 export class RawResguardoValuesDto {
-    @ApiProperty({ description: 'Reserve volume (Hm3)', example: 802.563, nullable: true }) reserveVolume: number | null;
+    @ApiProperty({ description: 'Reserve volume (Hm3)', example: 802.563, nullable: true }) reserveVolume:
+        | number
+        | null;
     @ApiProperty({ description: 'Reserve level (m)', example: 718, nullable: true }) reserveLevel: number | null;
     @ApiProperty({ description: 'Minimum volume (Hm3)', example: 51.15, nullable: true }) minimumVolume: number | null;
 }
@@ -285,15 +289,21 @@ export class GetResguardoByDateResponseDto {
     @ApiProperty({ example: 'E_01' }) stationCode: string;
     @ApiProperty({ example: 'ENTREPEÑAS' }) stationName: string;
     @ApiProperty({ example: '2025-10-01' }) date: string;
-    @ApiProperty({ type: RawResguardoValuesDto, description: 'Immutable original values' }) original: RawResguardoValuesDto;
+    @ApiProperty({ type: RawResguardoValuesDto, description: 'Immutable original values' })
+    original: RawResguardoValuesDto;
     @ApiProperty({ type: RawResguardoValuesDto, description: 'Manual edits (nullable)' }) edited: RawResguardoValuesDto;
-    @ApiProperty({ type: ResolvedResguardoEntryDto, description: 'edited ?? original per field' }) resolved: ResolvedResguardoEntryDto;
+    @ApiProperty({ type: ResolvedResguardoEntryDto, description: 'edited ?? original per field' })
+    resolved: ResolvedResguardoEntryDto;
 }
 
 export class UpdateResguardoRequestDto {
-    @ApiProperty({ description: 'Reserve volume (Hm3)', example: 750.0, required: false, nullable: true }) reserveVolume?: number | null;
-    @ApiProperty({ description: 'Reserve level (m)', example: 710.0, required: false, nullable: true }) reserveLevel?: number | null;
-    @ApiProperty({ description: 'Minimum volume (Hm3)', example: 45.0, required: false, nullable: true }) minimumVolume?: number | null;
+    @ApiProperty({ description: 'Reserve volume (Hm3)', example: 750.0, required: false, nullable: true })
+    reserveVolume?: number | null;
+    @ApiProperty({ description: 'Reserve level (m)', example: 710.0, required: false, nullable: true }) reserveLevel?:
+        | number
+        | null;
+    @ApiProperty({ description: 'Minimum volume (Hm3)', example: 45.0, required: false, nullable: true })
+    minimumVolume?: number | null;
 }
 
 export class UpdateResguardoResponseDto {

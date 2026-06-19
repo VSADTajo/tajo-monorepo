@@ -197,7 +197,11 @@ export class ManeuverInputDto {
 
 export class CreateManualSimulationRequestDto {
     @ApiProperty({ description: 'Simulation date (YYYYMMDDHHMMSS)', example: '20260619120000' }) simulationDate: string;
-    @ApiProperty({ description: 'Optional operator description', required: false, example: 'Operación de control Tranco' })
+    @ApiProperty({
+        description: 'Optional operator description',
+        required: false,
+        example: 'Operación de control Tranco',
+    })
     description?: string;
     @ApiProperty({ type: [ManeuverInputDto], description: 'Maneuvers (at least one required)' })
     maneuvers: ManeuverInputDto[];

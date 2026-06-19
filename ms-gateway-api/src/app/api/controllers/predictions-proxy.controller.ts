@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import * as express from 'express';
 
@@ -157,11 +157,7 @@ export class PredictionsProxyController {
     @ApiQuery({ name: 'status', required: false, description: 'Filter by SimulationStatus (e.g. MODEL_PROCESSING)' })
     @ApiQuery({ name: 'page', required: false, type: Number })
     @ApiQuery({ name: 'limit', required: false, type: Number })
-    async listManualSimulations(
-        @Req() req: express.Request,
-        @Res() res: express.Response,
-        @Query() _query: Record<string, string>,
-    ): Promise<void> {
+    async listManualSimulations(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
         const result = await this.proxyService.forward({
             method: 'GET',
             baseUrl: this.servicesConfig.predictionsApiUrl,
