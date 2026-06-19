@@ -299,3 +299,26 @@ export class UpdateResguardoRequestDto {
 export class UpdateResguardoResponseDto {
     @ApiProperty({ type: ResolvedResguardoEntryDto }) entry: ResolvedResguardoEntryDto;
 }
+
+// ─────────────────────────────────────────────────────────────
+// DownstreamStations
+// ─────────────────────────────────────────────────────────────
+
+export class DownstreamStationItemDto {
+    @ApiProperty({ description: 'Destination station/reservoir code', example: 'E010' })
+    codigoDestino: string;
+
+    @ApiProperty({ description: 'Destination name', example: 'Estación Aguas Abajo 1' })
+    nombreDestino: string;
+
+    @ApiProperty({ description: 'Destination type', example: 'aforo' })
+    tipoDestino: string;
+}
+
+export class GetDownstreamStationsResponseDto {
+    @ApiProperty({ type: [DownstreamStationItemDto], description: 'Distinct downstream destinations' })
+    items: DownstreamStationItemDto[];
+
+    @ApiProperty({ description: 'Number of items returned', example: 2 })
+    count: number;
+}
