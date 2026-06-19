@@ -185,3 +185,54 @@ export class CreatePredictionTypeResponseDto {
     @ApiProperty({ description: 'Prediction type name', example: 'P.harmonie.forecast' }) name: string;
     @ApiProperty({ description: 'Unit of measurement', example: 'mm' }) unit: string;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Manual Simulation
+// ─────────────────────────────────────────────────────────────
+
+export class ManeuverInputDto {
+    @ApiProperty({ description: 'Reservoir code', example: 'E001' }) reservoirCode: string;
+    @ApiProperty({ description: 'Output flow value (m3/s)', example: 12.5, minimum: 0 }) outputFlowValue: number;
+}
+
+export class CreateManualSimulationRequestDto {
+    @ApiProperty({ description: 'Simulation date (YYYYMMDDHHMMSS)', example: '20260619120000' }) simulationDate: string;
+    @ApiProperty({ description: 'Optional operator description', required: false, example: 'Operación de control Tranco' })
+    description?: string;
+    @ApiProperty({ type: [ManeuverInputDto], description: 'Maneuvers (at least one required)' })
+    maneuvers: ManeuverInputDto[];
+}
+
+export class ManeuverItemDto {
+    @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
+    @ApiProperty({ example: 'E001' }) reservoirCode: string;
+    @ApiProperty({ example: 12.5 }) outputFlowValue: number;
+}
+
+export class ManualSimulationItemDto extends SimulationItemDto {
+    @ApiProperty({ type: [ManeuverItemDto], description: 'Maneuvers linked to the simulation' })
+    maneuvers: ManeuverItemDto[];
+}
+
+export class CreateManualSimulationResponseDto extends ManualSimulationItemDto {}
+
+export class GetManualSimulationByIdResponseDto extends ManualSimulationItemDto {}
+
+export class ManualSimulationListItemDto {
+    @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
+    @ApiProperty({ example: '20260619120000' }) simulationDate: string;
+    @ApiProperty({ example: 'MODEL_PROCESSING' }) status: string;
+    @ApiProperty({ example: 'MANUAL' }) type: string;
+    @ApiProperty({ nullable: true, example: 'Operación de control' }) description: string | null;
+    @ApiProperty({ nullable: true, example: 'Sebastián Aliceio' }) createdBy: string | null;
+    @ApiProperty({ example: 2 }) maneuverCount: number;
+    @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) createdAt: Date | undefined;
+    @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) updatedAt: Date | undefined;
+}
+
+export class ListManualSimulationsResponseDto {
+    @ApiProperty({ type: [ManualSimulationListItemDto] }) data: ManualSimulationListItemDto[];
+    @ApiProperty({ example: 5 }) total: number;
+    @ApiProperty({ example: 1 }) page: number;
+    @ApiProperty({ example: 20 }) limit: number;
+}

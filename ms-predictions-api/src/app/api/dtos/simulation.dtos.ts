@@ -309,6 +309,8 @@ export class ManualSimulationResponseDto {
     status: string;
     @ApiProperty({ description: 'Simulation type', example: 'MANUAL' }) type: string;
     @ApiProperty({ description: 'Optional description', nullable: true }) description: string | null;
+    @ApiProperty({ description: 'Operator who created the simulation (from auth token)', nullable: true })
+    createdBy: string | null;
     @ApiProperty({ description: 'Maneuvers included in the simulation', type: [ManeuverResponseDto] })
     maneuvers: ManeuverResponseDto[];
     @ApiProperty({ description: 'Creation timestamp' }) createdAt: Date | undefined;

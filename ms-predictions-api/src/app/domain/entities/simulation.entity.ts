@@ -100,8 +100,14 @@ export class Simulation extends BaseAuditEntity implements IValidable {
     }
 
     finalize(): void {
-        if (this.status !== SimulationStatus.IN_PROGRESS) {
-            throw new ApiError(HttpStatus.CONFLICT, 'Simulation can only be finalized from IN_PROGRESS status');
+        if (
+            this.status !== SimulationStatus.IN_PROGRESS &&
+            this.status !== SimulationStatus.MODEL_PROCESSING
+        ) {
+            throw new ApiError(
+                HttpStatus.CONFLICT,
+                'Simulation can only be finalized from IN_PROGRESS or MODEL_PROCESSING status',
+            );
         }
         this.status = SimulationStatus.FINALIZED;
     }

@@ -21,10 +21,11 @@ import { PaginatedManualSimulationResult } from '@domain/results/manual-simulati
 // ─────────────────────────────────────────────────────────────
 
 export class CreateManualSimulationMapper {
-    static toCommand(dto: CreateManualSimulationRequestDto): CreateManualSimulationCommand {
+    static toCommand(dto: CreateManualSimulationRequestDto, createdBy: string | null): CreateManualSimulationCommand {
         return new CreateManualSimulationCommand({
             simulationDate: dto.simulationDate,
             description: dto.description,
+            createdBy,
             maneuvers: dto.maneuvers.map((m) => ({
                 reservoirCode: m.reservoirCode,
                 outputFlowValue: m.outputFlowValue,
@@ -39,6 +40,7 @@ export class CreateManualSimulationMapper {
             status: result.simulation.status,
             type: result.simulation.type,
             description: result.simulation.description ?? null,
+            createdBy: result.simulation.createdBy ?? null,
             maneuvers: result.maneuvers.map(
                 (m: Maneuver): ManeuverResponseDto => ({
                     id: m.id,
@@ -68,6 +70,7 @@ export class GetManualSimulationByIdMapper {
             status: result.simulation.status,
             type: result.simulation.type,
             description: result.simulation.description ?? null,
+            createdBy: result.simulation.createdBy ?? null,
             maneuvers: result.maneuvers.map(
                 (m: Maneuver): ManeuverResponseDto => ({
                     id: m.id,

@@ -15,7 +15,7 @@ export class AuthMiddleware implements NestMiddleware {
         private readonly authValidationService: IAuthValidationService,
     ) {}
 
-    private readonly allowedInternalCallers = ['ms-gateway-api', 'ms-model-api', 'ms-meteo-api'];
+    private readonly allowedInternalCallers = ['ms-gateway-api', 'ms-model-api', 'ms-meteo-api', 'ms-predictions-api'];
 
     async use(req: Request, _res: Response, next: NextFunction): Promise<void> {
         // Bypass auth for trusted internal service-to-service calls

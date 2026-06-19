@@ -27,6 +27,7 @@ export interface IManeuverInput {
 export interface ICreateManualSimulationCommand {
     simulationDate: string;
     description?: string;
+    createdBy?: string | null;
     maneuvers: IManeuverInput[];
 }
 
@@ -39,6 +40,10 @@ export class CreateManualSimulationCommand {
 
     get description(): string | undefined {
         return this.parameters.description;
+    }
+
+    get createdBy(): string | null | undefined {
+        return this.parameters.createdBy;
     }
 
     get maneuvers(): IManeuverInput[] {
@@ -76,7 +81,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             jobType: null,
             modmeteo: null,
             environment: null,
-            createdBy: 'operator',
+            createdBy: command.createdBy ?? 'operator',
         });
         simulation.validate();
         const persistedSimulation = await this.simulationRepository.create(simulation);
@@ -126,7 +131,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
         const updatedSimulation = await this.simulationRepository.update(persistedSimulation);
 
         // 7. Publish simulation.manual.dispatched event
-        const outputFolder = `/simulations/${persistedSimulation.id}/output/`;
+        const outputFolder = `simulations/${persistedSimulation.id}/output`;
         await this.messageBroker.publishToTopic(
             Topics.SIMULATION_EVENTS.exchange,
             Topics.SIMULATION_EVENTS.routingKeys.MANUAL_DISPATCHED,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiTags } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -211,9 +211,15 @@ export class SimulationController {
             { status: 503, description: 'SFTP upload failed — simulation persisted in CREATED status' },
         ],
     })
-    async createManual(@Body() dto: CreateManualSimulationRequestDto): Promise<ManualSimulationResponseDto> {
+    async createManual(
+        @Body() dto: CreateManualSimulationRequestDto,
+        @Req() req: import('express').Request,
+    ): Promise<ManualSimulationResponseDto> {
         this.logger.log({ msg: 'Create manual simulation request', entity: 'Simulations' });
-        const command = CreateManualSimulationMapper.toCommand(dto);
+        const rawName = req.headers['x-user-name'];
+        const operatorName = Array.isArray(rawName) ? rawName[0] : rawName;
+        const createdBy = operatorName ? decodeURIComponent(operatorName) : null;
+        const command = CreateManualSimulationMapper.toCommand(dto, createdBy);
         try {
             const result = await this.commandBus.execute<CreateManualSimulationCommand, ManualSimulationResult>(
                 command,

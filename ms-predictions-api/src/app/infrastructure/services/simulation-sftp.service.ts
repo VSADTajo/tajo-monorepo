@@ -16,15 +16,15 @@ export class SimulationSftpService implements ISimulationSftpService {
     ) {}
 
     async uploadInputFile(simulationId: string, content: Buffer): Promise<void> {
-        const filePath = `/simulations/${simulationId}/input/`;
         const fileName = `${simulationId}.json`;
+        const fullPath = `simulations/${simulationId}/input/${fileName}`;
 
         const form = new FormData();
         form.append('file', content, {
             filename: fileName,
             contentType: 'application/json',
         });
-        form.append('filePath', filePath);
+        form.append('path', fullPath);
         form.append('overwrite', 'true');
 
         try {
@@ -32,7 +32,7 @@ export class SimulationSftpService implements ISimulationSftpService {
                 msg: 'Uploading simulation input file to SFTP API',
                 entity: 'Simulations',
                 simulationId,
-                filePath,
+                path: fullPath,
             });
 
             await axios.post(`${this.sftpApiConfig.baseUrl}/files/upload`, form, {
