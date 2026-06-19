@@ -12,6 +12,10 @@ import {
     GetMaxAndLatestValuesQuery,
 } from '@app/application/queries/prediction.queries';
 import { ListPredictionTypesQuery } from '@app/application/queries/prediction-type.queries';
+import {
+    GetManualSimulationByIdQuery,
+    ListManualSimulationsQuery,
+} from '@app/application/queries/manual-simulation.queries';
 
 export interface CacheEntryConfig {
     ttl: number;
@@ -48,6 +52,12 @@ export const PredictionCacheKeys = {
     forecast: (params: string) => `predictions:forecast:${params}`,
     availableDates: () => 'predictions:available-dates',
     pattern: () => 'predictions:*',
+};
+
+export const ManualSimulationCacheKeys = {
+    byId: (id: string) => `manual-simulation:${id}`,
+    list: (params: string) => `manual-simulation:list:${params}`,
+    pattern: () => 'manual-simulation:*',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -119,6 +129,21 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         {
             ttl: 60,
             key: (q: GetMaxAndLatestValuesQuery) => PredictionCacheKeys.maxAndLatest(JSON.stringify(q.filters)),
+        },
+    ],
+    [
+        GetManualSimulationByIdQuery.name,
+        {
+            ttl: 60,
+            key: (q: GetManualSimulationByIdQuery) => ManualSimulationCacheKeys.byId(q.id),
+        },
+    ],
+    [
+        ListManualSimulationsQuery.name,
+        {
+            ttl: 60,
+            key: (q: ListManualSimulationsQuery) =>
+                ManualSimulationCacheKeys.list(JSON.stringify({ status: q.status, p: q.page, l: q.limit })),
         },
     ],
 ]);

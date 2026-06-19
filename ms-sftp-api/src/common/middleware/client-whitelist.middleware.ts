@@ -11,8 +11,8 @@ export class ClientWhitelistMiddleware implements NestMiddleware {
 
         const internalCaller = req.headers['x-internal-caller'] as string | undefined;
 
-        // Solo permitir llamadas desde el gateway, ms-model-api, ms-meteo-api y el frontend SFTP
-        const allowedCallers = ['ms-gateway-api', 'ms-model-api', 'ms-meteo-api', 'sftp-frontend'];
+        // Solo permitir llamadas desde el gateway, ms-model-api, ms-meteo-api, ms-predictions-api y el frontend SFTP
+        const allowedCallers = ['ms-gateway-api', 'ms-model-api', 'ms-meteo-api', 'ms-predictions-api', 'sftp-frontend'];
 
         if (internalCaller && allowedCallers.includes(internalCaller)) {
             return next();

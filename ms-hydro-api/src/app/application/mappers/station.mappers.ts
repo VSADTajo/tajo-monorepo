@@ -14,6 +14,8 @@ import {
     UpdateStationResponseDto,
     ToggleStationResponseDto,
     DeleteStationResponseDto,
+    GetDownstreamStationsRequestDto,
+    GetDownstreamStationsResponseDto,
 } from '@api/dtos/station.dtos';
 import { StationThresholdData } from '@domain/types/station-threshold-data.type';
 import {
@@ -28,6 +30,7 @@ import {
     GetStationByCodeQuery,
     GetStationThresholdQuery,
     ListStationsQuery,
+    GetDownstreamStationsQuery,
 } from '@application/queries/station.queries';
 import { UpdateStationThresholdCommand } from '@application/commands/station.commands';
 import {
@@ -43,6 +46,7 @@ import {
     UpdateThresholdResult,
     GetThresholdResult,
 } from '@domain/results/station.results';
+import { DownstreamStationsResult } from '@domain/results/downstream-stations.result';
 
 // Re-export GetStationResult as GetStationByCodeResult (same shape)
 type GetStationByCodeResult = GetStationResult;
@@ -393,6 +397,27 @@ export class GetStationByCodeMapper {
             isActive: result.isActive,
             createdAt: result.createdAt,
             updatedAt: result.updatedAt,
+        };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// GetDownstreamStations
+// ─────────────────────────────────────────────────────────────
+
+export class GetDownstreamStationsMapper {
+    static toQuery(dto: GetDownstreamStationsRequestDto): GetDownstreamStationsQuery {
+        return new GetDownstreamStationsQuery({ codes: dto.codes });
+    }
+
+    static toResponseDto(result: DownstreamStationsResult): GetDownstreamStationsResponseDto {
+        return {
+            items: result.items.map((item) => ({
+                codigoDestino: item.codigoDestino,
+                nombreDestino: item.nombreDestino,
+                tipoDestino: item.tipoDestino,
+            })),
+            count: result.count,
         };
     }
 }

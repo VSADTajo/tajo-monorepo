@@ -18,7 +18,7 @@ export class ProxyService {
         body?: unknown;
         headers?: Record<string, string>;
         query?: Record<string, string | string[]>;
-        user?: { userId: string; roles: string[] };
+        user?: { userId: string; roles: string[]; name?: string };
         timeoutMs?: number;
         responseType?: 'arraybuffer';
         traceId?: string;
@@ -53,7 +53,11 @@ export class ProxyService {
                     ? { 'x-internal-caller': config.headers['x-internal-caller'] }
                     : {}),
                 ...(config.user
-                    ? { 'x-user-id': config.user.userId, 'x-user-roles': config.user.roles.join(',') }
+                    ? {
+                          'x-user-id': config.user.userId,
+                          'x-user-roles': config.user.roles.join(','),
+                          ...(config.user.name ? { 'x-user-name': encodeURIComponent(config.user.name) } : {}),
+                      }
                     : {}),
             },
             validateStatus: () => true,

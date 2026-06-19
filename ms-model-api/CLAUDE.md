@@ -980,6 +980,7 @@ The `docker-compose.yml` overrides `DB_HOST=database` and `REDIS_HOST=redis` to 
 - PostgreSQL 16 via TypeORM (tables: `provider_configs`, `ingestion_runs`) (002-data-provider-layer)
 - TypeScript 5.7+ on Node.js >= 22 + NestJS 11, @nestjs/cqrs 11, TypeORM 0.3, axios (003-csv-file-provider)
 - PostgreSQL 16 (existing tables only — no new migrations) (003-csv-file-provider)
+- PostgreSQL 16 via TypeORM (table: `simulation_runs`) + raw amqplib consumer (004-manual-simulation-flow)
 
 ## Recent Changes
 - 001-user-roles: Added Role entity, UserRole join entity, role CRUD + user-role assignment/removal endpoints
@@ -990,3 +991,9 @@ The `docker-compose.yml` overrides `DB_HOST=database` and `REDIS_HOST=redis` to 
 - 001-user-roles: Added TypeScript 5.7+ (strict mode) on Node.js >= 22 + NestJS 11, @nestjs/cqrs 11, TypeORM 0.3, class-validator, class-transformer, nestjs-pino
 - microservice: Added RabbitMQ messaging layer — IMessageBroker port, RabbitmqService adapter, messaging.registry.ts, hybrid bootstrap, example consumer
 - microservice: Grouped mappers by domain (role.mappers.ts, user.mappers.ts), added entity validate() pattern, centralized cache keys
+- 004-manual-simulation-flow: Added `SimulationRun` entity (table: `simulation_runs`, migration `1750000100000-add-simulation-runs-table.ts`)
+- 004-manual-simulation-flow: Extended `IMessageBroker` port with `subscribeToTopic()` + `MessageHandler<T>` type; `RabbitmqService` implements raw amqplib consumer
+- 004-manual-simulation-flow: Added `SIMULATION_EVENTS` exchange in `messaging.registry.ts` (consumes `simulation.manual.dispatched`, publishes `simulation.status.updated`)
+- 004-manual-simulation-flow: Added `SimulationDispatchedConsumerService` (OnModuleInit, raw amqplib consumer) — creates `SimulationRun` on dispatch event
+- 004-manual-simulation-flow: Added `SimulationResultFetcherService` — calls ms-sftp-api (list/download/move) + JSON time-series parser (same algorithm as `SftpFileProviderService`)
+- 004-manual-simulation-flow: Added `SimulationRunPollerService` (OnModuleInit, setInterval) — polls WAITING_RESULT runs, publishes `timeseries.ingested` on success, `simulation.status.updated { MODEL_FAILED }` on failure

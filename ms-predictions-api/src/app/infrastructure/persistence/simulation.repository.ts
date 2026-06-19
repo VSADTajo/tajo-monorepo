@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Logger } from 'nestjs-pino';
 
 import { ISimulationRepository, PaginatedResult, SimulationFilters } from '@domain/ports/simulation-repository.port';
-import { Simulation, SimulationStatus } from '@domain/entities/simulation.entity';
+import { Simulation, SimulationStatus, SimulationType } from '@domain/entities/simulation.entity';
 import { RepositoryError } from '@domain/errors/repository.error';
 
 @Injectable()
@@ -180,6 +180,30 @@ export class SimulationRepository implements ISimulationRepository {
         } catch (error) {
             this.logger.error({ msg: 'Error purging old simulations', entity: 'Simulations', error: String(error) });
             throw new RepositoryError('Error purging old simulations', error);
+        }
+    }
+
+    async findManual(status?: string, page = 1, limit = 20): Promise<PaginatedResult<Simulation>> {
+        try {
+            const qb = this.simulationRepository.createQueryBuilder('simulation');
+            qb.where('simulation.type = :type', { type: SimulationType.MANUAL });
+
+            if (status) {
+                qb.andWhere('simulation.status = :status', { status });
+            }
+
+            const total = await qb.getCount();
+
+            const data = await qb
+                .skip((page - 1) * limit)
+                .take(limit)
+                .orderBy('simulation.createdAt', 'DESC')
+                .getMany();
+
+            return { data, total, page, limit };
+        } catch (error) {
+            this.logger.error({ msg: 'Error finding manual simulations', entity: 'Simulations', error: String(error) });
+            throw new RepositoryError('Error finding manual simulations', error);
         }
     }
 

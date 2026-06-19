@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import * as express from 'express';
 
@@ -17,6 +17,10 @@ import {
     ForecastPredictionsResponseDto,
     ListPredictionTypesResponseDto,
     CreatePredictionTypeResponseDto,
+    CreateManualSimulationRequestDto,
+    CreateManualSimulationResponseDto,
+    GetManualSimulationByIdResponseDto,
+    ListManualSimulationsResponseDto,
 } from '@api/dtos/predictions-proxy.dtos';
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
@@ -99,6 +103,96 @@ export class PredictionsProxyController {
             baseUrl: this.servicesConfig.predictionsApiUrl,
             path: '/simulations/historical',
             query: req.query as Record<string, string | string[]>,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Manual Simulations
+    // ─────────────────────────────────────────────────────────────
+
+    @Post('simulations/manual')
+    @ApiEndpoint({
+        summary: 'Execute a manual simulation with reservoir maneuvers',
+        body: CreateManualSimulationRequestDto,
+        response: {
+            status: 201,
+            type: CreateManualSimulationResponseDto,
+            description: 'Manual simulation created and dispatched',
+        },
+        errors: [
+            { status: 400, description: 'Invalid payload (zero maneuvers or negative output flow)' },
+            { status: 503, description: 'SFTP upload failed; simulation remains in CREATED' },
+        ],
+    })
+    async createManualSimulation(
+        @Body() dto: CreateManualSimulationRequestDto,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'POST',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: '/simulations/manual',
+            body: dto,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('simulations/manual')
+    @ApiEndpoint({
+        summary: 'List manual simulations with their status and maneuver count',
+        response: {
+            status: 200,
+            type: ListManualSimulationsResponseDto,
+            description: 'Paginated list of manual simulations',
+        },
+    })
+    @ApiQuery({ name: 'status', required: false, description: 'Filter by SimulationStatus (e.g. MODEL_PROCESSING)' })
+    @ApiQuery({ name: 'page', required: false, type: Number })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
+    async listManualSimulations(
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+        @Query() _query: Record<string, string>,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: '/simulations/manual',
+            query: req.query as Record<string, string | string[]>,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('simulations/manual/:id')
+    @ApiEndpoint({
+        summary: 'Get a manual simulation by ID including its maneuvers',
+        response: {
+            status: 200,
+            type: GetManualSimulationByIdResponseDto,
+            description: 'Manual simulation with maneuvers',
+        },
+        errors: [{ status: 404, description: 'Manual simulation not found' }],
+    })
+    async getManualSimulationById(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/simulations/manual/${id}`,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,

@@ -5,6 +5,7 @@ import { Logger } from 'nestjs-pino';
 // Domain
 import { IStationRepository } from '@domain/ports/station-repository.port';
 import { IStationThresholdRepository } from '@domain/ports/station-threshold-repository.port';
+import { IDownstreamStationsRepository } from '@domain/ports/downstream-stations-repository.port';
 import {
     CreateStationResult,
     GetStationResult,
@@ -12,8 +13,54 @@ import {
     GetThresholdResult,
     ListStationsResult,
 } from '@domain/results/station.results';
+import { DownstreamStationItem, DownstreamStationsResult } from '@domain/results/downstream-stations.result';
 import { ApiError } from '@domain/errors/api.error';
 import { RepositoryError } from '@domain/errors/repository.error';
+
+// ─────────────────────────────────────────────────────────────
+// GetDownstreamStations
+// ─────────────────────────────────────────────────────────────
+
+export interface IGetDownstreamStationsQuery {
+    codes: string[];
+}
+
+export class GetDownstreamStationsQuery {
+    constructor(private readonly parameters: IGetDownstreamStationsQuery) {}
+
+    get codes(): string[] {
+        return this.parameters.codes;
+    }
+}
+
+@QueryHandler(GetDownstreamStationsQuery)
+export class GetDownstreamStationsHandler implements IQueryHandler<
+    GetDownstreamStationsQuery,
+    DownstreamStationsResult
+> {
+    constructor(
+        @Inject(Logger)
+        private readonly logger: Logger,
+        private readonly downstreamStationsRepository: IDownstreamStationsRepository,
+    ) {}
+
+    async execute(query: GetDownstreamStationsQuery): Promise<DownstreamStationsResult> {
+        this.logger.debug(`Getting downstream stations for codes: ${query.codes.join(', ')}`);
+
+        const rows = await this.downstreamStationsRepository.findDownstream(query.codes);
+
+        return new DownstreamStationsResult({
+            items: rows.map(
+                (r) =>
+                    new DownstreamStationItem({
+                        codigoDestino: r.codigoDestino,
+                        nombreDestino: r.nombreDestino,
+                        tipoDestino: r.tipoDestino,
+                    }),
+            ),
+        });
+    }
+}
 
 // ─────────────────────────────────────────────────────────────
 // GetStationById

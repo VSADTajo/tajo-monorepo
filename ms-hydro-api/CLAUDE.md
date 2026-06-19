@@ -990,3 +990,7 @@ The `docker-compose.yml` overrides `DB_HOST=database` and `REDIS_HOST=redis` to 
 - 001-user-roles: Added TypeScript 5.7+ (strict mode) on Node.js >= 22 + NestJS 11, @nestjs/cqrs 11, TypeORM 0.3, class-validator, class-transformer, nestjs-pino
 - microservice: Added RabbitMQ messaging layer — IMessageBroker port, RabbitmqService adapter, messaging.registry.ts, hybrid bootstrap, example consumer
 - microservice: Grouped mappers by domain (role.mappers.ts, user.mappers.ts), added entity validate() pattern, centralized cache keys
+- downstream-stations-query: Added `MvEstacionesAguasAbajo` ViewEntity (`@ViewEntity` on GIS DB `geoserver` connection)
+- downstream-stations-query: Added `IDownstreamStationsRepository` abstract port + `DownstreamStationsRepository` impl (raw SQL on `mv_estaciones_aguas_abajo`, `@InjectRepository(..., 'geoserver')`)
+- downstream-stations-query: Added `GET /stations/downstream?codes[]=X&codes[]=Y` endpoint — returns `{ items, count }` of downstream stations/reservoirs; supports both `codes[]` and `codes` query formats
+- downstream-stations-query: Added `GetDownstreamStationsQuery` + Handler + Mapper + DTOs + `DownstreamStationsCacheKeys` (TTL 600s)

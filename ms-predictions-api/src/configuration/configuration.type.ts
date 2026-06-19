@@ -3,6 +3,7 @@ import { DbConfig } from './postgres/db-config.type';
 import { RedisConfig } from './redis/redis-config.type';
 import { RabbitmqConfig } from './rabbitmq/rabbitmq-config.type';
 import { HydroApiConfig } from './hydro-api/hydro-api-config.type';
+import { SftpApiConfig } from './sftp-api/sftp-api-config.type';
 
 export type AllConfig = {
     app: AppConfig;
@@ -10,4 +11,5 @@ export type AllConfig = {
     redis: RedisConfig;
     rabbitmq: RabbitmqConfig;
     'hydro-api': HydroApiConfig;
+    'sftp-api': SftpApiConfig;
 };

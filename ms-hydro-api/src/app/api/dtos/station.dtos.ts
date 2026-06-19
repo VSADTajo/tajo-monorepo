@@ -1,5 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
+import {
+    ArrayMinSize,
+    IsArray,
+    IsEnum,
+    IsInt,
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    IsUUID,
+    ValidateIf,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { StationType } from '@domain/types/station-type.enum';
 
@@ -607,3 +618,55 @@ export class ToggleStationResponseDto {
 // ─────────────────────────────────────────────────────────────
 
 export class DeleteStationResponseDto extends ToggleStationResponseDto {}
+
+// ─────────────────────────────────────────────────────────────
+// GetDownstreamStations
+// ─────────────────────────────────────────────────────────────
+
+export class GetDownstreamStationsRequestDto {
+    @ApiProperty({
+        description: 'Array of origin station codes to query downstream stations for',
+        example: ['E001', 'E002'],
+        type: [String],
+        isArray: true,
+    })
+    @IsArray()
+    @IsString({ each: true })
+    @ArrayMinSize(1)
+    @Type(() => String)
+    codes: string[];
+}
+
+export class DownstreamStationItemDto {
+    @ApiProperty({
+        description: 'Destination station code',
+        example: 'E010',
+    })
+    codigoDestino: string;
+
+    @ApiProperty({
+        description: 'Destination station name',
+        example: 'Estación Aguas Abajo 1',
+    })
+    nombreDestino: string;
+
+    @ApiProperty({
+        description: 'Destination station type',
+        example: 'aforo',
+    })
+    tipoDestino: string;
+}
+
+export class GetDownstreamStationsResponseDto {
+    @ApiProperty({
+        description: 'List of downstream stations',
+        type: [DownstreamStationItemDto],
+    })
+    items: DownstreamStationItemDto[];
+
+    @ApiProperty({
+        description: 'Total number of downstream stations found',
+        example: 2,
+    })
+    count: number;
+}

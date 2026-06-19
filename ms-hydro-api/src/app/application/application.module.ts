@@ -36,6 +36,7 @@ import {
     GetStationByCodeHandler,
     GetStationThresholdHandler,
     ListStationsHandler,
+    GetDownstreamStationsHandler,
 } from '@application/queries/station.queries';
 import { SearchGeoDataHandler } from '@application/queries/geo-data.queries';
 import { GetResguardosByStationHandler, GetResguardoByDateHandler } from '@application/queries/resguardo.queries';
@@ -87,6 +88,7 @@ import { ResguardoController } from '@api/controllers/resguardo.controller';
         UpdateResguardoHandler,
         GetResguardosByStationHandler,
         GetResguardoByDateHandler,
+        GetDownstreamStationsHandler,
     ],
 })
 export class ApplicationModule {}

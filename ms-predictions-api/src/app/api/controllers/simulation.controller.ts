@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiTags } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -17,6 +17,11 @@ import {
     SimulationAvailableDatesResponseDto,
     BatchIngestRequestDto,
     BatchIngestResponseDto,
+    CreateManualSimulationRequestDto,
+    ManualSimulationResponseDto,
+    ListManualSimulationsQueryDto,
+    ListManualSimulationsResponseDto,
+    GetManualSimulationByIdResponseDto,
 } from '@api/dtos/simulation.dtos';
 
 // Mappers
@@ -29,6 +34,11 @@ import {
     AvailableDatesMapper,
     BatchIngestMapper,
 } from '@application/mappers/simulation.mappers';
+import {
+    CreateManualSimulationMapper,
+    ListManualSimulationsMapper,
+    GetManualSimulationByIdMapper,
+} from '@application/mappers/manual-simulation.mappers';
 
 // Queries
 import {
@@ -38,17 +48,20 @@ import {
     GetHistoricalSimulationsQuery,
     GetAvailableDatesQuery,
 } from '@application/queries/simulation.queries';
-
 // Commands
 import { FinalizeSimulationCommand } from '@application/commands/simulation.commands';
+import { CreateManualSimulationCommand } from '@application/commands/manual-simulation.commands';
 
 // Domain
 import { Simulation } from '@domain/entities/simulation.entity';
 import { PaginatedResult } from '@domain/ports/simulation-repository.port';
+import { ManualSimulationResult } from '@domain/results/manual-simulation.result';
+import { PaginatedManualSimulationResult } from '@domain/results/manual-simulation.result';
 
 // Errors
 import { ApiError } from '@domain/errors/api.error';
 import { EntityError } from '@domain/errors/entity.error';
+import { ProviderError } from '@domain/errors/provider.error';
 import { ApiEndpoint } from '@swagger/api-endpoint.decorator';
 
 @ApiTags('Simulations')
@@ -180,6 +193,94 @@ export class SimulationController {
                 throw new HttpException(error.message, error.statusCode);
             }
             this.logger.error({ msg: 'Get available dates error', entity: 'Simulations', error: String(error) });
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Post('manual')
+    @ApiEndpoint({
+        summary: 'Create a manual simulation with maneuvers',
+        body: CreateManualSimulationRequestDto,
+        response: {
+            status: 201,
+            type: ManualSimulationResponseDto,
+            description: 'Manual simulation created and dispatched',
+        },
+        errors: [
+            { status: 400, description: 'Validation error — invalid payload or negative outputFlowValue' },
+            { status: 503, description: 'SFTP upload failed — simulation persisted in CREATED status' },
+        ],
+    })
+    async createManual(
+        @Body() dto: CreateManualSimulationRequestDto,
+        @Req() req: import('express').Request,
+    ): Promise<ManualSimulationResponseDto> {
+        this.logger.log({ msg: 'Create manual simulation request', entity: 'Simulations' });
+        const rawName = req.headers['x-user-name'];
+        const operatorName = Array.isArray(rawName) ? rawName[0] : rawName;
+        const createdBy = operatorName ? decodeURIComponent(operatorName) : null;
+        const command = CreateManualSimulationMapper.toCommand(dto, createdBy);
+        try {
+            const result = await this.commandBus.execute<CreateManualSimulationCommand, ManualSimulationResult>(
+                command,
+            );
+            return CreateManualSimulationMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof EntityError) {
+                throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+            }
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            if (error instanceof ProviderError) {
+                throw new HttpException(error.message, HttpStatus.SERVICE_UNAVAILABLE);
+            }
+            this.logger.error({ msg: 'Create manual simulation error', entity: 'Simulations', error: String(error) });
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get('manual')
+    @ApiEndpoint({
+        summary: 'List manual simulations with optional filters',
+        response: {
+            status: 200,
+            type: ListManualSimulationsResponseDto,
+            description: 'Paginated list of manual simulations',
+        },
+    })
+    async listManual(@Query() dto: ListManualSimulationsQueryDto): Promise<ListManualSimulationsResponseDto> {
+        this.logger.log('List manual simulations request');
+        try {
+            const query = ListManualSimulationsMapper.toQuery(dto);
+            const result = await this.cachingQueryBus.execute<PaginatedManualSimulationResult>(query);
+            return ListManualSimulationsMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error({ msg: 'List manual simulations error', entity: 'Simulations', error: String(error) });
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get('manual/:id')
+    @ApiEndpoint({
+        summary: 'Get a manual simulation by ID',
+        response: { status: 200, type: GetManualSimulationByIdResponseDto, description: 'Manual simulation found' },
+        errors: [{ status: 404, description: 'Simulation not found or is not MANUAL type' }],
+    })
+    async getManualById(@Param('id') id: string): Promise<GetManualSimulationByIdResponseDto> {
+        this.logger.log(`Get manual simulation by id request: ${id}`);
+        try {
+            const query = GetManualSimulationByIdMapper.toQuery(id);
+            const result = await this.cachingQueryBus.execute<ManualSimulationResult>(query);
+            return GetManualSimulationByIdMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error({ msg: 'Get manual simulation error', entity: 'Simulations', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

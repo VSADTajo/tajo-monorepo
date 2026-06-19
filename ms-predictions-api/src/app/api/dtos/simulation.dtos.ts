@@ -253,3 +253,119 @@ export class BatchIngestResponseDto {
     @ApiProperty() processedCount: number;
     @ApiProperty({ type: [String] }) errors: string[];
 }
+
+// ─────────────────────────────────────────────────────────────
+// CreateManualSimulation
+// ─────────────────────────────────────────────────────────────
+
+export class ManeuverRequestDto {
+    @ApiProperty({ description: 'Reservoir code identifier', example: 'E001' })
+    @IsNotEmpty()
+    @IsString()
+    reservoirCode: string;
+
+    @ApiProperty({ description: 'Output flow value in m³/s (must be >= 0)', example: 12.5 })
+    @IsNotEmpty()
+    @IsNumber()
+    @Min(0)
+    outputFlowValue: number;
+}
+
+export class CreateManualSimulationRequestDto {
+    @ApiProperty({ description: 'Simulation date in YYYYMMDDHHMMSS format', example: '20260619120000' })
+    @IsNotEmpty()
+    @IsString()
+    simulationDate: string;
+
+    @ApiProperty({ description: 'Optional description', required: false, example: 'Operación de control Tranco' })
+    @IsOptional()
+    @IsString()
+    description?: string;
+
+    @ApiProperty({
+        description: 'List of maneuvers (at least 1 required)',
+        type: [ManeuverRequestDto],
+        minItems: 1,
+    })
+    @ValidateNested({ each: true })
+    @Type(() => ManeuverRequestDto)
+    @ArrayMinSize(1)
+    maneuvers: ManeuverRequestDto[];
+}
+
+export class ManeuverResponseDto {
+    @ApiProperty({ description: 'Maneuver unique identifier' }) id: string;
+    @ApiProperty({ description: 'Reservoir code', example: 'E001' }) reservoirCode: string;
+    @ApiProperty({ description: 'Output flow value in m³/s', example: 12.5 }) outputFlowValue: number;
+}
+
+export class ManualSimulationResponseDto {
+    @ApiProperty({ description: 'Simulation unique identifier' }) id: string;
+    @ApiProperty({ description: 'Simulation date in YYYYMMDDHHMMSS format' }) simulationDate: string;
+    @ApiProperty({
+        description: 'Simulation status',
+        enum: ['CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'],
+    })
+    status: string;
+    @ApiProperty({ description: 'Simulation type', example: 'MANUAL' }) type: string;
+    @ApiProperty({ description: 'Optional description', nullable: true }) description: string | null;
+    @ApiProperty({ description: 'Operator who created the simulation (from auth token)', nullable: true })
+    createdBy: string | null;
+    @ApiProperty({ description: 'Maneuvers included in the simulation', type: [ManeuverResponseDto] })
+    maneuvers: ManeuverResponseDto[];
+    @ApiProperty({ description: 'Creation timestamp' }) createdAt: Date | undefined;
+    @ApiProperty({ description: 'Last update timestamp' }) updatedAt: Date | undefined;
+}
+
+// ─────────────────────────────────────────────────────────────
+// ListManualSimulations
+// ─────────────────────────────────────────────────────────────
+
+export class ListManualSimulationsQueryDto {
+    @ApiProperty({
+        description: 'Filter by status',
+        required: false,
+        enum: ['CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'],
+    })
+    @IsOptional()
+    @IsString()
+    status?: string;
+
+    @ApiProperty({ description: 'Page number', required: false, default: 1 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    page?: number;
+
+    @ApiProperty({ description: 'Items per page', required: false, default: 20 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(100)
+    limit?: number;
+}
+
+export class ManualSimulationListItemDto {
+    @ApiProperty() id: string;
+    @ApiProperty() simulationDate: string;
+    @ApiProperty() status: string;
+    @ApiProperty() type: string;
+    @ApiProperty({ nullable: true }) description: string | null;
+    @ApiProperty() maneuverCount: number;
+    @ApiProperty() createdAt: Date | undefined;
+}
+
+export class ListManualSimulationsResponseDto {
+    @ApiProperty({ type: [ManualSimulationListItemDto] }) data: ManualSimulationListItemDto[];
+    @ApiProperty() total: number;
+    @ApiProperty() page: number;
+    @ApiProperty() limit: number;
+}
+
+// ─────────────────────────────────────────────────────────────
+// GetManualSimulationById
+// ─────────────────────────────────────────────────────────────
+
+export class GetManualSimulationByIdResponseDto extends ManualSimulationResponseDto {}

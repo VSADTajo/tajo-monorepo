@@ -5,6 +5,7 @@ import { SimulationDateValueObject } from '@domain/value-objects/simulation-date
 import { ApiError } from '@domain/errors/api.error';
 import { HttpStatus } from '@nestjs/common';
 import type { Prediction } from './prediction.entity';
+import type { Maneuver } from './maneuver.entity';
 
 export enum SimulationStatus {
     CREATED = 'CREATED',
@@ -73,6 +74,9 @@ export class Simulation extends BaseAuditEntity implements IValidable {
     @OneToMany('Prediction', (p: Prediction) => p.simulation)
     predictions: Prediction[];
 
+    @OneToMany('Maneuver', (m: Maneuver) => m.simulation)
+    maneuvers: Maneuver[];
+
     validate(): void {
         const simulationDate = new SimulationDateValueObject(this.simulationDate);
         this.simulationDate = simulationDate.value;
@@ -96,8 +100,14 @@ export class Simulation extends BaseAuditEntity implements IValidable {
     }
 
     finalize(): void {
-        if (this.status !== SimulationStatus.IN_PROGRESS) {
-            throw new ApiError(HttpStatus.CONFLICT, 'Simulation can only be finalized from IN_PROGRESS status');
+        if (
+            this.status !== SimulationStatus.IN_PROGRESS &&
+            this.status !== SimulationStatus.MODEL_PROCESSING
+        ) {
+            throw new ApiError(
+                HttpStatus.CONFLICT,
+                'Simulation can only be finalized from IN_PROGRESS or MODEL_PROCESSING status',
+            );
         }
         this.status = SimulationStatus.FINALIZED;
     }

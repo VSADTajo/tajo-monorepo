@@ -14,6 +14,7 @@ import { IStationThresholdRepository } from '@domain/ports/station-threshold-rep
 import { IStationResguardoRepository } from '@domain/ports/station-resguardo-repository.port';
 import { IGeoserverRepository } from '@domain/ports/geoserver-repository.port';
 import { IGeoDataRepository } from '@domain/ports/geo-data-repository.port';
+import { IDownstreamStationsRepository } from '@domain/ports/downstream-stations-repository.port';
 import { INotificationService } from '@domain/ports/notification-service.port';
 import { ICacheService } from '@domain/ports/cache-service.port';
 import { IMessageBroker } from '@domain/ports/message-broker.port';
@@ -27,6 +28,7 @@ import { StationThresholdRepository } from '@infrastructure/persistence/station-
 import { StationResguardoRepository } from '@infrastructure/persistence/station-resguardo.repository';
 import { GeoserverRepository } from '@infrastructure/persistence/geoserver.repository';
 import { GeoDataRepository } from '@infrastructure/persistence/geo-data.repository';
+import { DownstreamStationsRepository } from '@infrastructure/persistence/downstream-stations.repository';
 import { NotificationService } from '@infrastructure/services/notification.service';
 import { TransactionManagerService } from '@infrastructure/services/transaction-manager.service';
 import { RedisCacheService } from '@infrastructure/services/redis-cache.service';
@@ -95,6 +97,10 @@ import { StationResguardo } from '@domain/entities/station-resguardo.entity';
             useClass: GeoDataRepository,
         },
         {
+            provide: IDownstreamStationsRepository,
+            useClass: DownstreamStationsRepository,
+        },
+        {
             provide: IStationResguardoRepository,
             useClass: StationResguardoRepository,
         },
@@ -112,6 +118,7 @@ import { StationResguardo } from '@domain/entities/station-resguardo.entity';
         IStationThresholdRepository,
         IGeoserverRepository,
         IGeoDataRepository,
+        IDownstreamStationsRepository,
         INotificationService,
         ITransactionManagerService,
         ICacheService,

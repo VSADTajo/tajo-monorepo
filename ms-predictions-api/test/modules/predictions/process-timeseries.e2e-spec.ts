@@ -7,6 +7,7 @@ import { PredictionType } from '../../../src/app/domain/entities/prediction-type
 import { Simulation } from '../../../src/app/domain/entities/simulation.entity';
 import { Prediction } from '../../../src/app/domain/entities/prediction.entity';
 import { PredictionResult as PredictionResultEntity } from '../../../src/app/domain/entities/prediction-result.entity';
+import { Maneuver } from '../../../src/app/domain/entities/maneuver.entity';
 
 import { IPredictionTypeRepository } from '../../../src/app/domain/ports/prediction-type-repository.port';
 import { ISimulationRepository } from '../../../src/app/domain/ports/simulation-repository.port';
@@ -60,7 +61,7 @@ describe('Process TimeSeries (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [PredictionType, Simulation, Prediction, PredictionResultEntity],
+            entities: [PredictionType, Simulation, Prediction, PredictionResultEntity, Maneuver],
             controllers: [],
             providers: [
                 ProcessTimeSeriesHandler,

@@ -4,6 +4,7 @@
 
 export const Queues = {
     PREDICTIONS_TIMESERIES_PROCESSING: 'predictions-timeseries-processing',
+    PREDICTIONS_SIMULATION_STATUS_UPDATES: 'predictions-simulation-status-updates',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -15,6 +16,13 @@ export const Topics = {
         exchange: 'model-events',
         routingKeys: {
             TIMESERIES_INGESTED: 'timeseries.ingested',
+        },
+    },
+    SIMULATION_EVENTS: {
+        exchange: 'simulation-events',
+        routingKeys: {
+            MANUAL_DISPATCHED: 'simulation.manual.dispatched',
+            STATUS_UPDATED: 'simulation.status.updated',
         },
     },
     NOTIFICATIONS: {
@@ -43,5 +51,10 @@ export const TopicSubscriptions: TopicSubscription[] = [
         queue: Queues.PREDICTIONS_TIMESERIES_PROCESSING,
         exchange: Topics.MODEL_EVENTS.exchange,
         routingKey: Topics.MODEL_EVENTS.routingKeys.TIMESERIES_INGESTED,
+    },
+    {
+        queue: Queues.PREDICTIONS_SIMULATION_STATUS_UPDATES,
+        exchange: Topics.SIMULATION_EVENTS.exchange,
+        routingKey: Topics.SIMULATION_EVENTS.routingKeys.STATUS_UPDATED,
     },
 ];

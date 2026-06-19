@@ -52,6 +52,11 @@ export const ResguardoCacheKeys = {
     pattern: () => 'resguardo:*',
 };
 
+export const DownstreamStationsCacheKeys = {
+    byCodes: (codes: string[]) => `stations:downstream:${codes.sort().join(',')}`,
+    pattern: () => 'stations:downstream:*',
+};
+
 // ─────────────────────────────────────────────────────────────
 // Cache Registry — maps query class names to cache config
 // ─────────────────────────────────────────────────────────────
@@ -90,4 +95,7 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         'GetResguardoByDateQuery',
         { ttl: 600, key: (q: any) => ResguardoCacheKeys.byStationAndDate(q.stationCode, q.date) },
     ],
+
+    // DownstreamStations
+    ['GetDownstreamStationsQuery', { ttl: 600, key: (q: any) => DownstreamStationsCacheKeys.byCodes(q.codes) }],
 ]);

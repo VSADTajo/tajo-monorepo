@@ -26,6 +26,7 @@ import {
     GetResguardoByDateResponseDto,
     UpdateResguardoRequestDto,
     UpdateResguardoResponseDto,
+    GetDownstreamStationsResponseDto,
 } from '@api/dtos/hydro-proxy.dtos';
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
@@ -427,6 +428,35 @@ export class HydroProxyController {
             method: 'GET',
             baseUrl: this.servicesConfig.hydroApiUrl,
             path: `/stations/by-code/${encodeURIComponent(code)}`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('stations/downstream')
+    @ApiEndpoint({
+        summary: 'Get stations and reservoirs located downstream of the given origin codes',
+        response: {
+            status: 200,
+            type: GetDownstreamStationsResponseDto,
+            description: 'Distinct downstream destinations (network analysis from GIS materialized view)',
+        },
+        errors: [{ status: 400, description: 'Empty or missing codes' }],
+    })
+    @ApiQuery({
+        name: 'codes',
+        required: true,
+        type: [String],
+        description: 'Array of origin station codes (use codes[]=X&codes[]=Y in the query string)',
+    })
+    async getDownstreamStations(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: '/stations/downstream',
+            query: req.query as Record<string, string | string[]>,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,
