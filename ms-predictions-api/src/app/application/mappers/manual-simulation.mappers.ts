@@ -26,6 +26,7 @@ export class CreateManualSimulationMapper {
             simulationDate: dto.simulationDate,
             description: dto.description,
             createdBy,
+            modmeteo: dto.modmeteo,
             maneuvers: dto.maneuvers.map((m) => ({
                 reservoirCode: m.reservoirCode,
                 outputFlowValue: m.outputFlowValue,
@@ -41,6 +42,7 @@ export class CreateManualSimulationMapper {
             type: result.simulation.type,
             description: result.simulation.description ?? null,
             createdBy: result.simulation.createdBy ?? null,
+            modmeteo: result.simulation.modmeteo ?? null,
             maneuvers: result.maneuvers.map(
                 (m: Maneuver): ManeuverResponseDto => ({
                     id: m.id,
@@ -71,6 +73,7 @@ export class GetManualSimulationByIdMapper {
             type: result.simulation.type,
             description: result.simulation.description ?? null,
             createdBy: result.simulation.createdBy ?? null,
+            modmeteo: result.simulation.modmeteo ?? null,
             maneuvers: result.maneuvers.map(
                 (m: Maneuver): ManeuverResponseDto => ({
                     id: m.id,

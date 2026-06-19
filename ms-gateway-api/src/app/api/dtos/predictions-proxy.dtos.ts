@@ -203,6 +203,13 @@ export class CreateManualSimulationRequestDto {
         example: 'Operación de control Tranco',
     })
     description?: string;
+    @ApiProperty({
+        description:
+            'Meteorological forcing for the SFTP input file. HARMONIE → Q.NAM.harmonie, EPS → Q.NAM.ens, BOTH → both files',
+        enum: ['HARMONIE', 'EPS', 'BOTH'],
+        example: 'BOTH',
+    })
+    modmeteo: 'HARMONIE' | 'EPS' | 'BOTH';
     @ApiProperty({ type: [ManeuverInputDto], description: 'Maneuvers (at least one required)' })
     maneuvers: ManeuverInputDto[];
 }
@@ -229,6 +236,7 @@ export class ManualSimulationListItemDto {
     @ApiProperty({ example: 'MANUAL' }) type: string;
     @ApiProperty({ nullable: true, example: 'Operación de control' }) description: string | null;
     @ApiProperty({ nullable: true, example: 'Sebastián Aliceio' }) createdBy: string | null;
+    @ApiProperty({ nullable: true, example: 'BOTH' }) modmeteo: string | null;
     @ApiProperty({ example: 2 }) maneuverCount: number;
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) createdAt: Date | undefined;
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) updatedAt: Date | undefined;

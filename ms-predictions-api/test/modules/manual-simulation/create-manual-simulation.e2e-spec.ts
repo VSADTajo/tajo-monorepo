@@ -103,14 +103,30 @@ describe('Create Manual Simulation (e2e)', () => {
         });
 
         it('should call SFTP service to upload input file', async () => {
-            const dto = buildCreateManualSimulationDto();
+            const dto = buildCreateManualSimulationDto({ modmeteo: 'HARMONIE' });
 
             await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
             expect(mockSftpService.uploadInputFile).toHaveBeenCalledTimes(1);
-            const [simulationId, content] = mockSftpService.uploadInputFile.mock.calls[0];
+            const [simulationId, fileName, content] = mockSftpService.uploadInputFile.mock.calls[0];
             expect(typeof simulationId).toBe('string');
+            expect(fileName).toMatch(/^tagus_harmonie_Q_\d{12}\.json$/);
             expect(content).toBeInstanceOf(Buffer);
+        });
+
+        it('should call SFTP service once per modmeteo when BOTH is requested', async () => {
+            const dto = buildCreateManualSimulationDto({ modmeteo: 'BOTH' });
+
+            await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(mockSftpService.uploadInputFile).toHaveBeenCalledTimes(2);
+            const tags = mockSftpService.uploadInputFile.mock.calls.map((call) => call[1]);
+            expect(tags).toEqual(
+                expect.arrayContaining([
+                    expect.stringMatching(/^tagus_harmonie_Q_\d{12}\.json$/),
+                    expect.stringMatching(/^tagus_eps_Q_\d{12}\.json$/),
+                ]),
+            );
         });
 
         it('should publish simulation.manual.dispatched event', async () => {

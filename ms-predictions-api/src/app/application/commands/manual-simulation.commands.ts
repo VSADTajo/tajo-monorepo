@@ -24,10 +24,13 @@ export interface IManeuverInput {
     outputFlowValue: number;
 }
 
+export type ModmeteoChoice = 'HARMONIE' | 'EPS' | 'BOTH';
+
 export interface ICreateManualSimulationCommand {
     simulationDate: string;
     description?: string;
     createdBy?: string | null;
+    modmeteo: ModmeteoChoice;
     maneuvers: IManeuverInput[];
 }
 
@@ -44,6 +47,10 @@ export class CreateManualSimulationCommand {
 
     get createdBy(): string | null | undefined {
         return this.parameters.createdBy;
+    }
+
+    get modmeteo(): ModmeteoChoice {
+        return this.parameters.modmeteo;
     }
 
     get maneuvers(): IManeuverInput[] {
@@ -79,7 +86,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             type: SimulationType.MANUAL,
             dataOrigin: DataOrigin.FORECAST,
             jobType: null,
-            modmeteo: null,
+            modmeteo: command.modmeteo,
             environment: null,
             createdBy: command.createdBy ?? 'operator',
         });
@@ -107,30 +114,32 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             entity: 'Simulations',
             simulationId: persistedSimulation.id,
             maneuverCount: persistedManeuvers.length,
+            modmeteo: command.modmeteo,
         });
 
-        // 3. Query FORECAST predictions for each reservoir code
-        const reservoirCodes = command.maneuvers.map((m) => m.reservoirCode);
-        const allPredictions = await Promise.all(
-            reservoirCodes.map(async (reservoirCode) => {
-                const filters: ForecastFilters = { stationId: reservoirCode };
-                return this.predictionRepository.findForecast(filters);
-            }),
-        );
-        const predictions = allPredictions.flat();
+        // 3. Build + upload one SFTP file per requested modmeteo
+        const modmeteoSpecs = this.resolveModmeteoSpecs(command.modmeteo);
+        for (const spec of modmeteoSpecs) {
+            const reservoirSeries = await this.buildReservoirTimeSeries(command, spec);
+            const fileContent = { version: '1.34', timeZone: '0.0', timeSeries: reservoirSeries };
+            const buffer = Buffer.from(JSON.stringify(fileContent, null, 2), 'utf-8');
+            const fileName = this.buildFileName(spec.fileTag, command.simulationDate);
+            await this.sftpService.uploadInputFile(persistedSimulation.id, fileName, buffer);
+            this.logger.log({
+                msg: 'Manual simulation input file uploaded',
+                entity: 'Simulations',
+                simulationId: persistedSimulation.id,
+                fileName,
+                modmeteo: spec.fileTag,
+                seriesCount: reservoirSeries.length,
+            });
+        }
 
-        // 4. Build input file buffer (JSON time-series format)
-        const inputFileContent = this.buildInputFile(persistedSimulation.id, command.maneuvers, predictions);
-        const contentBuffer = Buffer.from(JSON.stringify(inputFileContent, null, 2), 'utf-8');
-
-        // 5. Upload to ms-sftp-api (ProviderError propagates if it fails)
-        await this.sftpService.uploadInputFile(persistedSimulation.id, contentBuffer);
-
-        // 6. Transition simulation to MODEL_PROCESSING
+        // 4. Transition simulation to MODEL_PROCESSING
         persistedSimulation.advanceStatus();
         const updatedSimulation = await this.simulationRepository.update(persistedSimulation);
 
-        // 7. Publish simulation.manual.dispatched event
+        // 5. Publish simulation.manual.dispatched event
         const outputFolder = `tajo/SIMULATIONS/${persistedSimulation.id}/output`;
         await this.messageBroker.publishToTopic(
             Topics.SIMULATION_EVENTS.exchange,
@@ -138,10 +147,11 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             {
                 simulationId: persistedSimulation.id,
                 outputFolder,
+                modmeteo: command.modmeteo,
             },
         );
 
-        // 8. Invalidate cache
+        // 6. Invalidate cache
         await this.cacheService.delByPattern(ManualSimulationCacheKeys.pattern());
 
         this.logger.log({
@@ -149,6 +159,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             entity: 'Simulations',
             simulationId: persistedSimulation.id,
             outputFolder,
+            modmeteo: command.modmeteo,
         });
 
         return new ManualSimulationResult({
@@ -157,85 +168,107 @@ export class CreateManualSimulationHandler implements ICommandHandler<
         });
     }
 
-    private buildInputFile(
-        simulationId: string,
-        maneuvers: IManeuverInput[],
-        predictions: Array<{
-            stationId: string;
-            stationName: string | null;
-            predictionDate: Date | null;
-            predictionStartDate: Date | null;
-            predictionEndDate: Date | null;
-            results?: Array<{ date: Date; value: number; flag: number }>;
-        }>,
-    ): object {
-        const now = new Date();
-        const forecastDate = now.toISOString().split('T')[0];
-        const forecastTime = now.toISOString().split('T')[1].substring(0, 8);
+    private resolveModmeteoSpecs(choice: ModmeteoChoice): Array<{ fileTag: string; predictionTypeName: string }> {
+        const harmonie = { fileTag: 'harmonie', predictionTypeName: 'Q.NAM.harmonie' };
+        const eps = { fileTag: 'eps', predictionTypeName: 'Q.NAM.ens' };
+        if (choice === 'HARMONIE') return [harmonie];
+        if (choice === 'EPS') return [eps];
+        return [harmonie, eps];
+    }
 
-        const timeSeries = maneuvers.map((maneuver) => {
-            const maneuverPredictions = predictions.filter((p) => p.stationId === maneuver.reservoirCode);
+    private buildFileName(fileTag: string, simulationDate: string): string {
+        // simulationDate format YYYYMMDDHHMMSS → output uses YYYYMMDDHHMM (no seconds)
+        const stamp = simulationDate.length >= 12 ? simulationDate.substring(0, 12) : simulationDate;
+        return `tagus_${fileTag}_Q_${stamp}.json`;
+    }
+
+    /**
+     * For each maneuver's reservoir, fetch the latest Q.NAM.<modmeteo> prediction and emit
+     * one timeSeries with the natural events plus the maneuver metadata in the header.
+     */
+    private async buildReservoirTimeSeries(
+        command: CreateManualSimulationCommand,
+        spec: { fileTag: string; predictionTypeName: string },
+    ): Promise<object[]> {
+        const series: object[] = [];
+
+        for (const maneuver of command.maneuvers) {
+            const filters: ForecastFilters = {
+                stationId: maneuver.reservoirCode,
+                predictionType: spec.predictionTypeName,
+            };
+            const predictions = await this.predictionRepository.findForecast(filters);
+            const prediction = predictions[0];
 
             const events =
-                maneuverPredictions.length > 0 && maneuverPredictions[0].results
-                    ? maneuverPredictions[0].results.map((r) => {
-                          const d = r.date instanceof Date ? r.date : new Date(r.date);
-                          return {
-                              date: d.toISOString().split('T')[0],
-                              time: d.toISOString().split('T')[1].substring(0, 8),
-                              value: String(r.value),
-                              flag: String(r.flag ?? 0),
-                          };
-                      })
-                    : [
-                          {
-                              date: forecastDate,
-                              time: forecastTime,
-                              value: String(maneuver.outputFlowValue),
-                              flag: '0',
-                          },
-                      ];
+                prediction?.results?.map((r) => {
+                    const d = r.date instanceof Date ? r.date : new Date(r.date as unknown as string);
+                    return {
+                        date: d.toISOString().split('T')[0],
+                        time: d.toISOString().split('T')[1].substring(0, 8),
+                        value: String(r.value),
+                        flag: String(r.flag ?? 0),
+                    };
+                }) ?? [];
 
-            const startDate =
-                maneuverPredictions.length > 0 && maneuverPredictions[0].predictionStartDate
-                    ? (maneuverPredictions[0].predictionStartDate instanceof Date
-                          ? maneuverPredictions[0].predictionStartDate
-                          : new Date(maneuverPredictions[0].predictionStartDate)
-                      )
-                          .toISOString()
-                          .split('T')[0]
-                    : forecastDate;
+            const stationName = prediction?.stationName ?? maneuver.reservoirCode;
+            const moduleInstanceId = prediction?.predictedBy ?? `Manual_${spec.fileTag}`;
+            const forecastIso = this.parseSimulationDate(command.simulationDate);
+            const startIso = prediction?.predictionStartDate ? this.toIso(prediction.predictionStartDate) : forecastIso;
+            const endIso = prediction?.predictionEndDate ? this.toIso(prediction.predictionEndDate) : forecastIso;
 
-            const endDate =
-                maneuverPredictions.length > 0 && maneuverPredictions[0].predictionEndDate
-                    ? (maneuverPredictions[0].predictionEndDate instanceof Date
-                          ? maneuverPredictions[0].predictionEndDate
-                          : new Date(maneuverPredictions[0].predictionEndDate)
-                      )
-                          .toISOString()
-                          .split('T')[0]
-                    : forecastDate;
-
-            const stationName =
-                maneuverPredictions.length > 0 ? maneuverPredictions[0].stationName : maneuver.reservoirCode;
-
-            return {
+            series.push({
                 header: {
+                    type: 'instantaneous',
+                    moduleInstanceId,
                     locationId: maneuver.reservoirCode,
-                    parameterId: 'Q.sim.forecast',
-                    forecastDate: { date: forecastDate, time: forecastTime },
-                    startDate: { date: startDate, time: '00:00:00' },
-                    endDate: { date: endDate, time: '23:59:59' },
-                    missVal: '-999',
-                    stationName: stationName || maneuver.reservoirCode,
+                    parameterId: spec.predictionTypeName,
+                    timeStep: { unit: 'second', multiplier: '900' },
+                    startDate: { date: startIso.date, time: startIso.time },
+                    endDate: { date: endIso.date, time: endIso.time },
+                    forecastDate: { date: forecastIso.date, time: forecastIso.time },
+                    missVal: '-999.0',
+                    stationName,
                     units: 'm3/s',
-                    simulationId,
-                    outputFlowValue: maneuver.outputFlowValue,
+                    maneuver: {
+                        date: forecastIso.date,
+                        time: forecastIso.time,
+                        outputFlowValue: maneuver.outputFlowValue,
+                    },
                 },
                 events,
-            };
-        });
+            });
+        }
 
-        return { timeSeries };
+        return series;
+    }
+
+    private toIso(d: Date | string): { date: string; time: string } {
+        const date = d instanceof Date ? d : new Date(d);
+        return {
+            date: date.toISOString().split('T')[0],
+            time: date.toISOString().split('T')[1].substring(0, 8),
+        };
+    }
+
+    /**
+     * Parse YYYYMMDDHHMMSS into { date: YYYY-MM-DD, time: HH:MM:SS }.
+     * Falls back to the current UTC time when the input is malformed.
+     */
+    private parseSimulationDate(simulationDate: string): { date: string; time: string } {
+        if (simulationDate && /^\d{14}$/.test(simulationDate)) {
+            const yyyy = simulationDate.substring(0, 4);
+            const mm = simulationDate.substring(4, 6);
+            const dd = simulationDate.substring(6, 8);
+            const hh = simulationDate.substring(8, 10);
+            const mi = simulationDate.substring(10, 12);
+            const ss = simulationDate.substring(12, 14);
+            return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${mi}:${ss}` };
+        }
+        const now = new Date();
+        return {
+            date: now.toISOString().split('T')[0],
+            time: now.toISOString().split('T')[1].substring(0, 8),
+        };
     }
 }

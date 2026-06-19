@@ -15,8 +15,7 @@ export class SimulationSftpService implements ISimulationSftpService {
         private readonly sftpApiConfig: SftpApiConfigService,
     ) {}
 
-    async uploadInputFile(simulationId: string, content: Buffer): Promise<void> {
-        const fileName = `${simulationId}.json`;
+    async uploadInputFile(simulationId: string, fileName: string, content: Buffer): Promise<void> {
         const fullPath = `tajo/SIMULATIONS/${simulationId}/input/${fileName}`;
 
         const form = new FormData();
@@ -46,12 +45,14 @@ export class SimulationSftpService implements ISimulationSftpService {
                 msg: 'Simulation input file uploaded successfully',
                 entity: 'Simulations',
                 simulationId,
+                path: fullPath,
             });
         } catch (error) {
             this.logger.error({
                 msg: 'Failed to upload simulation input file to SFTP API',
                 entity: 'Simulations',
                 simulationId,
+                path: fullPath,
                 error: String(error),
             });
             throw new ProviderError(`Failed to upload simulation input file: ${String(error)}`);

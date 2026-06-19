@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
     ArrayMinSize,
+    IsEnum,
     IsInt,
     IsNotEmpty,
     IsNumber,
@@ -271,6 +272,12 @@ export class ManeuverRequestDto {
     outputFlowValue: number;
 }
 
+export enum ModmeteoChoice {
+    HARMONIE = 'HARMONIE',
+    EPS = 'EPS',
+    BOTH = 'BOTH',
+}
+
 export class CreateManualSimulationRequestDto {
     @ApiProperty({ description: 'Simulation date in YYYYMMDDHHMMSS format', example: '20260619120000' })
     @IsNotEmpty()
@@ -281,6 +288,16 @@ export class CreateManualSimulationRequestDto {
     @IsOptional()
     @IsString()
     description?: string;
+
+    @ApiProperty({
+        description:
+            'Meteorological forcing to use when building the SFTP input file. ' +
+            'HARMONIE → Q.NAM.harmonie, EPS → Q.NAM.ens, BOTH → both files (tagus_harmonie_Q_*.json and tagus_eps_Q_*.json).',
+        enum: ModmeteoChoice,
+        example: ModmeteoChoice.BOTH,
+    })
+    @IsEnum(ModmeteoChoice)
+    modmeteo: ModmeteoChoice;
 
     @ApiProperty({
         description: 'List of maneuvers (at least 1 required)',
@@ -311,6 +328,8 @@ export class ManualSimulationResponseDto {
     @ApiProperty({ description: 'Optional description', nullable: true }) description: string | null;
     @ApiProperty({ description: 'Operator who created the simulation (from auth token)', nullable: true })
     createdBy: string | null;
+    @ApiProperty({ description: 'Meteorological forcing chosen by the operator', nullable: true, example: 'BOTH' })
+    modmeteo: string | null;
     @ApiProperty({ description: 'Maneuvers included in the simulation', type: [ManeuverResponseDto] })
     maneuvers: ManeuverResponseDto[];
     @ApiProperty({ description: 'Creation timestamp' }) createdAt: Date | undefined;
