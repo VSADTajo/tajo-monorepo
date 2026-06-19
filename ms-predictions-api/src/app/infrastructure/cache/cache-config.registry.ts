@@ -5,6 +5,7 @@ import {
     GetHistoricalSimulationsQuery,
     GetAvailableDatesQuery,
 } from '@app/application/queries/simulation.queries';
+import { ListManeuversQuery, GetManeuverByIdQuery } from '@app/application/queries/maneuver.queries';
 import {
     GetHistoricalPredictionsQuery,
     GetRawPredictionsQuery,
@@ -58,6 +59,12 @@ export const ManualSimulationCacheKeys = {
     byId: (id: string) => `manual-simulation:${id}`,
     list: (params: string) => `manual-simulation:list:${params}`,
     pattern: () => 'manual-simulation:*',
+};
+
+export const ManeuverCacheKeys = {
+    byId: (id: string) => `maneuver:${id}`,
+    list: (params: string) => `maneuver:list:${params}`,
+    pattern: () => 'maneuver:*',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -146,4 +153,13 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
                 ManualSimulationCacheKeys.list(JSON.stringify({ status: q.status, p: q.page, l: q.limit })),
         },
     ],
+    [
+        ListManeuversQuery.name,
+        {
+            ttl: 60,
+            key: (q: ListManeuversQuery) =>
+                ManeuverCacheKeys.list(JSON.stringify({ ...q.filters, p: q.page, l: q.limit })),
+        },
+    ],
+    [GetManeuverByIdQuery.name, { ttl: 300, key: (q: GetManeuverByIdQuery) => ManeuverCacheKeys.byId(q.id) }],
 ]);

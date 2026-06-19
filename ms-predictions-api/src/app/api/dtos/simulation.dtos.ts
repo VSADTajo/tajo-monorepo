@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
     ArrayMinSize,
+    IsArray,
     IsEnum,
     IsInt,
     IsNotEmpty,
@@ -259,19 +260,6 @@ export class BatchIngestResponseDto {
 // CreateManualSimulation
 // ─────────────────────────────────────────────────────────────
 
-export class ManeuverRequestDto {
-    @ApiProperty({ description: 'Reservoir code identifier', example: 'E001' })
-    @IsNotEmpty()
-    @IsString()
-    reservoirCode: string;
-
-    @ApiProperty({ description: 'Output flow value in m³/s (must be >= 0)', example: 12.5 })
-    @IsNotEmpty()
-    @IsNumber()
-    @Min(0)
-    outputFlowValue: number;
-}
-
 export enum ModmeteoChoice {
     HARMONIE = 'HARMONIE',
     EPS = 'EPS',
@@ -279,11 +267,6 @@ export enum ModmeteoChoice {
 }
 
 export class CreateManualSimulationRequestDto {
-    @ApiProperty({ description: 'Simulation date in YYYYMMDDHHMMSS format', example: '20260619120000' })
-    @IsNotEmpty()
-    @IsString()
-    simulationDate: string;
-
     @ApiProperty({ description: 'Optional description', required: false, example: 'Operación de control Tranco' })
     @IsOptional()
     @IsString()
@@ -300,14 +283,17 @@ export class CreateManualSimulationRequestDto {
     modmeteo: ModmeteoChoice;
 
     @ApiProperty({
-        description: 'List of maneuvers (at least 1 required)',
-        type: [ManeuverRequestDto],
+        description:
+            'IDs of existing maneuvers to attach to this simulation. ' +
+            'Maneuvers are standalone, reusable entities created via POST /maneuvers.',
+        type: [String],
+        example: ['7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c'],
         minItems: 1,
     })
-    @ValidateNested({ each: true })
-    @Type(() => ManeuverRequestDto)
+    @IsArray()
+    @IsString({ each: true })
     @ArrayMinSize(1)
-    maneuvers: ManeuverRequestDto[];
+    maneuverIds: string[];
 }
 
 export class ManeuverResponseDto {

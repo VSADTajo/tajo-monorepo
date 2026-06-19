@@ -22,12 +22,18 @@ import { PredictionRepository } from '../../../src/app/infrastructure/persistenc
 
 import { CreateManualSimulationHandler } from '../../../src/app/application/commands/manual-simulation.commands';
 import { ListManualSimulationsHandler } from '../../../src/app/application/queries/manual-simulation.queries';
+import {
+    CreateManeuverHandler,
+    UpdateManeuverHandler,
+    DeleteManeuverHandler,
+} from '../../../src/app/application/commands/maneuver.commands';
 import { SimulationController } from '../../../src/app/api/controllers/simulation.controller';
+import { ManeuverController } from '../../../src/app/api/controllers/maneuver.controller';
 import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-query-bus.service';
 
 import { createTestApp, TestContext } from '../../helpers/test-app.helper';
 import { cleanDatabase } from '../../helpers/db.helper';
-import { buildCreateManualSimulationDto } from '../../factories/manual-simulation.factory';
+import { buildCreateManualSimulationDto, buildCreateManeuverDto } from '../../factories/manual-simulation.factory';
 
 describe('List Manual Simulations (e2e)', () => {
     let app: INestApplication;
@@ -53,10 +59,13 @@ describe('List Manual Simulations (e2e)', () => {
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
             entities: [Simulation, Maneuver, Prediction, PredictionType, PredictionResult],
-            controllers: [SimulationController],
+            controllers: [SimulationController, ManeuverController],
             providers: [
                 CreateManualSimulationHandler,
                 ListManualSimulationsHandler,
+                CreateManeuverHandler,
+                UpdateManeuverHandler,
+                DeleteManeuverHandler,
                 { provide: ISimulationRepository, useClass: SimulationRepository },
                 { provide: IManeuverRepository, useClass: ManeuverRepository },
                 { provide: IPredictionRepository, useClass: PredictionRepository },
@@ -91,9 +100,17 @@ describe('List Manual Simulations (e2e)', () => {
             .query(query || {});
     }
 
+    async function createOneManeuverId(): Promise<string> {
+        const { body } = await request(app.getHttpServer())
+            .post('/maneuvers')
+            .send(buildCreateManeuverDto())
+            .expect(HttpStatus.CREATED);
+        return body.id;
+    }
+
     it('should list only MANUAL simulations', async () => {
-        const dto1 = buildCreateManualSimulationDto({ simulationDate: '20260619120000' });
-        const dto2 = buildCreateManualSimulationDto({ simulationDate: '20260619130000' });
+        const dto1 = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
+        const dto2 = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
 
         await createManualSimulation(dto1).expect(HttpStatus.CREATED);
         await createManualSimulation(dto2).expect(HttpStatus.CREATED);
@@ -108,9 +125,8 @@ describe('List Manual Simulations (e2e)', () => {
     });
 
     it('should filter by status', async () => {
-        await createManualSimulation(buildCreateManualSimulationDto({ simulationDate: '20260619120000' })).expect(
-            HttpStatus.CREATED,
-        );
+        const dto = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
+        await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
         // MODEL_PROCESSING simulations (the default after SFTP upload)
         const { body } = await listManualSimulations({ status: 'MODEL_PROCESSING' }).expect(HttpStatus.OK);
@@ -131,15 +147,15 @@ describe('List Manual Simulations (e2e)', () => {
     });
 
     it('should support pagination', async () => {
-        await createManualSimulation(buildCreateManualSimulationDto({ simulationDate: '20260619120000' })).expect(
-            HttpStatus.CREATED,
-        );
-        await createManualSimulation(buildCreateManualSimulationDto({ simulationDate: '20260619130000' })).expect(
-            HttpStatus.CREATED,
-        );
-        await createManualSimulation(buildCreateManualSimulationDto({ simulationDate: '20260619140000' })).expect(
-            HttpStatus.CREATED,
-        );
+        await createManualSimulation(
+            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+        ).expect(HttpStatus.CREATED);
+        await createManualSimulation(
+            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+        ).expect(HttpStatus.CREATED);
+        await createManualSimulation(
+            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+        ).expect(HttpStatus.CREATED);
 
         const { body } = await listManualSimulations({ page: 1, limit: 2 }).expect(HttpStatus.OK);
 

@@ -22,12 +22,18 @@ import { ManeuverRepository } from '../../../src/app/infrastructure/persistence/
 import { PredictionRepository } from '../../../src/app/infrastructure/persistence/prediction.repository';
 
 import { CreateManualSimulationHandler } from '../../../src/app/application/commands/manual-simulation.commands';
+import {
+    CreateManeuverHandler,
+    UpdateManeuverHandler,
+    DeleteManeuverHandler,
+} from '../../../src/app/application/commands/maneuver.commands';
 import { SimulationController } from '../../../src/app/api/controllers/simulation.controller';
+import { ManeuverController } from '../../../src/app/api/controllers/maneuver.controller';
 import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-query-bus.service';
 
 import { createTestApp, TestContext } from '../../helpers/test-app.helper';
 import { cleanDatabase } from '../../helpers/db.helper';
-import { buildCreateManualSimulationDto } from '../../factories/manual-simulation.factory';
+import { buildCreateManualSimulationDto, buildCreateManeuverDto } from '../../factories/manual-simulation.factory';
 
 describe('Create Manual Simulation (e2e)', () => {
     let app: INestApplication;
@@ -53,9 +59,12 @@ describe('Create Manual Simulation (e2e)', () => {
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
             entities: [Simulation, Maneuver, Prediction, PredictionType, PredictionResult],
-            controllers: [SimulationController],
+            controllers: [SimulationController, ManeuverController],
             providers: [
                 CreateManualSimulationHandler,
+                CreateManeuverHandler,
+                UpdateManeuverHandler,
+                DeleteManeuverHandler,
                 { provide: ISimulationRepository, useClass: SimulationRepository },
                 { provide: IManeuverRepository, useClass: ManeuverRepository },
                 { provide: IPredictionRepository, useClass: PredictionRepository },
@@ -85,25 +94,39 @@ describe('Create Manual Simulation (e2e)', () => {
         return request(app.getHttpServer()).post('/simulations/manual').send(dto);
     }
 
+    async function createManeuvers(
+        count: number,
+        override?: Partial<{ reservoirCode: string; outputFlowValue: number }>,
+    ): Promise<string[]> {
+        const ids: string[] = [];
+        for (let i = 0; i < count; i++) {
+            const dto = buildCreateManeuverDto({ reservoirCode: `E${100 + i}`, ...override });
+            const { body } = await request(app.getHttpServer()).post('/maneuvers').send(dto).expect(HttpStatus.CREATED);
+            ids.push(body.id);
+        }
+        return ids;
+    }
+
     // T020: Happy path
     describe('happy path', () => {
-        it('should create a manual simulation with maneuvers and return MODEL_PROCESSING status', async () => {
-            const dto = buildCreateManualSimulationDto();
+        it('should create a manual simulation referencing existing maneuvers', async () => {
+            const maneuverIds = await createManeuvers(2);
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
 
             const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
             expect(body.id).toBeDefined();
             expect(body.status).toBe('MODEL_PROCESSING');
             expect(body.type).toBe('MANUAL');
-            expect(body.simulationDate).toBe(dto.simulationDate);
+            // simulationDate is auto-generated in YYYYMMDDHHMMSS format
+            expect(body.simulationDate).toMatch(/^\d{14}$/);
             expect(body.maneuvers).toHaveLength(2);
-            expect(body.maneuvers[0].reservoirCode).toBe('E001');
-            expect(body.maneuvers[0].outputFlowValue).toBeDefined();
-            expect(body.maneuvers[1].reservoirCode).toBe('E002');
+            expect(body.maneuvers.map((m: { id: string }) => m.id).sort()).toEqual([...maneuverIds].sort());
         });
 
         it('should call SFTP service to upload input file', async () => {
-            const dto = buildCreateManualSimulationDto({ modmeteo: 'HARMONIE' });
+            const maneuverIds = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({ maneuverIds, modmeteo: 'HARMONIE' });
 
             await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
@@ -115,7 +138,8 @@ describe('Create Manual Simulation (e2e)', () => {
         });
 
         it('should call SFTP service once per modmeteo when BOTH is requested', async () => {
-            const dto = buildCreateManualSimulationDto({ modmeteo: 'BOTH' });
+            const maneuverIds = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({ maneuverIds, modmeteo: 'BOTH' });
 
             await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
@@ -130,7 +154,8 @@ describe('Create Manual Simulation (e2e)', () => {
         });
 
         it('should publish simulation.manual.dispatched event', async () => {
-            const dto = buildCreateManualSimulationDto();
+            const maneuverIds = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
 
             const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
@@ -145,33 +170,26 @@ describe('Create Manual Simulation (e2e)', () => {
 
     // T021: Validation errors
     describe('validation errors', () => {
-        it('should return 400 when maneuvers array is empty', async () => {
-            const dto = buildCreateManualSimulationDto({ maneuvers: [] });
+        it('should return 400 when maneuverIds array is empty', async () => {
+            const dto = buildCreateManualSimulationDto({ maneuverIds: [] });
 
             const { body } = await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
             expect(body).toBeDefined();
         });
 
-        it('should return 400 when outputFlowValue is negative', async () => {
+        it('should return 404 when a referenced maneuverId does not exist', async () => {
             const dto = buildCreateManualSimulationDto({
-                maneuvers: [{ reservoirCode: 'E001', outputFlowValue: -5 }],
+                maneuverIds: ['00000000-0000-0000-0000-000000000000'],
             });
 
-            await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
-        });
-
-        it('should return 400 when simulationDate is missing', async () => {
-            const dto = buildCreateManualSimulationDto();
-            const { simulationDate: _, ...dtoWithoutDate } = dto;
-            void _;
-
-            await createManualSimulation(dtoWithoutDate).expect(HttpStatus.BAD_REQUEST);
+            await createManualSimulation(dto).expect(HttpStatus.NOT_FOUND);
         });
 
         it('should return 503 when SFTP upload fails, and simulation remains CREATED', async () => {
             mockSftpService.uploadInputFile.mockRejectedValueOnce(new ProviderError('SFTP connection refused'));
+            const maneuverIds = await createManeuvers(1);
 
-            const dto = buildCreateManualSimulationDto();
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
 
             const { body } = await createManualSimulation(dto).expect(HttpStatus.SERVICE_UNAVAILABLE);
             expect(body).toBeDefined();

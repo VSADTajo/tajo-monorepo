@@ -1,4 +1,4 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseAuditEntity } from '@app/infrastructure/persistence/base-entity';
 import { IValidable } from '@domain/types/validable.type';
 import { SimulationDateValueObject } from '@domain/value-objects/simulation-date.value-object';
@@ -74,7 +74,12 @@ export class Simulation extends BaseAuditEntity implements IValidable {
     @OneToMany('Prediction', (p: Prediction) => p.simulation)
     predictions: Prediction[];
 
-    @OneToMany('Maneuver', (m: Maneuver) => m.simulation)
+    @ManyToMany('Maneuver', (m: Maneuver) => m.simulations)
+    @JoinTable({
+        name: 'simulation_maneuvers',
+        joinColumn: { name: 'simulationId', referencedColumnName: 'id' },
+        inverseJoinColumn: { name: 'maneuverId', referencedColumnName: 'id' },
+    })
     maneuvers: Maneuver[];
 
     validate(): void {

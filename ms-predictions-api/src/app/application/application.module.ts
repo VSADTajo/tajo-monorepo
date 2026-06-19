@@ -10,6 +10,11 @@ import { FinalizeSimulationHandler, BatchIngestHandler } from '@application/comm
 import { CreatePredictionTypeHandler } from '@application/commands/prediction-type.commands';
 import { PurgeOldSimulationsHandler } from '@application/commands/cleanup.commands';
 import { CreateManualSimulationHandler } from '@application/commands/manual-simulation.commands';
+import {
+    CreateManeuverHandler,
+    UpdateManeuverHandler,
+    DeleteManeuverHandler,
+} from '@application/commands/maneuver.commands';
 
 // Services
 import { CleanupScheduler } from '@application/services/cleanup.scheduler';
@@ -34,11 +39,13 @@ import {
     GetManualSimulationByIdHandler,
     ListManualSimulationsHandler,
 } from '@application/queries/manual-simulation.queries';
+import { ListManeuversHandler, GetManeuverByIdHandler } from '@application/queries/maneuver.queries';
 
 // Controllers
 import { SimulationController } from '@api/controllers/simulation.controller';
 import { PredictionController } from '@api/controllers/prediction.controller';
 import { PredictionTypeController } from '@api/controllers/prediction-type.controller';
+import { ManeuverController } from '@api/controllers/maneuver.controller';
 
 // Consumers
 import { TimeSeriesIngestedConsumer } from '@application/consumers/timeseries-ingested.consumer';
@@ -50,6 +57,7 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
         SimulationController,
         PredictionController,
         PredictionTypeController,
+        ManeuverController,
         TimeSeriesIngestedConsumer,
         SimulationStatusUpdatedConsumer,
     ],
@@ -57,6 +65,11 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
         ProcessTimeSeriesHandler,
         FinalizeSimulationHandler,
         CreateManualSimulationHandler,
+        CreateManeuverHandler,
+        UpdateManeuverHandler,
+        DeleteManeuverHandler,
+        ListManeuversHandler,
+        GetManeuverByIdHandler,
         ListSimulationsHandler,
         GetSimulationByDateHandler,
         GetLatestSimulationHandler,

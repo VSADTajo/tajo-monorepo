@@ -196,7 +196,6 @@ export class ManeuverInputDto {
 }
 
 export class CreateManualSimulationRequestDto {
-    @ApiProperty({ description: 'Simulation date (YYYYMMDDHHMMSS)', example: '20260619120000' }) simulationDate: string;
     @ApiProperty({
         description: 'Optional operator description',
         required: false,
@@ -221,6 +220,12 @@ export class ManeuverItemDto {
 }
 
 export class ManualSimulationItemDto extends SimulationItemDto {
+    @ApiProperty({ example: 'MANUAL', description: 'Always MANUAL for manual simulations' })
+    declare type: string;
+
+    @ApiProperty({ example: '20990201120459', description: 'Auto-generated YYYYMMDDHHMMSS at creation time' })
+    declare simulationDate: string;
+
     @ApiProperty({ type: [ManeuverItemDto], description: 'Maneuvers linked to the simulation' })
     maneuvers: ManeuverItemDto[];
 }
@@ -247,4 +252,38 @@ export class ListManualSimulationsResponseDto {
     @ApiProperty({ example: 5 }) total: number;
     @ApiProperty({ example: 1 }) page: number;
     @ApiProperty({ example: 20 }) limit: number;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Maneuvers (standalone CRUD)
+// ─────────────────────────────────────────────────────────────
+
+export class CreateManeuverGwRequestDto {
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01' }) reservoirCode: string;
+    @ApiProperty({ description: 'Output flow value (m³/s)', example: 12.5, minimum: 0 }) outputFlowValue: number;
+}
+
+export class UpdateManeuverGwRequestDto {
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01', required: false }) reservoirCode?: string;
+    @ApiProperty({ description: 'Output flow value (m³/s)', example: 14.0, required: false }) outputFlowValue?: number;
+}
+
+export class ManeuverGwResponseDto {
+    @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
+    @ApiProperty({ example: 'AR01' }) reservoirCode: string;
+    @ApiProperty({ example: 12.5 }) outputFlowValue: number;
+    @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) createdAt: Date | undefined;
+    @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) updatedAt: Date | undefined;
+}
+
+export class ListManeuversGwResponseDto {
+    @ApiProperty({ type: [ManeuverGwResponseDto] }) data: ManeuverGwResponseDto[];
+    @ApiProperty({ example: 1 }) total: number;
+    @ApiProperty({ example: 1 }) page: number;
+    @ApiProperty({ example: 20 }) limit: number;
+}
+
+export class DeleteManeuverGwResponseDto {
+    @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
+    @ApiProperty({ example: true }) deleted: boolean;
 }

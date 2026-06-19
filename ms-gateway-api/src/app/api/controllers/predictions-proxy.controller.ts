@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import * as express from 'express';
 
@@ -21,6 +21,11 @@ import {
     CreateManualSimulationResponseDto,
     GetManualSimulationByIdResponseDto,
     ListManualSimulationsResponseDto,
+    CreateManeuverGwRequestDto,
+    UpdateManeuverGwRequestDto,
+    ManeuverGwResponseDto,
+    ListManeuversGwResponseDto,
+    DeleteManeuverGwResponseDto,
 } from '@api/dtos/predictions-proxy.dtos';
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
@@ -475,6 +480,127 @@ export class PredictionsProxyController {
             baseUrl: this.servicesConfig.predictionsApiUrl,
             path: '/prediction-types',
             body: req.body,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Maneuvers (reusable, standalone)
+    // ─────────────────────────────────────────────────────────────
+
+    @Post('maneuvers')
+    @ApiEndpoint({
+        summary: 'Create a reusable maneuver (reservoirCode + outputFlowValue)',
+        body: CreateManeuverGwRequestDto,
+        response: { status: 201, type: ManeuverGwResponseDto, description: 'Maneuver created' },
+        errors: [{ status: 400, description: 'Invalid payload' }],
+    })
+    async createManeuver(
+        @Body() dto: CreateManeuverGwRequestDto,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'POST',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: '/maneuvers',
+            body: dto,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('maneuvers')
+    @ApiEndpoint({
+        summary: 'List maneuvers (paginated, optional reservoirCode filter)',
+        response: { status: 200, type: ListManeuversGwResponseDto, description: 'Paginated maneuvers' },
+    })
+    @ApiQuery({ name: 'reservoirCode', required: false, type: String })
+    @ApiQuery({ name: 'page', required: false, type: Number })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
+    async listManeuvers(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: '/maneuvers',
+            query: req.query as Record<string, string | string[]>,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('maneuvers/:id')
+    @ApiEndpoint({
+        summary: 'Get a maneuver by ID',
+        response: { status: 200, type: ManeuverGwResponseDto, description: 'Maneuver detail' },
+        errors: [{ status: 404, description: 'Maneuver not found' }],
+    })
+    async getManeuverById(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/maneuvers/${id}`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Patch('maneuvers/:id')
+    @ApiEndpoint({
+        summary: 'Update a maneuver (affects every simulation referencing it)',
+        body: UpdateManeuverGwRequestDto,
+        response: { status: 200, type: ManeuverGwResponseDto, description: 'Maneuver updated' },
+        errors: [
+            { status: 400, description: 'Invalid payload' },
+            { status: 404, description: 'Maneuver not found' },
+        ],
+    })
+    async updateManeuver(
+        @Param('id') id: string,
+        @Body() dto: UpdateManeuverGwRequestDto,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'PATCH',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/maneuvers/${id}`,
+            body: dto,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Delete('maneuvers/:id')
+    @ApiEndpoint({
+        summary: 'Delete a maneuver (cascade: removes its link from all simulations referencing it)',
+        response: { status: 200, type: DeleteManeuverGwResponseDto, description: 'Maneuver deleted' },
+        errors: [{ status: 404, description: 'Maneuver not found' }],
+    })
+    async deleteManeuver(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'DELETE',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/maneuvers/${id}`,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,

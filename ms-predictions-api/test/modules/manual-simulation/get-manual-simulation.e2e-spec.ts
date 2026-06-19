@@ -21,13 +21,19 @@ import { ManeuverRepository } from '../../../src/app/infrastructure/persistence/
 import { PredictionRepository } from '../../../src/app/infrastructure/persistence/prediction.repository';
 
 import { CreateManualSimulationHandler } from '../../../src/app/application/commands/manual-simulation.commands';
+import {
+    CreateManeuverHandler,
+    UpdateManeuverHandler,
+    DeleteManeuverHandler,
+} from '../../../src/app/application/commands/maneuver.commands';
+import { ManeuverController } from '../../../src/app/api/controllers/maneuver.controller';
 import { GetManualSimulationByIdHandler } from '../../../src/app/application/queries/manual-simulation.queries';
 import { SimulationController } from '../../../src/app/api/controllers/simulation.controller';
 import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-query-bus.service';
 
 import { createTestApp, TestContext } from '../../helpers/test-app.helper';
 import { cleanDatabase } from '../../helpers/db.helper';
-import { buildCreateManualSimulationDto } from '../../factories/manual-simulation.factory';
+import { buildCreateManualSimulationDto, buildCreateManeuverDto } from '../../factories/manual-simulation.factory';
 
 describe('Get Manual Simulation By ID (e2e)', () => {
     let app: INestApplication;
@@ -53,9 +59,12 @@ describe('Get Manual Simulation By ID (e2e)', () => {
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
             entities: [Simulation, Maneuver, Prediction, PredictionType, PredictionResult],
-            controllers: [SimulationController],
+            controllers: [SimulationController, ManeuverController],
             providers: [
                 CreateManualSimulationHandler,
+                CreateManeuverHandler,
+                UpdateManeuverHandler,
+                DeleteManeuverHandler,
                 GetManualSimulationByIdHandler,
                 { provide: ISimulationRepository, useClass: SimulationRepository },
                 { provide: IManeuverRepository, useClass: ManeuverRepository },
@@ -90,7 +99,16 @@ describe('Get Manual Simulation By ID (e2e)', () => {
     }
 
     it('should return 200 with maneuvers for an existing MANUAL simulation', async () => {
-        const dto = buildCreateManualSimulationDto();
+        const { body: m1 } = await request(app.getHttpServer())
+            .post('/maneuvers')
+            .send(buildCreateManeuverDto({ reservoirCode: 'E001' }))
+            .expect(HttpStatus.CREATED);
+        const { body: m2 } = await request(app.getHttpServer())
+            .post('/maneuvers')
+            .send(buildCreateManeuverDto({ reservoirCode: 'E002' }))
+            .expect(HttpStatus.CREATED);
+
+        const dto = buildCreateManualSimulationDto({ maneuverIds: [m1.id, m2.id] });
         const { body: created } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
         const { body } = await getManualById(created.id).expect(HttpStatus.OK);
@@ -98,7 +116,8 @@ describe('Get Manual Simulation By ID (e2e)', () => {
         expect(body.id).toBe(created.id);
         expect(body.type).toBe('MANUAL');
         expect(body.maneuvers).toHaveLength(2);
-        expect(body.maneuvers[0].reservoirCode).toBe('E001');
+        const codes = body.maneuvers.map((m: { reservoirCode: string }) => m.reservoirCode).sort();
+        expect(codes).toEqual(['E001', 'E002']);
     });
 
     it('should return 404 for a non-existent ID', async () => {

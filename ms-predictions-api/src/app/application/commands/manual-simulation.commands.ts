@@ -19,11 +19,6 @@ import { ApiError } from '@domain/errors/api.error';
 // CreateManualSimulation
 // ─────────────────────────────────────────────────────────────
 
-export interface IManeuverInput {
-    reservoirCode: string;
-    outputFlowValue: number;
-}
-
 export type ModmeteoChoice = 'HARMONIE' | 'EPS' | 'BOTH';
 
 export interface ICreateManualSimulationCommand {
@@ -31,7 +26,7 @@ export interface ICreateManualSimulationCommand {
     description?: string;
     createdBy?: string | null;
     modmeteo: ModmeteoChoice;
-    maneuvers: IManeuverInput[];
+    maneuverIds: string[];
 }
 
 export class CreateManualSimulationCommand {
@@ -53,8 +48,8 @@ export class CreateManualSimulationCommand {
         return this.parameters.modmeteo;
     }
 
-    get maneuvers(): IManeuverInput[] {
-        return this.parameters.maneuvers;
+    get maneuverIds(): string[] {
+        return this.parameters.maneuverIds;
     }
 }
 
@@ -74,11 +69,19 @@ export class CreateManualSimulationHandler implements ICommandHandler<
     ) {}
 
     async execute(command: CreateManualSimulationCommand): Promise<ManualSimulationResult> {
-        if (!command.maneuvers || command.maneuvers.length === 0) {
-            throw new ApiError(HttpStatus.BAD_REQUEST, 'At least one maneuver is required');
+        if (!command.maneuverIds || command.maneuverIds.length === 0) {
+            throw new ApiError(HttpStatus.BAD_REQUEST, 'At least one maneuver ID is required');
         }
 
-        // 1. Create Simulation (MANUAL, CREATED)
+        // 1. Load and validate the referenced maneuvers
+        const maneuvers = await this.maneuverRepository.findByIds(command.maneuverIds);
+        if (maneuvers.length !== command.maneuverIds.length) {
+            const foundIds = new Set(maneuvers.map((m) => m.id));
+            const missing = command.maneuverIds.filter((id) => !foundIds.has(id));
+            throw new ApiError(HttpStatus.NOT_FOUND, `Maneuver(s) not found: ${missing.join(', ')}`);
+        }
+
+        // 2. Create Simulation (MANUAL, CREATED) with the referenced maneuvers attached
         const simulation = new Simulation({
             simulationDate: command.simulationDate,
             description: command.description || null,
@@ -89,38 +92,23 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             modmeteo: command.modmeteo,
             environment: null,
             createdBy: command.createdBy ?? 'operator',
+            maneuvers,
         });
         simulation.validate();
         const persistedSimulation = await this.simulationRepository.create(simulation);
 
-        // 2. Create Maneuver[] entities
-        const maneuverEntities: Maneuver[] = command.maneuvers.map(
-            (m) =>
-                new Maneuver({
-                    simulationId: persistedSimulation.id,
-                    reservoirCode: m.reservoirCode,
-                    outputFlowValue: m.outputFlowValue,
-                }),
-        );
-
-        for (const m of maneuverEntities) {
-            m.validate();
-        }
-
-        const persistedManeuvers = await this.maneuverRepository.createMany(maneuverEntities);
-
         this.logger.log({
-            msg: 'Manual simulation and maneuvers created',
+            msg: 'Manual simulation created with referenced maneuvers',
             entity: 'Simulations',
             simulationId: persistedSimulation.id,
-            maneuverCount: persistedManeuvers.length,
+            maneuverCount: maneuvers.length,
             modmeteo: command.modmeteo,
         });
 
         // 3. Build + upload one SFTP file per requested modmeteo
         const modmeteoSpecs = this.resolveModmeteoSpecs(command.modmeteo);
         for (const spec of modmeteoSpecs) {
-            const reservoirSeries = await this.buildReservoirTimeSeries(command, spec);
+            const reservoirSeries = await this.buildReservoirTimeSeries(command, maneuvers, spec);
             const fileContent = { version: '1.34', timeZone: '0.0', timeSeries: reservoirSeries };
             const buffer = Buffer.from(JSON.stringify(fileContent, null, 2), 'utf-8');
             const fileName = this.buildFileName(spec.fileTag, command.simulationDate);
@@ -164,7 +152,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
 
         return new ManualSimulationResult({
             simulation: updatedSimulation,
-            maneuvers: persistedManeuvers,
+            maneuvers,
         });
     }
 
@@ -188,11 +176,12 @@ export class CreateManualSimulationHandler implements ICommandHandler<
      */
     private async buildReservoirTimeSeries(
         command: CreateManualSimulationCommand,
+        maneuvers: Maneuver[],
         spec: { fileTag: string; predictionTypeName: string },
     ): Promise<object[]> {
         const series: object[] = [];
 
-        for (const maneuver of command.maneuvers) {
+        for (const maneuver of maneuvers) {
             const filters: ForecastFilters = {
                 stationId: maneuver.reservoirCode,
                 predictionType: spec.predictionTypeName,

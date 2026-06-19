@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseAuditEntity } from '@app/infrastructure/persistence/base-entity';
 import { IValidable } from '@domain/types/validable.type';
 import { EntityError } from '@domain/errors/entity.error';
@@ -14,18 +14,14 @@ export class Maneuver extends BaseAuditEntity implements IValidable {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column('uuid', { nullable: false })
-    simulationId: string;
-
-    @ManyToOne('Simulation', (s: Simulation) => s.maneuvers, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'simulationId' })
-    simulation: Simulation;
-
     @Column('varchar', { length: 100, nullable: false })
     reservoirCode: string;
 
     @Column('numeric', { precision: 12, scale: 4, nullable: false })
     outputFlowValue: number;
+
+    @ManyToMany('Simulation', (s: Simulation) => s.maneuvers)
+    simulations: Simulation[];
 
     validate(): void {
         if (!this.reservoirCode?.trim()) {
