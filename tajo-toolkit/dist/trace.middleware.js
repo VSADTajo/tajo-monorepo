@@ -40,6 +40,9 @@ let TraceMiddleware = class TraceMiddleware {
             this.traceContext.serviceName = this.options.serviceName;
             this.traceContext.startTime = Date.now();
             this.traceContext.logsApiUrl = this.options.logsApiUrl;
+            // Re-inject the resolved trace-id into the request headers so any downstream
+            // reader (e.g. pino-http's genReqId) uses the SAME id as the CLS context.
+            req.headers[types_1.X_TRACE_ID_HEADER] = traceId;
             res.setHeader(types_1.X_TRACE_ID_HEADER, traceId);
             if (this.options.logRequests) {
                 res.on('finish', () => {

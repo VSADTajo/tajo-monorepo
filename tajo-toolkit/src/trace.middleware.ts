@@ -29,6 +29,9 @@ export class TraceMiddleware implements NestMiddleware {
       this.traceContext.startTime = Date.now();
       this.traceContext.logsApiUrl = this.options.logsApiUrl;
 
+      // Re-inject the resolved trace-id into the request headers so any downstream
+      // reader (e.g. pino-http's genReqId) uses the SAME id as the CLS context.
+      req.headers[X_TRACE_ID_HEADER] = traceId;
       res.setHeader(X_TRACE_ID_HEADER, traceId);
 
       if (this.options.logRequests) {
