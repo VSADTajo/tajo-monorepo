@@ -5,6 +5,7 @@ import { SimulationDateValueObject } from '@domain/value-objects/simulation-date
 import { ApiError } from '@domain/errors/api.error';
 import { HttpStatus } from '@nestjs/common';
 import type { Prediction } from './prediction.entity';
+import type { Maneuver } from './maneuver.entity';
 
 export enum SimulationStatus {
     CREATED = 'CREATED',
@@ -72,6 +73,9 @@ export class Simulation extends BaseAuditEntity implements IValidable {
 
     @OneToMany('Prediction', (p: Prediction) => p.simulation)
     predictions: Prediction[];
+
+    @OneToMany('Maneuver', (m: Maneuver) => m.simulation)
+    maneuvers: Maneuver[];
 
     validate(): void {
         const simulationDate = new SimulationDateValueObject(this.simulationDate);

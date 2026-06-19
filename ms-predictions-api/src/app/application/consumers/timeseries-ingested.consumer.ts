@@ -17,6 +17,7 @@ interface TimeSeriesIngestedPayload {
     seriesCount?: number;
     eventsCount?: number;
     timeSeries: ITimeSeriesData[];
+    simulationId?: string;
 }
 
 @Controller()
@@ -56,6 +57,7 @@ export class TimeSeriesIngestedConsumer {
                             providerConfigId: data.providerConfigId,
                             providerName: data.providerName,
                             providerType: data.providerType,
+                            simulationId: data.simulationId,
                         }),
                     );
                     simulationIds.add(result.simulationId);

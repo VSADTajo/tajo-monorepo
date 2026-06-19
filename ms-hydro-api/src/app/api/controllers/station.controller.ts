@@ -11,7 +11,9 @@ import {
     Post,
     Put,
     Query,
+    Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiTags } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -33,6 +35,8 @@ import {
     UpdateStationResponseDto,
     ToggleStationResponseDto,
     DeleteStationResponseDto,
+    GetDownstreamStationsRequestDto,
+    GetDownstreamStationsResponseDto,
 } from '@api/dtos/station.dtos';
 
 // Mappers
@@ -47,11 +51,13 @@ import {
     UpdateStationMapper,
     ToggleStationMapper,
     DeleteStationMapper,
+    GetDownstreamStationsMapper,
 } from '@application/mappers/station.mappers';
 
 // Results
 import { GetStationResult, ListStationsResult, GetStationBySubBasinNameResult } from '@domain/results/station.results';
 import { GetThresholdResult } from '@domain/results/station.results';
+import { DownstreamStationsResult } from '@domain/results/downstream-stations.result';
 
 // Errors
 import { ApiError } from '@domain/errors/api.error';
@@ -132,6 +138,47 @@ export class StationController {
                 throw new HttpException(error.message, error.statusCode);
             }
             this.logger.error(`Error getting station by code: ${error}`);
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get('downstream')
+    @ApiEndpoint({
+        summary: 'Get downstream stations for given origin codes',
+        response: { status: 200, type: GetDownstreamStationsResponseDto, description: 'Downstream stations found' },
+        errors: [{ status: 400, description: 'Validation error (codes empty or missing)' }],
+    })
+    async getDownstreamStations(@Req() req: Request): Promise<GetDownstreamStationsResponseDto> {
+        // Support both ?codes=X&codes=Y and ?codes[]=X&codes[]=Y query string formats
+        const rawQuery = req.query as Record<string, unknown>;
+        const rawCodes = rawQuery.codes ?? rawQuery['codes[]'];
+        const codesArray: string[] =
+            rawCodes === undefined || rawCodes === null
+                ? []
+                : Array.isArray(rawCodes)
+                  ? (rawCodes as string[]).filter((v) => typeof v === 'string' && v.length > 0)
+                  : typeof rawCodes === 'string' && rawCodes.length > 0
+                    ? [rawCodes]
+                    : [];
+
+        if (codesArray.length === 0) {
+            throw new HttpException('codes must be a non-empty array of strings', HttpStatus.BAD_REQUEST);
+        }
+
+        this.logger.log(`Get downstream stations request: codes=${codesArray.join(',')}`);
+        const dto: GetDownstreamStationsRequestDto = { codes: codesArray };
+        try {
+            const query = GetDownstreamStationsMapper.toQuery(dto);
+            const result = await this.cachingQueryBus.execute<DownstreamStationsResult>(query);
+            return GetDownstreamStationsMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof EntityError) {
+                throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+            }
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error(`Error getting downstream stations: ${error}`);
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

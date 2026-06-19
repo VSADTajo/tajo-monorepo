@@ -2,7 +2,9 @@
 // Queue Names — direct queue processing (point-to-point)
 // ─────────────────────────────────────────────────────────────
 
-export const Queues = {};
+export const Queues = {
+    MODEL_SIMULATION_DISPATCHED: 'model-simulation-dispatched',
+};
 
 // ─────────────────────────────────────────────────────────────
 // Topic Exchanges — pub/sub with routing keys
@@ -13,6 +15,13 @@ export const Topics = {
         exchange: 'model-events',
         routingKeys: {
             TIMESERIES_INGESTED: 'timeseries.ingested',
+        },
+    },
+    SIMULATION_EVENTS: {
+        exchange: 'simulation-events',
+        routingKeys: {
+            MANUAL_DISPATCHED: 'simulation.manual.dispatched',
+            STATUS_UPDATED: 'simulation.status.updated',
         },
     },
 };

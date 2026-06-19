@@ -6,6 +6,7 @@ import { GeoserverDbConfigService } from '@config/geoserver/geoserver-config.ser
 import { GeoPuntoSaih } from '@domain/entities/geo-punto-saih.entity';
 import { GeoSubcuenca } from '@domain/entities/geo-subcuenca.entity';
 import { MvChtUnificada } from '@domain/entities/mv-cht-unificada.entity';
+import { MvEstacionesAguasAbajo } from '@domain/entities/mv-estaciones-aguas-abajo.entity';
 
 @Module({
     imports: [
@@ -15,11 +16,11 @@ import { MvChtUnificada } from '@domain/entities/mv-cht-unificada.entity';
             useFactory: async (configService: GeoserverDbConfigService) => ({
                 ...configService.config,
                 name: 'geoserver',
-                entities: [GeoPuntoSaih, GeoSubcuenca, MvChtUnificada],
+                entities: [GeoPuntoSaih, GeoSubcuenca, MvChtUnificada, MvEstacionesAguasAbajo],
             }),
             inject: [GeoserverDbConfigService],
         } as TypeOrmModuleAsyncOptions),
-        TypeOrmModule.forFeature([GeoPuntoSaih, GeoSubcuenca, MvChtUnificada], 'geoserver'),
+        TypeOrmModule.forFeature([GeoPuntoSaih, GeoSubcuenca, MvChtUnificada, MvEstacionesAguasAbajo], 'geoserver'),
     ],
     exports: [TypeOrmModule],
 })

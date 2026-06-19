@@ -31,4 +31,5 @@ export abstract class ISimulationRepository {
     abstract update(data: Simulation): Promise<Simulation>;
     abstract findAvailableDates(dataOrigin?: string, predictionTypes?: string[]): Promise<string[]>;
     abstract deleteOlderThan(date: Date): Promise<number>;
+    abstract findManual(status?: string, page?: number, limit?: number): Promise<PaginatedResult<Simulation>>;
 }

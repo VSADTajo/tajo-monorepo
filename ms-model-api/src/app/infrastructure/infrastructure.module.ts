@@ -13,10 +13,12 @@ import { IMessageBroker } from '@domain/ports/message-broker.port';
 import { ITransactionManagerService } from '@domain/types/transaction-manager.type';
 import { IProviderConfigRepository } from '@domain/ports/provider-config-repository.port';
 import { IIngestionRunRepository } from '@domain/ports/ingestion-run-repository.port';
+import { ISimulationRunRepository } from '@domain/ports/simulation-run-repository.port';
 
 // Infrastructure Implementations
 import { ProviderConfigRepository } from '@infrastructure/persistence/provider-config.repository';
 import { IngestionRunRepository } from '@infrastructure/persistence/ingestion-run.repository';
+import { SimulationRunRepository } from '@infrastructure/persistence/simulation-run.repository';
 import { NotificationService } from '@infrastructure/services/notification.service';
 import { TransactionManagerService } from '@infrastructure/services/transaction-manager.service';
 import { RedisCacheService } from '@infrastructure/services/redis-cache.service';
@@ -26,6 +28,9 @@ import { SftpFileProviderService } from '@infrastructure/services/sftp-file-prov
 import { CsvFileProviderService } from '@infrastructure/services/csv-file-provider.service';
 import { DataProviderFactoryService } from '@infrastructure/services/data-provider-factory.service';
 import { ProviderSchedulerService } from '@infrastructure/services/provider-scheduler.service';
+import { SimulationResultFetcherService } from '@infrastructure/services/simulation-result-fetcher.service';
+import { SimulationDispatchedConsumerService } from '@infrastructure/services/simulation-dispatched-consumer.service';
+import { SimulationRunPollerService } from '@infrastructure/services/simulation-run-poller.service';
 
 // Cache
 import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service';
@@ -39,6 +44,7 @@ import { SftpApiConfigModule } from '@config/sftp-api/sftp-api-config.module';
 // Entities
 import { ProviderConfig } from '@domain/entities/provider-config.entity';
 import { IngestionRun } from '@domain/entities/ingestion-run.entity';
+import { SimulationRun } from '@domain/entities/simulation-run.entity';
 
 @Module({
     imports: [
@@ -49,7 +55,7 @@ import { IngestionRun } from '@domain/entities/ingestion-run.entity';
         RabbitmqConfigModule,
         FewsApiConfigModule,
         SftpApiConfigModule,
-        TypeOrmModule.forFeature([ProviderConfig, IngestionRun]),
+        TypeOrmModule.forFeature([ProviderConfig, IngestionRun, SimulationRun]),
     ],
     controllers: [],
     providers: [
@@ -60,6 +66,10 @@ import { IngestionRun } from '@domain/entities/ingestion-run.entity';
         {
             provide: IIngestionRunRepository,
             useClass: IngestionRunRepository,
+        },
+        {
+            provide: ISimulationRunRepository,
+            useClass: SimulationRunRepository,
         },
         {
             provide: INotificationService,
@@ -83,10 +93,14 @@ import { IngestionRun } from '@domain/entities/ingestion-run.entity';
         CsvFileProviderService,
         DataProviderFactoryService,
         ProviderSchedulerService,
+        SimulationResultFetcherService,
+        SimulationDispatchedConsumerService,
+        SimulationRunPollerService,
     ],
     exports: [
         IProviderConfigRepository,
         IIngestionRunRepository,
+        ISimulationRunRepository,
         INotificationService,
         ITransactionManagerService,
         ICacheService,
@@ -97,6 +111,7 @@ import { IngestionRun } from '@domain/entities/ingestion-run.entity';
         CsvFileProviderService,
         DataProviderFactoryService,
         ProviderSchedulerService,
+        SimulationResultFetcherService,
     ],
 })
 export class InfrastructureModule {}

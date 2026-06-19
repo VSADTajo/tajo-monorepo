@@ -3,7 +3,7 @@ import { Logger } from 'nestjs-pino';
 import * as amqplib from 'amqplib';
 import { TraceContext, X_TRACE_ID_HEADER } from 'tajo-toolkit';
 
-import { IMessageBroker } from '@domain/ports/message-broker.port';
+import { IMessageBroker, MessageHandler } from '@domain/ports/message-broker.port';
 import { ProviderError } from '@domain/errors/provider.error';
 import { RabbitmqConfigService } from '@config/rabbitmq/rabbitmq-config.service';
 
@@ -137,5 +137,70 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
         });
 
         this.logger.debug(`Message published to exchange: ${exchange} [${routingKey}]`);
+    }
+
+    async subscribeToTopic<T>(
+        exchange: string,
+        routingKey: string,
+        queue: string,
+        handler: MessageHandler<T>,
+    ): Promise<void> {
+        if (!this.rabbitmqConfig.enabled) {
+            this.logger.warn({
+                msg: 'RabbitMQ is disabled — subscribeToTopic is a no-op',
+                entity: 'Messaging',
+                exchange,
+                routingKey,
+                queue,
+            });
+            return;
+        }
+
+        const channel = await this.ensureChannel();
+        await this.assertTopicExchange(channel, exchange);
+        await this.assertQueue(channel, queue);
+        await channel.bindQueue(queue, exchange, routingKey);
+
+        await channel.consume(queue, async (msg) => {
+            if (!msg) return;
+
+            let payload: T;
+            try {
+                const raw = JSON.parse(msg.content.toString());
+                // Support both plain payloads and NestJS envelope { pattern, data }
+                payload = raw?.data !== undefined ? (raw.data as T) : (raw as T);
+            } catch (parseError) {
+                this.logger.error({
+                    msg: 'Failed to parse RabbitMQ message — nacking without requeue',
+                    entity: 'Messaging',
+                    queue,
+                    error: String(parseError),
+                });
+                channel.nack(msg, false, false);
+                return;
+            }
+
+            const ack = (): void => {
+                channel.ack(msg);
+            };
+
+            const nack = (requeue: boolean): void => {
+                channel.nack(msg, false, requeue);
+            };
+
+            try {
+                await handler(payload, ack, nack);
+            } catch (error) {
+                this.logger.error({
+                    msg: 'RabbitMQ message handler threw an unhandled error — nacking with requeue',
+                    entity: 'Messaging',
+                    queue,
+                    error: String(error),
+                });
+                channel.nack(msg, false, true);
+            }
+        });
+
+        this.logger.log(`Subscribed to exchange "${exchange}" routing key "${routingKey}" on queue "${queue}"`);
     }
 }

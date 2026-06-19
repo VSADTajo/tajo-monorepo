@@ -977,7 +977,8 @@ The `docker-compose.yml` overrides `DB_HOST=database` and `REDIS_HOST=redis` to 
 - Redis 7 via ioredis with CachingQueryBus wrapper pattern (001-user-roles)
 - RabbitMQ 3.13 via amqplib + @nestjs/microservices (hybrid HTTP + RMQ app, IMessageBroker port, queue/topic registry)
 - TypeScript 5.7+ on Node.js >= 22 + NestJS 11, @nestjs/cqrs 11, @nestjs/microservices, TypeORM 0.3, class-validator, ioredis, amqplib, axios (for hydro-api calls) (002-predictions-simulations)
-- PostgreSQL 16 via TypeORM (tables: prediction_types, simulations, predictions, prediction_results, notifications) + Redis 7 (query cache + station threshold cache) (002-predictions-simulations)
+- PostgreSQL 16 via TypeORM (tables: prediction_types, simulations, predictions, prediction_results, notifications, maneuvers) + Redis 7 (query cache + station threshold cache) (002-predictions-simulations)
+- form-data (multipart upload to ms-sftp-api via SimulationSftpService) (003-manual-simulation-flow)
 
 ## Recent Changes
 - 001-user-roles: Added Role entity, UserRole join entity, role CRUD + user-role assignment/removal endpoints
@@ -988,3 +989,13 @@ The `docker-compose.yml` overrides `DB_HOST=database` and `REDIS_HOST=redis` to 
 - 001-user-roles: Added TypeScript 5.7+ (strict mode) on Node.js >= 22 + NestJS 11, @nestjs/cqrs 11, TypeORM 0.3, class-validator, class-transformer, nestjs-pino
 - microservice: Added RabbitMQ messaging layer — IMessageBroker port, RabbitmqService adapter, messaging.registry.ts, hybrid bootstrap, example consumer
 - microservice: Grouped mappers by domain (role.mappers.ts, user.mappers.ts), added entity validate() pattern, centralized cache keys
+- 003-manual-simulation-flow: Added Maneuver entity with FK to simulations + IManeuverRepository port + ManeuverRepository
+- 003-manual-simulation-flow: Added ISimulationSftpService port + SimulationSftpService (POST /files/upload multipart to ms-sftp-api)
+- 003-manual-simulation-flow: Added SIMULATION_EVENTS topic exchange (simulation.manual.dispatched, simulation.status.updated) to messaging.registry.ts
+- 003-manual-simulation-flow: Added POST /simulations/manual endpoint (CreateManualSimulationHandler) with full SFTP+event dispatch flow
+- 003-manual-simulation-flow: Added GET /simulations/manual and GET /simulations/manual/:id endpoints with CachingQueryBus
+- 003-manual-simulation-flow: Added SimulationStatusUpdatedConsumer consuming simulation.status.updated → simulation.fail()
+- 003-manual-simulation-flow: Extended ProcessTimeSeriesCommand with optional simulationId for direct manual simulation lookup
+- 003-manual-simulation-flow: Extended TimeSeriesIngestedConsumer to pass simulationId when present in payload
+- 003-manual-simulation-flow: Added ManualSimulationCacheKeys + CACHE_REGISTRY entries for manual simulation queries
+- 003-manual-simulation-flow: Added sftp-api config module (SFTP_API_URL env var)

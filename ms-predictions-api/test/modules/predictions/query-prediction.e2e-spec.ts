@@ -6,6 +6,7 @@ import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
 import { PredictionType } from '../../../src/app/domain/entities/prediction-type.entity';
 import { Simulation } from '../../../src/app/domain/entities/simulation.entity';
+import { Maneuver } from '../../../src/app/domain/entities/maneuver.entity';
 import { Prediction } from '../../../src/app/domain/entities/prediction.entity';
 import { PredictionResult as PredictionResultEntity } from '../../../src/app/domain/entities/prediction-result.entity';
 
@@ -68,7 +69,7 @@ describe('Query Predictions (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [PredictionType, Simulation, Prediction, PredictionResultEntity],
+            entities: [PredictionType, Simulation, Prediction, PredictionResultEntity, Maneuver],
             controllers: [PredictionController],
             providers: [
                 ProcessTimeSeriesHandler,
@@ -297,9 +298,7 @@ describe('Query Predictions (e2e)', () => {
             simulationDate,
         }).expect(HttpStatus.OK);
 
-        const stationItems = defaultBody.values.filter(
-            (v: { stationId: string }) => v.stationId === stationId,
-        );
+        const stationItems = defaultBody.values.filter((v: { stationId: string }) => v.stationId === stationId);
         expect(stationItems).toHaveLength(1);
         expect(stationItems[0].maxValue).toBe(0.5);
 
@@ -310,9 +309,7 @@ describe('Query Predictions (e2e)', () => {
             percentile: '90',
         }).expect(HttpStatus.OK);
 
-        const p90Items = p90Body.values.filter(
-            (v: { stationId: string }) => v.stationId === stationId,
-        );
+        const p90Items = p90Body.values.filter((v: { stationId: string }) => v.stationId === stationId);
         expect(p90Items).toHaveLength(1);
         expect(p90Items[0].maxValue).toBe(12.7);
     });

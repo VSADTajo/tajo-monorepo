@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common';
+import { Inject, HttpStatus } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Logger } from 'nestjs-pino';
 
@@ -6,6 +6,7 @@ import { Prediction } from '@domain/entities/prediction.entity';
 import { PredictionResult as PredictionResultEntity } from '@domain/entities/prediction-result.entity';
 import { SimulationStatus, SimulationType, DataOrigin } from '@domain/entities/simulation.entity';
 import { Simulation } from '@domain/entities/simulation.entity';
+import { ApiError } from '@domain/errors/api.error';
 import { SimulationDateValueObject } from '@domain/value-objects/simulation-date.value-object';
 import { IPredictionTypeRepository } from '@domain/ports/prediction-type-repository.port';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
@@ -46,6 +47,7 @@ export interface IProcessTimeSeriesCommand {
     providerConfigId?: string;
     providerName?: string;
     providerType?: string;
+    simulationId?: string;
 }
 
 export class ProcessTimeSeriesCommand {
@@ -62,6 +64,9 @@ export class ProcessTimeSeriesCommand {
     }
     get providerType(): string | undefined {
         return this.parameters.providerType;
+    }
+    get simulationId(): string | undefined {
+        return this.parameters.simulationId;
     }
 }
 
@@ -119,34 +124,51 @@ export class ProcessTimeSeriesHandler implements ICommandHandler<ProcessTimeSeri
         // 3b. Derive data origin from parameterId
         const dataOrigin = series.parameterId.includes('.historical') ? DataOrigin.HISTORICAL : DataOrigin.FORECAST;
 
-        // 4. Find or create Simulation (environment=null — no split by moduleInstanceId)
-        let simulation = await this.simulationRepository.findByDateAndEnvAndModmeteo(simulationDate, null, modmeteo);
+        // 4. Find or create Simulation
+        let simulation: Simulation;
 
-        if (simulation) {
-            if (simulation.status === SimulationStatus.FINALIZED) {
-                this.logger.log(
-                    `Simulation ${simulationDate} already finalized for provider=${modmeteo} — skipping station=${stationId}`,
-                );
-                return {
-                    simulationId: simulation.id,
-                    predictionId: '',
-                    resultsCount: 0,
-                    notificationCreated: false,
-                };
+        if (command.simulationId) {
+            // 4a. Manual simulation path: find directly by ID
+            try {
+                simulation = await this.simulationRepository.findById(command.simulationId);
+            } catch {
+                throw new ApiError(HttpStatus.NOT_FOUND, `Simulation with id "${command.simulationId}" not found`);
             }
         } else {
-            simulation = new Simulation({
+            // 4b. Automatic simulation path: find or create by date+env+modmeteo
+            const foundSimulation = await this.simulationRepository.findByDateAndEnvAndModmeteo(
                 simulationDate,
-                jobType: command.providerType || null,
+                null,
                 modmeteo,
-                environment: null,
-                status: SimulationStatus.IN_PROGRESS,
-                type: SimulationType.AUTOMATIC,
-                createdBy: command.providerName || 'system',
-                dataOrigin,
-            });
-            simulation.validate();
-            simulation = await this.simulationRepository.create(simulation);
+            );
+
+            if (foundSimulation) {
+                if (foundSimulation.status === SimulationStatus.FINALIZED) {
+                    this.logger.log(
+                        `Simulation ${simulationDate} already finalized for provider=${modmeteo} — skipping station=${stationId}`,
+                    );
+                    return {
+                        simulationId: foundSimulation.id,
+                        predictionId: '',
+                        resultsCount: 0,
+                        notificationCreated: false,
+                    };
+                }
+                simulation = foundSimulation;
+            } else {
+                const newSimulation = new Simulation({
+                    simulationDate,
+                    jobType: command.providerType || null,
+                    modmeteo,
+                    environment: null,
+                    status: SimulationStatus.IN_PROGRESS,
+                    type: SimulationType.AUTOMATIC,
+                    createdBy: command.providerName || 'system',
+                    dataOrigin,
+                });
+                newSimulation.validate();
+                simulation = await this.simulationRepository.create(newSimulation);
+            }
         }
 
         // 5. Check idempotency

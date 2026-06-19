@@ -9,6 +9,7 @@ import { ProcessTimeSeriesHandler } from '@application/commands/prediction.comma
 import { FinalizeSimulationHandler, BatchIngestHandler } from '@application/commands/simulation.commands';
 import { CreatePredictionTypeHandler } from '@application/commands/prediction-type.commands';
 import { PurgeOldSimulationsHandler } from '@application/commands/cleanup.commands';
+import { CreateManualSimulationHandler } from '@application/commands/manual-simulation.commands';
 
 // Services
 import { CleanupScheduler } from '@application/services/cleanup.scheduler';
@@ -29,6 +30,10 @@ import {
     GetSimulationDatesByStationHandler,
 } from '@application/queries/prediction.queries';
 import { ListPredictionTypesHandler } from '@application/queries/prediction-type.queries';
+import {
+    GetManualSimulationByIdHandler,
+    ListManualSimulationsHandler,
+} from '@application/queries/manual-simulation.queries';
 
 // Controllers
 import { SimulationController } from '@api/controllers/simulation.controller';
@@ -37,13 +42,21 @@ import { PredictionTypeController } from '@api/controllers/prediction-type.contr
 
 // Consumers
 import { TimeSeriesIngestedConsumer } from '@application/consumers/timeseries-ingested.consumer';
+import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulation-status-updated.consumer';
 
 @Module({
     imports: [CqrsModule, InfrastructureModule],
-    controllers: [SimulationController, PredictionController, PredictionTypeController, TimeSeriesIngestedConsumer],
+    controllers: [
+        SimulationController,
+        PredictionController,
+        PredictionTypeController,
+        TimeSeriesIngestedConsumer,
+        SimulationStatusUpdatedConsumer,
+    ],
     providers: [
         ProcessTimeSeriesHandler,
         FinalizeSimulationHandler,
+        CreateManualSimulationHandler,
         ListSimulationsHandler,
         GetSimulationByDateHandler,
         GetLatestSimulationHandler,
@@ -54,6 +67,8 @@ import { TimeSeriesIngestedConsumer } from '@application/consumers/timeseries-in
         GetForecastPredictionsHandler,
         GetMaxAndLatestValuesHandler,
         GetSimulationDatesByStationHandler,
+        GetManualSimulationByIdHandler,
+        ListManualSimulationsHandler,
         BatchIngestHandler,
         ListPredictionTypesHandler,
         CreatePredictionTypeHandler,

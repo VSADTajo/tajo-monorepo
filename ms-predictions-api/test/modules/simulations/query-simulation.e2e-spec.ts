@@ -6,6 +6,7 @@ import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 
 import { PredictionType } from '../../../src/app/domain/entities/prediction-type.entity';
 import { Simulation } from '../../../src/app/domain/entities/simulation.entity';
+import { Maneuver } from '../../../src/app/domain/entities/maneuver.entity';
 import { Prediction } from '../../../src/app/domain/entities/prediction.entity';
 import { PredictionResult as PredictionResultEntity } from '../../../src/app/domain/entities/prediction-result.entity';
 
@@ -64,7 +65,7 @@ describe('Query Simulations (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [PredictionType, Simulation, Prediction, PredictionResultEntity],
+            entities: [PredictionType, Simulation, Prediction, PredictionResultEntity, Maneuver],
             controllers: [SimulationController],
             providers: [
                 ProcessTimeSeriesHandler,
