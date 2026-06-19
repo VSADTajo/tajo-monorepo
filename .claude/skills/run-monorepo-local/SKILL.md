@@ -153,6 +153,10 @@ until curl -s http://127.0.0.1:3007/health | grep -q '"status":"ok"'; do sleep 3
 
 > **Gotcha — every NestJS service has a `ClientWhitelistMiddleware`** that rejects requests without `x-internal-caller`. Allowed values vary per service; the common safe one is `ms-gateway-api`. From the host you must always send `-H "x-internal-caller: ms-gateway-api"`.
 
+> **Gotcha — SFTP paths must be jailed under the `tajo/` user prefix in prod.** The production SFTP server exposes a single user `tajo` whose home is the chroot for the external model. Anything written outside `tajo/...` is invisible to the model. Convention in this codebase: top-level domain dirs in UPPERCASE under `tajo/` (e.g. `tajo/METEO/...`, `tajo/SIMULATIONS/<id>/...`). If you write to `simulations/...` (no `tajo/` prefix), the file lands in storage but the model never sees it. Locally there's no chroot so any path under `STORAGE_BASE_PATH` works — but use the prod-correct prefix so dev mirrors prod.
+
+> **Gotcha — `npm run build` does NOT run lint.** Jenkinsfile runs `npm run lint -- --max-warnings 0` as a separate stage. A PR that compiles locally can still fail Jenkins for a lint-only error (e.g. unused `_var`). Before pushing, also run `npm run lint` in every service you touched.
+
 ---
 
 ## 6. End-to-end smoke test — manual simulation pipeline

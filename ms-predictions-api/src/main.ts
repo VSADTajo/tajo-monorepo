@@ -56,7 +56,9 @@ async function bootstrap() {
         });
 
         await app.startAllMicroservices();
-        logger.log(`RabbitMQ consumers listening on: ${Queues.PREDICTIONS_TIMESERIES_PROCESSING}, ${Queues.PREDICTIONS_SIMULATION_STATUS_UPDATES}`);
+        logger.log(
+            `RabbitMQ consumers listening on: ${Queues.PREDICTIONS_TIMESERIES_PROCESSING}, ${Queues.PREDICTIONS_SIMULATION_STATUS_UPDATES}`,
+        );
     } else {
         logger.log('RabbitMQ is disabled (RABBITMQ_ENABLED=false) — skipping microservice setup');
     }

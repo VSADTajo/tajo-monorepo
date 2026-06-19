@@ -1,4 +1,16 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    HttpException,
+    HttpStatus,
+    Inject,
+    Param,
+    Patch,
+    Post,
+    Query,
+    Req,
+} from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiTags } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';

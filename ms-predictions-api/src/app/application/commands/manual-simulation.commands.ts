@@ -131,7 +131,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
         const updatedSimulation = await this.simulationRepository.update(persistedSimulation);
 
         // 7. Publish simulation.manual.dispatched event
-        const outputFolder = `simulations/${persistedSimulation.id}/output`;
+        const outputFolder = `tajo/SIMULATIONS/${persistedSimulation.id}/output`;
         await this.messageBroker.publishToTopic(
             Topics.SIMULATION_EVENTS.exchange,
             Topics.SIMULATION_EVENTS.routingKeys.MANUAL_DISPATCHED,

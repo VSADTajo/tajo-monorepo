@@ -17,7 +17,7 @@ export class SimulationSftpService implements ISimulationSftpService {
 
     async uploadInputFile(simulationId: string, content: Buffer): Promise<void> {
         const fileName = `${simulationId}.json`;
-        const fullPath = `simulations/${simulationId}/input/${fileName}`;
+        const fullPath = `tajo/SIMULATIONS/${simulationId}/input/${fileName}`;
 
         const form = new FormData();
         form.append('file', content, {
