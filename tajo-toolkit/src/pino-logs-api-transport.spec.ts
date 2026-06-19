@@ -1,6 +1,21 @@
-import { buildLogPayload, mapLevel } from './pino-logs-api-transport';
+import { buildLogPayload, mapLevel, sanitizeUrl } from './pino-logs-api-transport';
 
 const SERVICE = 'ms-gateway-api';
+
+describe('sanitizeUrl', () => {
+  it('returns the url unchanged when there is no query string', () => {
+    expect(sanitizeUrl('/users/123')).toBe('/users/123');
+  });
+
+  it('strips sensitive query params but keeps the rest', () => {
+    expect(sanitizeUrl('/auth/callback?code=abc&state=xyz')).toBe('/auth/callback?state=xyz');
+    expect(sanitizeUrl('/reset?token=secret')).toBe('/reset');
+  });
+
+  it('is case-insensitive for sensitive param names', () => {
+    expect(sanitizeUrl('/x?Token=abc&ok=1')).toBe('/x?ok=1');
+  });
+});
 
 describe('mapLevel', () => {
   it('maps pino numeric levels to collector enum (warn -> warning)', () => {

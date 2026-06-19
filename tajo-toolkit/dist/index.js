@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.X_USER_ID_HEADER = exports.X_TRACE_ID_HEADER = exports.buildPinoOptions = exports.TraceContext = exports.TracedHttpClient = exports.TraceModule = void 0;
+exports.X_USER_ID_HEADER = exports.X_TRACE_ID_HEADER = exports.extractTraceId = exports.buildPinoOptions = exports.TraceContext = exports.TracedHttpClient = exports.TraceModule = void 0;
 var trace_module_1 = require("./trace.module");
 Object.defineProperty(exports, "TraceModule", { enumerable: true, get: function () { return trace_module_1.TraceModule; } });
 var traced_http_client_1 = require("./traced-http-client");
@@ -9,6 +9,8 @@ var trace_context_1 = require("./trace-context");
 Object.defineProperty(exports, "TraceContext", { enumerable: true, get: function () { return trace_context_1.TraceContext; } });
 var pino_options_1 = require("./pino-options");
 Object.defineProperty(exports, "buildPinoOptions", { enumerable: true, get: function () { return pino_options_1.buildPinoOptions; } });
+var extract_trace_id_1 = require("./extract-trace-id");
+Object.defineProperty(exports, "extractTraceId", { enumerable: true, get: function () { return extract_trace_id_1.extractTraceId; } });
 var types_1 = require("./types");
 Object.defineProperty(exports, "X_TRACE_ID_HEADER", { enumerable: true, get: function () { return types_1.X_TRACE_ID_HEADER; } });
 Object.defineProperty(exports, "X_USER_ID_HEADER", { enumerable: true, get: function () { return types_1.X_USER_ID_HEADER; } });

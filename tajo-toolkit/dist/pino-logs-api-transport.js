@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mapLevel = mapLevel;
+exports.sanitizeUrl = sanitizeUrl;
 exports.buildLogPayload = buildLogPayload;
 exports.default = default_1;
 const pino_abstract_transport_1 = __importDefault(require("pino-abstract-transport"));
@@ -36,6 +37,23 @@ function extractAppMeta(obj) {
     }
     return meta;
 }
+// Query-string params whose values must never reach the collector.
+const SENSITIVE_QUERY_PARAMS = new Set([
+    'token', 'code', 'key', 'secret', 'password', 'apikey', 'api_key', 'access_token', 'refresh_token',
+]);
+/** Strip sensitive query-string params from a URL/path, keeping the rest. */
+function sanitizeUrl(url) {
+    const queryIndex = url.indexOf('?');
+    if (queryIndex === -1) {
+        return url;
+    }
+    const path = url.slice(0, queryIndex);
+    const kept = url
+        .slice(queryIndex + 1)
+        .split('&')
+        .filter((pair) => !SENSITIVE_QUERY_PARAMS.has(pair.split('=')[0].toLowerCase()));
+    return kept.length ? `${path}?${kept.join('&')}` : path;
+}
 /**
  * Pure transform: pino log object -> ms-logs-api payload.
  *
@@ -65,15 +83,16 @@ function buildLogPayload(obj, serviceName) {
         appMeta.domain = appMeta.entity;
         delete appMeta.entity;
     }
+    const safeUrl = sanitizeUrl(reqUrl);
     return {
         level,
         entity: serviceName,
         message: message ||
-            `[${obj.req?.method || 'LOG'}] ${reqUrl || 'system'} ${obj.res?.statusCode || ''}`.trim(),
+            `[${obj.req?.method || 'LOG'}] ${safeUrl || 'system'} ${obj.res?.statusCode || ''}`.trim(),
         source: serviceName,
         correlationId,
         meta: {
-            ...(obj.req ? { method: obj.req.method, path: obj.req.url } : {}),
+            ...(obj.req ? { method: obj.req.method, path: safeUrl } : {}),
             ...(obj.res ? { statusCode: obj.res.statusCode } : {}),
             ...(obj.responseTime ? { duration: Math.round(obj.responseTime) } : {}),
             ...(obj.err ? { error: obj.err.message, stack: obj.err.stack } : {}),
@@ -92,7 +111,11 @@ function default_1(opts) {
             if (opts.apiKey) {
                 headers['x-api-key'] = opts.apiKey;
             }
-            axios_1.default.post(`${opts.logsApiUrl}/api/logs`, payload, { headers }).catch(() => { });
+            // Fire-and-forget: a transport failure must never crash the service, but
+            // surface it on stderr so a down/misconfigured collector is observable.
+            axios_1.default.post(`${opts.logsApiUrl}/api/logs`, payload, { headers }).catch((err) => {
+                process.stderr.write(`[pino-logs-api-transport] failed to ship log: ${err.message}\n`);
+            });
         }
     });
 }

@@ -1,5 +1,7 @@
 import build from 'pino-abstract-transport';
 export declare function mapLevel(pinoLevel: number): string;
+/** Strip sensitive query-string params from a URL/path, keeping the rest. */
+export declare function sanitizeUrl(url: string): string;
 export interface PinoLogsApiTransportOptions {
     logsApiUrl: string;
     serviceName: string;

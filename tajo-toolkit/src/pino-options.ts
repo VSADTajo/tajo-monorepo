@@ -53,7 +53,7 @@ export function buildPinoOptions(params: BuildPinoOptionsParams): Options {
     genReqId: (req: { headers: Record<string, string | string[] | undefined> }): string =>
       (req.headers[X_TRACE_ID_HEADER] as string) || uuidv4(),
     // Put the CLS trace-id (and user-id) on every single log line.
-    mixin: (): Record<string, string> => {
+    mixin: (): Record<string, unknown> => {
       try {
         const traceId = traceContext.traceId;
         const userId = traceContext.userId;

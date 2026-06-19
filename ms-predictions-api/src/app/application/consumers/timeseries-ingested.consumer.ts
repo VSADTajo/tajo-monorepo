@@ -2,8 +2,7 @@ import { Controller, Inject } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { Logger } from 'nestjs-pino';
-import { TraceContext, X_TRACE_ID_HEADER } from 'tajo-toolkit';
-import { v4 as uuidv4 } from 'uuid';
+import { TraceContext, extractTraceId } from 'tajo-toolkit';
 
 import { Topics } from '@infrastructure/messaging/messaging.registry';
 import { ProcessTimeSeriesCommand, ITimeSeriesData } from '@application/commands/prediction.commands';
@@ -36,9 +35,8 @@ export class TimeSeriesIngestedConsumer {
         const channel = context.getChannelRef();
         const originalMsg = context.getMessage();
 
-        // Extract traceId from AMQP headers or generate a new one
-        const headers = originalMsg.properties?.headers || {};
-        const traceId = headers[X_TRACE_ID_HEADER] || uuidv4();
+        // Continue the trace from the incoming message (or start a new one)
+        const traceId = extractTraceId(originalMsg.properties?.headers);
 
         await this.traceContext.runInContext(traceId, async () => {
             try {

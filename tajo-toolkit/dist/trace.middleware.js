@@ -80,7 +80,9 @@ let TraceMiddleware = class TraceMiddleware {
             if (this.options.apiKey) {
                 headers['x-api-key'] = this.options.apiKey;
             }
-            axios_1.default.post(`${logsApiUrl}/api/logs`, payload, { headers }).catch(() => { });
+            axios_1.default.post(`${logsApiUrl}/api/logs`, payload, { headers }).catch((err) => {
+                process.stderr.write(`[trace.middleware] failed to ship request log: ${err.message}\n`);
+            });
         }
     }
 };

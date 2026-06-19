@@ -2,6 +2,7 @@ export { TraceModule } from './trace.module';
 export { TracedHttpClient } from './traced-http-client';
 export { TraceContext } from './trace-context';
 export { buildPinoOptions, BuildPinoOptionsParams } from './pino-options';
+export { extractTraceId } from './extract-trace-id';
 export {
   TraceModuleOptions,
   X_TRACE_ID_HEADER,

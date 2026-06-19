@@ -2,8 +2,7 @@ import { Controller, Inject } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { Logger } from 'nestjs-pino';
-import { TraceContext, X_TRACE_ID_HEADER } from 'tajo-toolkit';
-import { v4 as uuidv4 } from 'uuid';
+import { TraceContext, extractTraceId } from 'tajo-toolkit';
 
 import { CreateNotificationMapper } from '@application/mappers/notification.mappers';
 
@@ -24,8 +23,7 @@ export class NotificationConsumer {
         const originalMsg = context.getMessage();
 
         // Continue the trace from the incoming message (or start a new one)
-        const headers = originalMsg.properties?.headers || {};
-        const traceId = headers[X_TRACE_ID_HEADER] || uuidv4();
+        const traceId = extractTraceId(originalMsg.properties?.headers);
 
         await this.traceContext.runInContext(traceId, async () => {
             try {

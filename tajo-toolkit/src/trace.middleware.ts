@@ -76,7 +76,9 @@ export class TraceMiddleware implements NestMiddleware {
       if (this.options.apiKey) {
         headers['x-api-key'] = this.options.apiKey;
       }
-      axios.post(`${logsApiUrl}/api/logs`, payload, { headers }).catch(() => {});
+      axios.post(`${logsApiUrl}/api/logs`, payload, { headers }).catch((err: Error) => {
+        process.stderr.write(`[trace.middleware] failed to ship request log: ${err.message}\n`);
+      });
     }
   }
 }

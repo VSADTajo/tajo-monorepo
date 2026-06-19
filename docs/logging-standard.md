@@ -89,7 +89,7 @@ Rama: `refactor/logging-consistency`.
 | 3 — Roll-out 9 servicios | ✅ hecho | sin config copy-pasteada; sftp normalizado |
 | 4a — Trace saliente RMQ | ✅ hecho | 7/7 services attach `x-trace-id` en publish |
 | 4b — Trace entrante RMQ | ✅ hecho | 4/4 consumers continúan el trace vía `runInContext` |
-| 5 — Versionado toolkit | ✅ hecho | `tajo-toolkit` bump a `1.1.0` |
+| 5 — Versionado toolkit | 🔶 parcial | bump a `1.1.0` hecho; **pin en servicios + publicación al repo = pendiente operativo (ver abajo)** |
 
 ### Verificado por
 - Tipos (`tsc --noEmit`) en toolkit + 9 servicios.
