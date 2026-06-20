@@ -40,6 +40,9 @@ let TraceMiddleware = class TraceMiddleware {
             this.traceContext.serviceName = this.options.serviceName;
             this.traceContext.startTime = Date.now();
             this.traceContext.logsApiUrl = this.options.logsApiUrl;
+            // Re-inject the resolved trace-id into the request headers so any downstream
+            // reader (e.g. pino-http's genReqId) uses the SAME id as the CLS context.
+            req.headers[types_1.X_TRACE_ID_HEADER] = traceId;
             res.setHeader(types_1.X_TRACE_ID_HEADER, traceId);
             if (this.options.logRequests) {
                 res.on('finish', () => {
@@ -77,7 +80,9 @@ let TraceMiddleware = class TraceMiddleware {
             if (this.options.apiKey) {
                 headers['x-api-key'] = this.options.apiKey;
             }
-            axios_1.default.post(`${logsApiUrl}/api/logs`, payload, { headers }).catch(() => { });
+            axios_1.default.post(`${logsApiUrl}/api/logs`, payload, { headers }).catch((err) => {
+                process.stderr.write(`[trace.middleware] failed to ship request log: ${err.message}\n`);
+            });
         }
     }
 };

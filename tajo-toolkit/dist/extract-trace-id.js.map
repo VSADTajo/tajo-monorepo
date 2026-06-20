@@ -1,0 +1,1 @@
+{"version":3,"file":"extract-trace-id.js","sourceRoot":"","sources":["../src/extract-trace-id.ts"],"names":[],"mappings":";;AAQA,wCAGC;AAXD,+BAA8D;AAC9D,mCAA4C;AAE5C;;;;GAIG;AACH,SAAgB,cAAc,CAAC,OAAmD;IAChF,MAAM,QAAQ,GAAG,OAAO,EAAE,CAAC,yBAAiB,CAAC,CAAC;IAC9C,OAAO,OAAO,QAAQ,KAAK,QAAQ,IAAI,IAAA,eAAY,EAAC,QAAQ,CAAC,CAAC,CAAC,CAAC,QAAQ,CAAC,CAAC,CAAC,IAAA,SAAM,GAAE,CAAC;AACtF,CAAC"}

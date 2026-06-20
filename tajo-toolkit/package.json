@@ -1,11 +1,12 @@
 {
   "name": "tajo-toolkit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shared distributed tracing toolkit for North Labs microservices",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "test": "jest",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
   "peerDependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
+    "pino-http": "^10.0.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0"
   },
@@ -24,9 +26,13 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@types/express": "^5.0.6",
+    "@types/jest": "^29.5.0",
     "@types/uuid": "^10.0.0",
+    "jest": "^29.7.0",
+    "pino-http": "^10.0.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
+    "ts-jest": "^29.2.0",
     "typescript": "^5.6.0"
   },
   "files": [

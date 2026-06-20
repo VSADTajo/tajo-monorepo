@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import * as amqplib from 'amqplib';
+import { TraceContext, X_TRACE_ID_HEADER } from 'tajo-toolkit';
 
 import { IMessageBroker } from '@domain/ports/message-broker.port';
 import { ProviderError } from '@domain/errors/provider.error';
@@ -17,6 +18,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
         @Inject(Logger)
         private readonly logger: Logger,
         private readonly rabbitmqConfig: RabbitmqConfigService,
+        private readonly traceContext: TraceContext,
     ) {}
 
     async onModuleInit(): Promise<void> {
@@ -98,8 +100,12 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
         const channel = await this.ensureChannel();
         await this.assertQueue(channel, queue);
 
+        const traceId = this.traceContext.traceId;
         const buffer = Buffer.from(JSON.stringify(message));
-        const sent = channel.sendToQueue(queue, buffer, { persistent: true });
+        const sent = channel.sendToQueue(queue, buffer, {
+            persistent: true,
+            headers: traceId ? { [X_TRACE_ID_HEADER]: traceId } : undefined,
+        });
 
         if (!sent) {
             throw new ProviderError(`Failed to publish message to queue "${queue}": channel buffer full`);
@@ -122,8 +128,12 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
         const channel = await this.ensureChannel();
         await this.assertTopicExchange(channel, exchange);
 
+        const traceId = this.traceContext.traceId;
         const buffer = Buffer.from(JSON.stringify(message));
-        channel.publish(exchange, routingKey, buffer, { persistent: true });
+        channel.publish(exchange, routingKey, buffer, {
+            persistent: true,
+            headers: traceId ? { [X_TRACE_ID_HEADER]: traceId } : undefined,
+        });
 
         this.logger.debug(`Message published to exchange: ${exchange} [${routingKey}]`);
     }

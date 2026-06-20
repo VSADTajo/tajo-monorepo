@@ -43,7 +43,7 @@
         "pino-pretty": "^11.2.2",
         "reflect-metadata": "^0.2.0",
         "rxjs": "^7.8.1",
-        "tajo-toolkit": "github:VSADTajo/tajo-toolkit",
+        "tajo-toolkit": "github:VSADTajo/tajo-toolkit#v1.1.0",
         "tsconfig-paths": "^4.2.0",
         "uuid": "^13.0.0"
     },

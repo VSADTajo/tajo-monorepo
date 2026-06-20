@@ -1,8 +1,7 @@
 import { HttpModule } from '@nestjs/axios';
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
-import { TraceModule } from 'tajo-toolkit';
-import { v4 as uuidv4 } from 'uuid';
+import { TraceModule, TraceContext, buildPinoOptions } from 'tajo-toolkit';
 
 // Core configuration
 import { AppConfigModule } from '@config/app/app-config.module';
@@ -16,8 +15,6 @@ import { HealthModule } from '@health/health.module';
 import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 import { AuthMiddleware } from '@infrastructure/middleware/auth.middleware';
 import { PermissionMiddleware } from '@infrastructure/middleware/permission.middleware';
-
-const CORRELATION_ID_HEADER = 'x-trace-id';
 
 @Module({
     imports: [
@@ -37,54 +34,25 @@ const CORRELATION_ID_HEADER = 'x-trace-id';
         InfrastructureModule,
         HealthModule,
 
-        // Logging
+        // Logging — config centralized in tajo-toolkit (buildPinoOptions)
         LoggerModule.forRootAsync({
             imports: [AppConfigModule],
-            inject: [AppConfigService],
-            useFactory: async (config: AppConfigService) => ({
+            inject: [AppConfigService, TraceContext],
+            useFactory: async (config: AppConfigService, traceContext: TraceContext) => ({
                 pinoHttp: {
-                    level: config.logLevel,
-                    genReqId: (req) => req.headers[CORRELATION_ID_HEADER] || uuidv4(),
-                    transport: {
-                        targets: [
-                            ...(config.nodeEnv !== 'production'
-                                ? [{ target: 'pino-pretty', level: config.logLevel }]
-                                : [{ target: 'pino/file', options: { destination: 1 }, level: config.logLevel }]),
-                            ...(config.logsApiUrl
-                                ? [
-                                      {
-                                          target: 'tajo-toolkit/dist/pino-logs-api-transport',
-                                          options: {
-                                              logsApiUrl: config.logsApiUrl,
-                                              serviceName: config.name,
-                                              apiKey: config.xApiKey,
-                                          },
-                                          level: 'info',
-                                      },
-                                  ]
-                                : []),
-                        ],
-                    },
+                    ...buildPinoOptions({
+                        serviceName: config.name,
+                        traceContext,
+                        logsApiUrl: config.logsApiUrl,
+                        apiKey: config.xApiKey,
+                        logLevel: config.logLevel,
+                        nodeEnv: config.nodeEnv,
+                    }),
+                    // Gateway-specific: skip noisy endpoints from auto-logging
                     exclude: [
                         { method: RequestMethod.ALL, path: 'health' },
                         { method: RequestMethod.POST, path: 'auth/validate' },
                     ],
-                    customLogLevel: (_req, res, err) => {
-                        if (err || res.statusCode >= 500) return 'error';
-                        if (res.statusCode >= 400) return 'warn';
-                        return 'debug';
-                    },
-                    autoLogging: true,
-                    serializers: {
-                        req: (req) => ({
-                            id: req.id,
-                            method: req.method,
-                            url: req.url,
-                        }),
-                        res: (res) => ({
-                            statusCode: res.statusCode,
-                        }),
-                    },
                 },
             }),
         }),

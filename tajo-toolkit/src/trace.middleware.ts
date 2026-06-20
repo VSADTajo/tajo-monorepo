@@ -29,6 +29,9 @@ export class TraceMiddleware implements NestMiddleware {
       this.traceContext.startTime = Date.now();
       this.traceContext.logsApiUrl = this.options.logsApiUrl;
 
+      // Re-inject the resolved trace-id into the request headers so any downstream
+      // reader (e.g. pino-http's genReqId) uses the SAME id as the CLS context.
+      req.headers[X_TRACE_ID_HEADER] = traceId;
       res.setHeader(X_TRACE_ID_HEADER, traceId);
 
       if (this.options.logRequests) {
@@ -73,7 +76,9 @@ export class TraceMiddleware implements NestMiddleware {
       if (this.options.apiKey) {
         headers['x-api-key'] = this.options.apiKey;
       }
-      axios.post(`${logsApiUrl}/api/logs`, payload, { headers }).catch(() => {});
+      axios.post(`${logsApiUrl}/api/logs`, payload, { headers }).catch((err: Error) => {
+        process.stderr.write(`[trace.middleware] failed to ship request log: ${err.message}\n`);
+      });
     }
   }
 }
