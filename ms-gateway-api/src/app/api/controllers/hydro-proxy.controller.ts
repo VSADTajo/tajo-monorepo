@@ -448,8 +448,12 @@ export class HydroProxyController {
     @ApiQuery({
         name: 'codes',
         required: true,
-        type: [String],
-        description: 'Array of origin station codes (use codes[]=X&codes[]=Y in the query string)',
+        type: String,
+        isArray: true,
+        description:
+            'Origin station codes. Pass the parameter once per code: `?codes=AR01&codes=AR02`. ' +
+            'A single value is also accepted: `?codes=AR01`.',
+        example: ['AR01', 'AR02'],
     })
     async getDownstreamStations(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
         const result = await this.proxyService.forward({

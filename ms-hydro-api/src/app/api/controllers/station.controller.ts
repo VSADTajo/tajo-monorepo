@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { CommandBus } from '@nestjs/cqrs';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service';
 
@@ -143,26 +143,35 @@ export class StationController {
     }
 
     @Get('downstream')
+    @ApiQuery({
+        name: 'codes',
+        required: true,
+        type: String,
+        isArray: true,
+        description:
+            'Origin station codes. Pass the parameter once per code: `?codes=AR01&codes=AR02`. ' +
+            'A single value is also accepted: `?codes=AR01`.',
+        example: ['AR01', 'AR02'],
+    })
     @ApiEndpoint({
         summary: 'Get downstream stations for given origin codes',
         response: { status: 200, type: GetDownstreamStationsResponseDto, description: 'Downstream stations found' },
         errors: [{ status: 400, description: 'Validation error (codes empty or missing)' }],
     })
     async getDownstreamStations(@Req() req: Request): Promise<GetDownstreamStationsResponseDto> {
-        // Support both ?codes=X&codes=Y and ?codes[]=X&codes[]=Y query string formats
-        const rawQuery = req.query as Record<string, unknown>;
-        const rawCodes = rawQuery.codes ?? rawQuery['codes[]'];
-        const codesArray: string[] =
-            rawCodes === undefined || rawCodes === null
-                ? []
-                : Array.isArray(rawCodes)
-                  ? (rawCodes as string[]).filter((v) => typeof v === 'string' && v.length > 0)
-                  : typeof rawCodes === 'string' && rawCodes.length > 0
-                    ? [rawCodes]
-                    : [];
+        // Express auto-parses ?codes=X&codes=Y as string[] and ?codes=X as string.
+        const rawCodes = (req.query as Record<string, unknown>).codes;
+        const codesArray: string[] = Array.isArray(rawCodes)
+            ? (rawCodes as string[]).filter((v) => typeof v === 'string' && v.length > 0)
+            : typeof rawCodes === 'string' && rawCodes.length > 0
+              ? [rawCodes]
+              : [];
 
         if (codesArray.length === 0) {
-            throw new HttpException('codes must be a non-empty array of strings', HttpStatus.BAD_REQUEST);
+            throw new HttpException(
+                'codes must be a non-empty array of strings (use ?codes=AR01&codes=AR02)',
+                HttpStatus.BAD_REQUEST,
+            );
         }
 
         this.logger.log(`Get downstream stations request: codes=${codesArray.join(',')}`);

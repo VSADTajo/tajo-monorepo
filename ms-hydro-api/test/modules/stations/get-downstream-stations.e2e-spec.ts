@@ -74,7 +74,7 @@ describe('Get Downstream Stations (e2e)', () => {
     });
 
     function getDownstreamStations(codes: string[]) {
-        const queryString = codes.map((c) => `codes[]=${encodeURIComponent(c)}`).join('&');
+        const queryString = codes.map((c) => `codes=${encodeURIComponent(c)}`).join('&');
         return request(app.getHttpServer()).get(`/stations/downstream?${queryString}`);
     }
 
@@ -100,6 +100,6 @@ describe('Get Downstream Stations (e2e)', () => {
     });
 
     it('should return 400 when codes array is empty', async () => {
-        await request(app.getHttpServer()).get('/stations/downstream?codes[]=').expect(HttpStatus.BAD_REQUEST);
+        await request(app.getHttpServer()).get('/stations/downstream?codes=').expect(HttpStatus.BAD_REQUEST);
     });
 });
