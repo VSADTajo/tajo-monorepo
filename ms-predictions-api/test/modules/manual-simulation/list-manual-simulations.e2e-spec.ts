@@ -100,17 +100,13 @@ describe('List Manual Simulations (e2e)', () => {
             .query(query || {});
     }
 
-    async function createOneManeuverId(): Promise<string> {
-        const { body } = await request(app.getHttpServer())
-            .post('/maneuvers')
-            .send(buildCreateManeuverDto())
-            .expect(HttpStatus.CREATED);
-        return body.id;
+    function createManeuver() {
+        return request(app.getHttpServer()).post('/maneuvers').send(buildCreateManeuverDto());
     }
 
     it('should list only MANUAL simulations', async () => {
-        const dto1 = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
-        const dto2 = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
+        const dto1 = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
+        const dto2 = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
 
         await createManualSimulation(dto1).expect(HttpStatus.CREATED);
         await createManualSimulation(dto2).expect(HttpStatus.CREATED);
@@ -125,7 +121,7 @@ describe('List Manual Simulations (e2e)', () => {
     });
 
     it('should filter by status', async () => {
-        const dto = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
+        const dto = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
         await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
         // MODEL_PROCESSING simulations (the default after SFTP upload)
@@ -151,8 +147,8 @@ describe('List Manual Simulations (e2e)', () => {
     });
 
     it('should return the correct maneuverCount per simulation via a single aggregate (bug B)', async () => {
-        const twoManeuverIds = [await createOneManeuverId(), await createOneManeuverId()];
-        const oneManeuverId = [await createOneManeuverId()];
+        const twoManeuverIds = [(await createManeuver().expect(HttpStatus.CREATED)).body.id, (await createManeuver().expect(HttpStatus.CREATED)).body.id];
+        const oneManeuverId = [(await createManeuver().expect(HttpStatus.CREATED)).body.id];
 
         await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: twoManeuverIds })).expect(
             HttpStatus.CREATED,
@@ -169,13 +165,13 @@ describe('List Manual Simulations (e2e)', () => {
 
     it('should support pagination', async () => {
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
         ).expect(HttpStatus.CREATED);
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
         ).expect(HttpStatus.CREATED);
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
         ).expect(HttpStatus.CREATED);
 
         const { body } = await listManualSimulations({ page: 1, limit: 2 }).expect(HttpStatus.OK);

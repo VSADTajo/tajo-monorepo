@@ -4,7 +4,7 @@ import { Logger } from 'nestjs-pino';
 
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '@domain/ports/maneuver-repository.port';
-import { SimulationType } from '@domain/entities/simulation.entity';
+import { SimulationType, SimulationStatus } from '@domain/entities/simulation.entity';
 import {
     ManualSimulationResult,
     ManualSimulationListItem,
@@ -64,7 +64,7 @@ export class GetManualSimulationByIdHandler implements IQueryHandler<
 // ─────────────────────────────────────────────────────────────
 
 export interface IListManualSimulationsQuery {
-    status?: string;
+    status?: SimulationStatus;
     page: number;
     limit: number;
 }
@@ -72,7 +72,7 @@ export interface IListManualSimulationsQuery {
 export class ListManualSimulationsQuery {
     constructor(private readonly parameters: IListManualSimulationsQuery) {}
 
-    get status(): string | undefined {
+    get status(): SimulationStatus | undefined {
         return this.parameters.status;
     }
 
