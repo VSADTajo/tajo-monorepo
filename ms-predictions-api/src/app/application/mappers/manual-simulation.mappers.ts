@@ -124,7 +124,7 @@ export class ListManualSimulationsMapper {
                     status: item.simulation.status,
                     type: item.simulation.type,
                     description: item.simulation.description ?? null,
-                    maneuverCount: item.maneuvers.length,
+                    maneuverCount: item.maneuverCount,
                     createdAt: item.simulation.createdAt,
                 }),
             ),

@@ -5,7 +5,11 @@ import { Logger } from 'nestjs-pino';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '@domain/ports/maneuver-repository.port';
 import { SimulationType } from '@domain/entities/simulation.entity';
-import { ManualSimulationResult, PaginatedManualSimulationResult } from '@domain/results/manual-simulation.result';
+import {
+    ManualSimulationResult,
+    ManualSimulationListItem,
+    PaginatedManualSimulationResult,
+} from '@domain/results/manual-simulation.result';
 import { ApiError } from '@domain/errors/api.error';
 
 // ─────────────────────────────────────────────────────────────
@@ -97,11 +101,15 @@ export class ListManualSimulationsHandler implements IQueryHandler<
 
         const paginatedSimulations = await this.simulationRepository.findManual(query.status, query.page, query.limit);
 
-        const data = await Promise.all(
-            paginatedSimulations.data.map(async (simulation) => {
-                const maneuvers = await this.maneuverRepository.findBySimulationId(simulation.id);
-                return new ManualSimulationResult({ simulation, maneuvers });
-            }),
+        const simulationIds = paginatedSimulations.data.map((simulation) => simulation.id);
+        const maneuverCounts = await this.maneuverRepository.countBySimulationIds(simulationIds);
+
+        const data = paginatedSimulations.data.map(
+            (simulation) =>
+                new ManualSimulationListItem({
+                    simulation,
+                    maneuverCount: maneuverCounts[simulation.id] ?? 0,
+                }),
         );
 
         return new PaginatedManualSimulationResult({

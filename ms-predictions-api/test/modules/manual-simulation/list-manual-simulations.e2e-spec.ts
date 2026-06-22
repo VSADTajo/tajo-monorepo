@@ -146,6 +146,27 @@ describe('List Manual Simulations (e2e)', () => {
         expect(body.limit).toBe(20);
     });
 
+    it('should reject an invalid status with 400 instead of 500 (bug A)', async () => {
+        await listManualSimulations({ status: 'NOT_A_REAL_STATUS' }).expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should return the correct maneuverCount per simulation via a single aggregate (bug B)', async () => {
+        const twoManeuverIds = [await createOneManeuverId(), await createOneManeuverId()];
+        const oneManeuverId = [await createOneManeuverId()];
+
+        await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: twoManeuverIds })).expect(
+            HttpStatus.CREATED,
+        );
+        await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: oneManeuverId })).expect(
+            HttpStatus.CREATED,
+        );
+
+        const { body } = await listManualSimulations().expect(HttpStatus.OK);
+
+        const counts = body.data.map((sim: { maneuverCount: number }) => sim.maneuverCount).sort();
+        expect(counts).toEqual([1, 2]);
+    });
+
     it('should support pagination', async () => {
         await createManualSimulation(
             buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),

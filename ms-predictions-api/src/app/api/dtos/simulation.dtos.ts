@@ -13,6 +13,7 @@ import {
     ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SimulationStatus } from '@domain/entities/simulation.entity';
 
 // ─────────────────────────────────────────────────────────────
 // ListSimulations
@@ -330,11 +331,11 @@ export class ListManualSimulationsQueryDto {
     @ApiProperty({
         description: 'Filter by status',
         required: false,
-        enum: ['CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'],
+        enum: SimulationStatus,
     })
     @IsOptional()
-    @IsString()
-    status?: string;
+    @IsEnum(SimulationStatus)
+    status?: SimulationStatus;
 
     @ApiProperty({ description: 'Page number', required: false, default: 1 })
     @IsOptional()

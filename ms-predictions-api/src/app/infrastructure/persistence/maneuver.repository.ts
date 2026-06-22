@@ -91,6 +91,34 @@ export class ManeuverRepository implements IManeuverRepository {
         }
     }
 
+    async countBySimulationIds(simulationIds: string[]): Promise<Record<string, number>> {
+        if (simulationIds.length === 0) {
+            return {};
+        }
+        try {
+            const rows: Array<{ simulationId: string; count: string }> = await this.maneuverRepository
+                .createQueryBuilder('maneuver')
+                .innerJoin('simulation_maneuvers', 'sm', 'sm."maneuverId" = maneuver.id')
+                .select('sm."simulationId"', 'simulationId')
+                .addSelect('COUNT(*)', 'count')
+                .where('sm."simulationId" IN (:...simulationIds)', { simulationIds })
+                .groupBy('sm."simulationId"')
+                .getRawMany();
+
+            return rows.reduce<Record<string, number>>((acc, row) => {
+                acc[row.simulationId] = Number(row.count);
+                return acc;
+            }, {});
+        } catch (error) {
+            this.logger.error({
+                msg: 'Error counting maneuvers by simulationIds',
+                entity: 'Maneuvers',
+                error: String(error),
+            });
+            throw new RepositoryError('Error counting maneuvers by simulationIds', error);
+        }
+    }
+
     async update(maneuver: Maneuver): Promise<Maneuver> {
         try {
             return await this.maneuverRepository.save(maneuver);
