@@ -45,7 +45,7 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
         return {
             description: 'Operación de control Tranco',
             modmeteo: 'BOTH',
-            maneuvers: [{ reservoirCode: 'E001', outputFlowValue: 12.5 }],
+            maneuverIds: ['7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c'],
             ...overrides,
         };
     }
@@ -87,27 +87,18 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
             expect(mockProxyService.forward).not.toHaveBeenCalled();
         });
 
-        it('should reject an empty maneuvers array (ArrayMinSize)', async () => {
-            await postManual(buildValidManualBody({ maneuvers: [] })).expect(HttpStatus.BAD_REQUEST);
+        it('should reject an empty maneuverIds array (ArrayMinSize)', async () => {
+            await postManual(buildValidManualBody({ maneuverIds: [] })).expect(HttpStatus.BAD_REQUEST);
+            expect(mockProxyService.forward).not.toHaveBeenCalled();
+        });
+
+        it('should reject a non-string element in maneuverIds', async () => {
+            await postManual(buildValidManualBody({ maneuverIds: [123] })).expect(HttpStatus.BAD_REQUEST);
             expect(mockProxyService.forward).not.toHaveBeenCalled();
         });
 
         it('should reject an invalid modmeteo value', async () => {
             await postManual(buildValidManualBody({ modmeteo: 'INVALID' })).expect(HttpStatus.BAD_REQUEST);
-            expect(mockProxyService.forward).not.toHaveBeenCalled();
-        });
-
-        it('should reject a maneuver with a negative outputFlowValue (nested validation)', async () => {
-            await postManual(
-                buildValidManualBody({ maneuvers: [{ reservoirCode: 'E001', outputFlowValue: -5 }] }),
-            ).expect(HttpStatus.BAD_REQUEST);
-            expect(mockProxyService.forward).not.toHaveBeenCalled();
-        });
-
-        it('should reject a maneuver missing reservoirCode (nested validation)', async () => {
-            await postManual(buildValidManualBody({ maneuvers: [{ outputFlowValue: 12.5 }] })).expect(
-                HttpStatus.BAD_REQUEST,
-            );
             expect(mockProxyService.forward).not.toHaveBeenCalled();
         });
 

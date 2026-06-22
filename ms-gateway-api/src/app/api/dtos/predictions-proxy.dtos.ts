@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMinSize, IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min, MaxLength, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { ArrayMinSize, IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min, MaxLength } from 'class-validator';
 
 // ─────────────────────────────────────────────────────────────
 // Shared: SimulationItem
@@ -192,18 +191,6 @@ export class CreatePredictionTypeResponseDto {
 // Manual Simulation
 // ─────────────────────────────────────────────────────────────
 
-export class ManeuverInputDto {
-    @ApiProperty({ description: 'Reservoir code', example: 'E001' })
-    @IsNotEmpty()
-    @IsString()
-    reservoirCode: string;
-
-    @ApiProperty({ description: 'Output flow value (m3/s)', example: 12.5, minimum: 0 })
-    @IsNumber()
-    @Min(0)
-    outputFlowValue: number;
-}
-
 export class CreateManualSimulationRequestDto {
     @ApiProperty({
         description: 'Optional operator description',
@@ -225,12 +212,16 @@ export class CreateManualSimulationRequestDto {
     @IsIn(['HARMONIE', 'EPS', 'BOTH'])
     modmeteo: 'HARMONIE' | 'EPS' | 'BOTH';
 
-    @ApiProperty({ type: [ManeuverInputDto], description: 'Maneuvers (at least one required)' })
+    @ApiProperty({
+        description: 'IDs of existing maneuvers to attach to this simulation (created via POST /maneuvers).',
+        type: [String],
+        example: ['7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c'],
+        minItems: 1,
+    })
     @IsArray()
     @ArrayMinSize(1)
-    @ValidateNested({ each: true })
-    @Type(() => ManeuverInputDto)
-    maneuvers: ManeuverInputDto[];
+    @IsString({ each: true })
+    maneuverIds: string[];
 }
 
 export class ManeuverItemDto {
