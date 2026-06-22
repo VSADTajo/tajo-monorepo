@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMinSize, IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min, MaxLength } from 'class-validator';
+import { ArrayMinSize, IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, MaxLength } from 'class-validator';
 
 // ─────────────────────────────────────────────────────────────
 // Shared: SimulationItem
@@ -220,7 +220,7 @@ export class CreateManualSimulationRequestDto {
     })
     @IsArray()
     @ArrayMinSize(1)
-    @IsString({ each: true })
+    @IsUUID('all', { each: true })
     maneuverIds: string[];
 }
 
