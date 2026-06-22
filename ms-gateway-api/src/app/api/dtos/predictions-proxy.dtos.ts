@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ArrayMinSize, IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Min, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 // ─────────────────────────────────────────────────────────────
 // Shared: SimulationItem
@@ -191,25 +193,43 @@ export class CreatePredictionTypeResponseDto {
 // ─────────────────────────────────────────────────────────────
 
 export class ManeuverInputDto {
-    @ApiProperty({ description: 'Reservoir code', example: 'E001' }) reservoirCode: string;
-    @ApiProperty({ description: 'Output flow value (m3/s)', example: 12.5, minimum: 0 }) outputFlowValue: number;
+    @ApiProperty({ description: 'Reservoir code', example: 'E001' })
+    @IsNotEmpty()
+    @IsString()
+    reservoirCode: string;
+
+    @ApiProperty({ description: 'Output flow value (m3/s)', example: 12.5, minimum: 0 })
+    @IsNumber()
+    @Min(0)
+    outputFlowValue: number;
 }
 
 export class CreateManualSimulationRequestDto {
     @ApiProperty({
         description: 'Optional operator description',
         required: false,
+        maxLength: 500,
         example: 'Operación de control Tranco',
     })
+    @IsOptional()
+    @IsString()
+    @MaxLength(500)
     description?: string;
+
     @ApiProperty({
         description:
             'Meteorological forcing for the SFTP input file. HARMONIE → Q.NAM.harmonie, EPS → Q.NAM.ens, BOTH → both files',
         enum: ['HARMONIE', 'EPS', 'BOTH'],
         example: 'BOTH',
     })
+    @IsIn(['HARMONIE', 'EPS', 'BOTH'])
     modmeteo: 'HARMONIE' | 'EPS' | 'BOTH';
+
     @ApiProperty({ type: [ManeuverInputDto], description: 'Maneuvers (at least one required)' })
+    @IsArray()
+    @ArrayMinSize(1)
+    @ValidateNested({ each: true })
+    @Type(() => ManeuverInputDto)
     maneuvers: ManeuverInputDto[];
 }
 
@@ -259,13 +279,29 @@ export class ListManualSimulationsResponseDto {
 // ─────────────────────────────────────────────────────────────
 
 export class CreateManeuverGwRequestDto {
-    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01' }) reservoirCode: string;
-    @ApiProperty({ description: 'Output flow value (m³/s)', example: 12.5, minimum: 0 }) outputFlowValue: number;
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01' })
+    @IsNotEmpty()
+    @IsString()
+    reservoirCode: string;
+
+    @ApiProperty({ description: 'Output flow value (m³/s)', example: 12.5, minimum: 0 })
+    @IsNumber()
+    @Min(0)
+    outputFlowValue: number;
 }
 
 export class UpdateManeuverGwRequestDto {
-    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01', required: false }) reservoirCode?: string;
-    @ApiProperty({ description: 'Output flow value (m³/s)', example: 14.0, required: false }) outputFlowValue?: number;
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01', required: false })
+    @IsOptional()
+    @IsString()
+    @IsNotEmpty()
+    reservoirCode?: string;
+
+    @ApiProperty({ description: 'Output flow value (m³/s)', example: 14.0, required: false })
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    outputFlowValue?: number;
 }
 
 export class ManeuverGwResponseDto {
