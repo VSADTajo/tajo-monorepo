@@ -23,11 +23,11 @@ export class ListSimulationsQueryDto {
     @ApiProperty({
         description: 'Filter by status',
         required: false,
-        enum: ['CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'],
+        enum: SimulationStatus,
     })
     @IsOptional()
-    @IsString()
-    status?: string;
+    @IsEnum(SimulationStatus)
+    status?: SimulationStatus;
 
     @ApiProperty({ description: 'Start date filter (YYYYMMDDHHMMSS or ISO)', required: false })
     @IsOptional()
