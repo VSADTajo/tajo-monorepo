@@ -8,6 +8,7 @@ import {
     IsNumber,
     IsOptional,
     IsString,
+    IsUUID,
     Max,
     Min,
     ValidateNested,
@@ -292,7 +293,7 @@ export class CreateManualSimulationRequestDto {
         minItems: 1,
     })
     @IsArray()
-    @IsString({ each: true })
+    @IsUUID('all', { each: true })
     @ArrayMinSize(1)
     maneuverIds: string[];
 }

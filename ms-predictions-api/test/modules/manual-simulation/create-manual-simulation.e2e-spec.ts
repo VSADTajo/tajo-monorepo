@@ -177,6 +177,12 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(body).toBeDefined();
         });
 
+        it('should return 400 (not 500) when a maneuverId is not a valid UUID', async () => {
+            const dto = buildCreateManualSimulationDto({ maneuverIds: ['not-a-uuid'] });
+
+            await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
+        });
+
         it('should return 404 when a referenced maneuverId does not exist', async () => {
             const dto = buildCreateManualSimulationDto({
                 maneuverIds: ['00000000-0000-0000-0000-000000000000'],

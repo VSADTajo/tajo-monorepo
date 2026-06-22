@@ -1,4 +1,4 @@
-import { Simulation } from '@domain/entities/simulation.entity';
+import { Simulation, SimulationStatus } from '@domain/entities/simulation.entity';
 
 export interface PaginatedResult<T> {
     data: T[];
@@ -31,5 +31,5 @@ export abstract class ISimulationRepository {
     abstract update(data: Simulation): Promise<Simulation>;
     abstract findAvailableDates(dataOrigin?: string, predictionTypes?: string[]): Promise<string[]>;
     abstract deleteOlderThan(date: Date): Promise<number>;
-    abstract findManual(status?: string, page?: number, limit?: number): Promise<PaginatedResult<Simulation>>;
+    abstract findManual(status?: SimulationStatus, page?: number, limit?: number): Promise<PaginatedResult<Simulation>>;
 }
