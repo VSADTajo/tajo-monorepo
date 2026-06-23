@@ -102,13 +102,13 @@ export class ListManualSimulationsHandler implements IQueryHandler<
         const paginatedSimulations = await this.simulationRepository.findManual(query.status, query.page, query.limit);
 
         const simulationIds = paginatedSimulations.data.map((simulation) => simulation.id);
-        const maneuverCounts = await this.maneuverRepository.countBySimulationIds(simulationIds);
+        const maneuversBySimulationId = await this.maneuverRepository.findBySimulationIds(simulationIds);
 
         const data = paginatedSimulations.data.map(
             (simulation) =>
                 new ManualSimulationListItem({
                     simulation,
-                    maneuverCount: maneuverCounts[simulation.id] ?? 0,
+                    maneuvers: maneuversBySimulationId[simulation.id] ?? [],
                 }),
         );
 

@@ -91,31 +91,34 @@ export class ManeuverRepository implements IManeuverRepository {
         }
     }
 
-    async countBySimulationIds(simulationIds: string[]): Promise<Record<string, number>> {
+    async findBySimulationIds(simulationIds: string[]): Promise<Record<string, Maneuver[]>> {
         if (simulationIds.length === 0) {
             return {};
         }
         try {
-            const rows: Array<{ simulationId: string; count: string }> = await this.maneuverRepository
+            // Single batched query: join through simulation_maneuvers, hydrate the
+            // Maneuver entities and keep the owning simulationId from the raw row so
+            // results can be grouped per simulation without an N+1 lookup.
+            const { entities, raw } = await this.maneuverRepository
                 .createQueryBuilder('maneuver')
                 .innerJoin('simulation_maneuvers', 'sm', 'sm."maneuverId" = maneuver.id')
-                .select('sm."simulationId"', 'simulationId')
-                .addSelect('COUNT(*)', 'count')
+                .addSelect('sm."simulationId"', 'sm_simulationId')
                 .where('sm."simulationId" IN (:...simulationIds)', { simulationIds })
-                .groupBy('sm."simulationId"')
-                .getRawMany();
+                .orderBy('maneuver."reservoirCode"', 'ASC')
+                .getRawAndEntities();
 
-            return rows.reduce<Record<string, number>>((acc, row) => {
-                acc[row.simulationId] = Number(row.count);
+            return entities.reduce<Record<string, Maneuver[]>>((acc, maneuver, index) => {
+                const simulationId = raw[index].sm_simulationId as string;
+                (acc[simulationId] ??= []).push(maneuver);
                 return acc;
             }, {});
         } catch (error) {
             this.logger.error({
-                msg: 'Error counting maneuvers by simulationIds',
+                msg: 'Error finding maneuvers by simulationIds',
                 entity: 'Maneuvers',
                 error: String(error),
             });
-            throw new RepositoryError('Error counting maneuvers by simulationIds', error);
+            throw new RepositoryError('Error finding maneuvers by simulationIds', error);
         }
     }
 

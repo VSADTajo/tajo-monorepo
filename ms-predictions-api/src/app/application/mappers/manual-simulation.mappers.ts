@@ -29,6 +29,7 @@ export class CreateManualSimulationMapper {
             createdBy,
             modmeteo: dto.modmeteo,
             maneuverIds: dto.maneuverIds,
+            maneuvers: dto.maneuvers,
         });
     }
 
@@ -124,7 +125,14 @@ export class ListManualSimulationsMapper {
                     status: item.simulation.status,
                     type: item.simulation.type,
                     description: item.simulation.description ?? null,
-                    maneuverCount: item.maneuverCount,
+                    maneuverCount: item.maneuvers.length,
+                    maneuvers: item.maneuvers.map(
+                        (m: Maneuver): ManeuverResponseDto => ({
+                            id: m.id,
+                            reservoirCode: m.reservoirCode,
+                            outputFlowValue: Number(m.outputFlowValue),
+                        }),
+                    ),
                     createdAt: item.simulation.createdAt,
                 }),
             ),

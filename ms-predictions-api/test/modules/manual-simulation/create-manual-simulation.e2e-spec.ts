@@ -124,6 +124,34 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(body.maneuvers.map((m: { id: string }) => m.id).sort()).toEqual([...maneuverIds].sort());
         });
 
+        it('should create and attach inline maneuvers', async () => {
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: undefined,
+                maneuvers: [{ reservoirCode: 'E001', outputFlowValue: 12.5 }],
+            });
+
+            const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(body.maneuvers).toHaveLength(1);
+            expect(body.maneuvers[0].reservoirCode).toBe('E001');
+            expect(body.maneuvers[0].outputFlowValue).toBe(12.5);
+            expect(body.maneuvers[0].id).toBeDefined(); // the API created it
+        });
+
+        it('should accept a hybrid payload (existing ids + inline maneuvers)', async () => {
+            const [existingId] = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: [existingId],
+                maneuvers: [{ reservoirCode: 'E200', outputFlowValue: 7 }],
+            });
+
+            const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(body.maneuvers).toHaveLength(2);
+            const codes = body.maneuvers.map((m: { reservoirCode: string }) => m.reservoirCode).sort();
+            expect(codes).toContain('E200');
+        });
+
         it('should call SFTP service to upload input file', async () => {
             const maneuverIds = await createManeuvers(1);
             const dto = buildCreateManualSimulationDto({ maneuverIds, modmeteo: 'HARMONIE' });
@@ -175,6 +203,21 @@ describe('Create Manual Simulation (e2e)', () => {
 
             const { body } = await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
             expect(body).toBeDefined();
+        });
+
+        it('should return 400 when neither maneuverIds nor maneuvers are provided', async () => {
+            await createManualSimulation({ modmeteo: 'HARMONIE', description: 'no maneuvers' }).expect(
+                HttpStatus.BAD_REQUEST,
+            );
+        });
+
+        it('should return 400 when an inline maneuver has a negative outputFlowValue', async () => {
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: undefined,
+                maneuvers: [{ reservoirCode: 'E001', outputFlowValue: -3 }],
+            });
+
+            await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
         });
 
         it('should return 400 (not 500) when a maneuverId is not a valid UUID', async () => {

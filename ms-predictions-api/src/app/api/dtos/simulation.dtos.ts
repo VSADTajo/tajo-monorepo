@@ -10,6 +10,7 @@ import {
     IsString,
     IsUUID,
     Max,
+    MaxLength,
     Min,
     ValidateNested,
 } from 'class-validator';
@@ -268,10 +269,23 @@ export enum ModmeteoChoice {
     BOTH = 'BOTH',
 }
 
+export class ManeuverInputDto {
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'E001' })
+    @IsNotEmpty()
+    @IsString()
+    reservoirCode: string;
+
+    @ApiProperty({ description: 'Output flow value in m³/s', example: 12.5, minimum: 0 })
+    @IsNumber()
+    @Min(0)
+    outputFlowValue: number;
+}
+
 export class CreateManualSimulationRequestDto {
-    @ApiProperty({ description: 'Optional description', required: false, example: 'Operación de control Tranco' })
+    @ApiProperty({ description: 'Optional description', required: false, maxLength: 500, example: 'Operación de control Tranco' })
     @IsOptional()
     @IsString()
+    @MaxLength(500)
     description?: string;
 
     @ApiProperty({
@@ -286,16 +300,29 @@ export class CreateManualSimulationRequestDto {
 
     @ApiProperty({
         description:
-            'IDs of existing maneuvers to attach to this simulation. ' +
-            'Maneuvers are standalone, reusable entities created via POST /maneuvers.',
+            'IDs of existing reusable maneuvers to attach. Combine with `maneuvers` as needed; ' +
+            'at least one maneuver in total (from `maneuverIds` and/or `maneuvers`) is required.',
         type: [String],
+        required: false,
         example: ['7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c'],
-        minItems: 1,
     })
+    @IsOptional()
     @IsArray()
     @IsUUID('all', { each: true })
-    @ArrayMinSize(1)
-    maneuverIds: string[];
+    maneuverIds?: string[];
+
+    @ApiProperty({
+        description:
+            'New maneuvers to create and attach inline. Combine with `maneuverIds` as needed; ' +
+            'at least one maneuver in total is required.',
+        type: [ManeuverInputDto],
+        required: false,
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ManeuverInputDto)
+    maneuvers?: ManeuverInputDto[];
 }
 
 export class ManeuverResponseDto {
@@ -361,6 +388,8 @@ export class ManualSimulationListItemDto {
     @ApiProperty() type: string;
     @ApiProperty({ nullable: true }) description: string | null;
     @ApiProperty() maneuverCount: number;
+    @ApiProperty({ description: 'Maneuvers attached to the simulation', type: [ManeuverResponseDto] })
+    maneuvers: ManeuverResponseDto[];
     @ApiProperty() createdAt: Date | undefined;
 }
 

@@ -161,6 +161,16 @@ describe('List Manual Simulations (e2e)', () => {
 
         const counts = body.data.map((sim: { maneuverCount: number }) => sim.maneuverCount).sort();
         expect(counts).toEqual([1, 2]);
+
+        // Seba's ask: the list must also bring the full maneuvers, not just the count.
+        body.data.forEach((sim: { maneuverCount: number; maneuvers: Array<{ id: string; reservoirCode: string }> }) => {
+            expect(Array.isArray(sim.maneuvers)).toBe(true);
+            expect(sim.maneuvers).toHaveLength(sim.maneuverCount);
+            sim.maneuvers.forEach((m) => {
+                expect(m.id).toBeDefined();
+                expect(m.reservoirCode).toBeDefined();
+            });
+        });
     });
 
     it('should support pagination', async () => {

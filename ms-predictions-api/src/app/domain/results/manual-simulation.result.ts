@@ -12,17 +12,17 @@ export class ManualSimulationResult {
 }
 
 /**
- * Lightweight list item: carries the maneuver COUNT instead of the full
- * maneuver rows, so listing N simulations costs a single aggregate query
- * instead of N per-simulation lookups.
+ * List item carrying the full maneuvers of each simulation. The maneuvers for
+ * a whole page are loaded with a single batched query (findBySimulationIds),
+ * so listing N simulations stays at one lookup instead of N.
  */
 export class ManualSimulationListItem {
     readonly simulation: Simulation;
-    readonly maneuverCount: number;
+    readonly maneuvers: Maneuver[];
 
-    constructor(params: { simulation: Simulation; maneuverCount: number }) {
+    constructor(params: { simulation: Simulation; maneuvers: Maneuver[] }) {
         this.simulation = params.simulation;
-        this.maneuverCount = params.maneuverCount;
+        this.maneuvers = params.maneuvers;
     }
 }
 
