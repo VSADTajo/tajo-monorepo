@@ -2,6 +2,8 @@ import { FinalizeSimulationHandler, FinalizeSimulationCommand } from './simulati
 import { ISimulationRepository } from '../../domain/ports/simulation-repository.port';
 import { ICacheService } from '../../domain/ports/cache-service.port';
 import { Simulation, SimulationStatus, SimulationType, DataOrigin } from '../../domain/entities/simulation.entity';
+import { ApiError } from '../../domain/errors/api.error';
+import { RepositoryError } from '../../domain/errors/repository.error';
 import { Logger } from 'nestjs-pino';
 
 describe('FinalizeSimulationHandler — cache invalidation on status change', () => {
@@ -53,5 +55,16 @@ describe('FinalizeSimulationHandler — cache invalidation on status change', ()
         expect(cacheService.delByPattern).toHaveBeenCalledWith('simulations:*');
         expect(cacheService.delByPattern).toHaveBeenCalledWith('manual-simulation:*');
         expect(cacheService.delByPattern).toHaveBeenCalledTimes(2);
+    });
+
+    it('does NOT persist or touch the cache when the simulation cannot be loaded', async () => {
+        simulationRepository.findById.mockRejectedValue(new RepositoryError('db down', new Error('conn refused')));
+
+        await expect(handler.execute(new FinalizeSimulationCommand({ id: 'missing-uuid' }))).rejects.toBeInstanceOf(
+            ApiError,
+        );
+
+        expect(simulationRepository.update).not.toHaveBeenCalled();
+        expect(cacheService.delByPattern).not.toHaveBeenCalled();
     });
 });
