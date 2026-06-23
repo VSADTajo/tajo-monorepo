@@ -6,6 +6,7 @@ import { TraceContext, X_TRACE_ID_HEADER } from 'tajo-toolkit';
 import { IMessageBroker } from '@domain/ports/message-broker.port';
 import { ProviderError } from '@domain/errors/provider.error';
 import { RabbitmqConfigService } from '@config/rabbitmq/rabbitmq-config.service';
+import { TopicSubscriptions } from '@infrastructure/messaging/messaging.registry';
 
 @Injectable()
 export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDestroy {
@@ -27,6 +28,26 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
             return;
         }
         await this.connect();
+        await this.bindTopicSubscriptions();
+    }
+
+    /**
+     * Binds each consumer queue to its topic exchange + routing key. The queues
+     * themselves are created by the NestJS RMQ transport (main.ts); here we only
+     * assert the exchange and wire the binding so topic events reach the queue.
+     */
+    private async bindTopicSubscriptions(): Promise<void> {
+        const channel = await this.ensureChannel();
+
+        for (const sub of TopicSubscriptions) {
+            await this.assertTopicExchange(channel, sub.exchange);
+            // assertQueue (idempotent) rather than checkQueue: onModuleInit runs before
+            // main.ts startAllMicroservices() creates the queues, so on a cold broker
+            // checkQueue would throw and the binding would never be established.
+            await this.assertQueue(channel, sub.queue);
+            await channel.bindQueue(sub.queue, sub.exchange, sub.routingKey);
+            this.logger.debug(`Bound queue "${sub.queue}" to exchange "${sub.exchange}" [${sub.routingKey}]`);
+        }
     }
 
     async onModuleDestroy(): Promise<void> {

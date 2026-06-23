@@ -17,6 +17,7 @@ import {
 import { ListNotificationsQuery } from '@application/queries/notification.queries';
 import { NotificationResult, ListNotificationsResult, BulkUpdateResult } from '@domain/results/notification.result';
 import { NotificationStatus } from '@domain/types/notification-status.enum';
+import { NotificationSeverity } from '@domain/types/notification-severity.enum';
 
 // ─────────────────────────────────────────────────────────────
 // Shared: Result -> ResponseDto
@@ -66,6 +67,56 @@ export class CreateNotificationMapper {
 
     static toResponseDto(result: NotificationResult): NotificationResponseDto {
         return toNotificationResponseDto(result);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// SimulationStatusNotification — maps a simulation.status.updated event
+// ─────────────────────────────────────────────────────────────
+
+export const SIMULATION_STATUS_NOTIFICATION_TYPE = 'SIMULATION_STATUS_CHANGED';
+export const SIMULATION_STATUS_NOTIFICATION_SOURCE = 'ms-model-api';
+
+interface SimulationStatusPresentation {
+    severity: NotificationSeverity;
+    title: string;
+    message: (simulationId: string) => string;
+}
+
+/**
+ * Presentation per simulation status. Extensible: today the simulation pipeline
+ * only publishes MODEL_FAILED, but new statuses can be added here without
+ * touching the consumer. Unknown statuses fall back to a generic INFO notice.
+ */
+const SIMULATION_STATUS_PRESENTATIONS: Record<string, SimulationStatusPresentation> = {
+    MODEL_FAILED: {
+        severity: NotificationSeverity.CRITICAL,
+        title: 'Simulación fallida',
+        message: (id) => `La simulación ${id} falló durante la ejecución del modelo.`,
+    },
+    FINALIZED: {
+        severity: NotificationSeverity.INFO,
+        title: 'Simulación finalizada',
+        message: (id) => `La simulación ${id} finalizó correctamente.`,
+    },
+};
+
+export class SimulationStatusNotificationMapper {
+    static fromEvent(simulationId: string, status: string): CreateNotificationCommand {
+        const preset = SIMULATION_STATUS_PRESENTATIONS[status] ?? {
+            severity: NotificationSeverity.INFO,
+            title: 'Estado de simulación actualizado',
+            message: (id: string) => `La simulación ${id} cambió de estado a ${status}.`,
+        };
+
+        return new CreateNotificationCommand({
+            type: SIMULATION_STATUS_NOTIFICATION_TYPE,
+            source: SIMULATION_STATUS_NOTIFICATION_SOURCE,
+            title: preset.title,
+            message: preset.message(simulationId),
+            severity: preset.severity,
+            metadata: { simulationId, status },
+        });
     }
 }
 

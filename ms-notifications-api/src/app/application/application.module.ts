@@ -6,6 +6,7 @@ import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 
 // Consumers
 import { NotificationConsumer } from '@application/consumers/notification.consumer';
+import { SimulationStatusConsumer } from '@application/consumers/simulation-status.consumer';
 
 // Notification Handlers
 import {
@@ -22,7 +23,7 @@ import { NotificationController } from '@api/controllers/notification.controller
 
 @Module({
     imports: [CqrsModule, InfrastructureModule],
-    controllers: [NotificationConsumer, NotificationController],
+    controllers: [NotificationConsumer, SimulationStatusConsumer, NotificationController],
     providers: [
         CreateNotificationHandler,
         MarkAsReadHandler,

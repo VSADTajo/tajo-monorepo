@@ -4,6 +4,7 @@
 
 export const Queues = {
     NOTIFICATION_PROCESSING: 'ms-notifications-api.notification.created',
+    SIMULATION_STATUS_PROCESSING: 'ms-notifications-api.simulation.status.updated',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -15,6 +16,13 @@ export const Topics = {
         exchange: 'notifications',
         routingKeys: {
             CREATED: 'notification.created',
+        },
+    },
+    // Owned by the simulation pipeline (published by ms-model-api / ms-predictions-api).
+    SIMULATION_EVENTS: {
+        exchange: 'simulation-events',
+        routingKeys: {
+            STATUS_UPDATED: 'simulation.status.updated',
         },
     },
 };
@@ -37,5 +45,10 @@ export const TopicSubscriptions: TopicSubscription[] = [
         queue: Queues.NOTIFICATION_PROCESSING,
         exchange: Topics.NOTIFICATIONS.exchange,
         routingKey: Topics.NOTIFICATIONS.routingKeys.CREATED,
+    },
+    {
+        queue: Queues.SIMULATION_STATUS_PROCESSING,
+        exchange: Topics.SIMULATION_EVENTS.exchange,
+        routingKey: Topics.SIMULATION_EVENTS.routingKeys.STATUS_UPDATED,
     },
 ];
