@@ -7,6 +7,9 @@ export interface PaginatedResult<T> {
     limit: number;
 }
 
+export type SimulationSortBy = 'createdAt' | 'updatedAt' | 'simulationDate' | 'status';
+export type SortOrder = 'ASC' | 'DESC';
+
 export interface SimulationFilters {
     status?: string;
     startDate?: string;
@@ -14,6 +17,12 @@ export interface SimulationFilters {
     modmeteo?: string;
     environment?: string;
     dataOrigin?: string;
+    /** Keep only simulations that have at least one prediction for this station code. */
+    stationCode?: string;
+    /** Column to order by. Whitelisted at the DTO and defended again in the repository. */
+    sortBy?: SimulationSortBy;
+    /** Order direction. Defaults to DESC. */
+    sortOrder?: SortOrder;
 }
 
 export abstract class ISimulationRepository {
