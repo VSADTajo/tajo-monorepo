@@ -41,7 +41,10 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
 
         for (const sub of TopicSubscriptions) {
             await this.assertTopicExchange(channel, sub.exchange);
-            await channel.checkQueue(sub.queue);
+            // assertQueue (idempotent) rather than checkQueue: onModuleInit runs before
+            // main.ts startAllMicroservices() creates the queues, so on a cold broker
+            // checkQueue would throw and the binding would never be established.
+            await this.assertQueue(channel, sub.queue);
             await channel.bindQueue(sub.queue, sub.exchange, sub.routingKey);
             this.logger.debug(`Bound queue "${sub.queue}" to exchange "${sub.exchange}" [${sub.routingKey}]`);
         }
