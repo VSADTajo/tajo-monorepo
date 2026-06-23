@@ -112,8 +112,9 @@ export class SimulationController {
 
     @Get()
     @ApiEndpoint({
-        summary: 'List simulations with optional filters',
+        summary: 'List simulations with optional filters, station-code filter and sorting',
         response: { status: 200, type: ListSimulationsResponseDto, description: 'Paginated list of simulations' },
+        errors: [{ status: 400, description: 'Invalid query parameter (e.g. unknown sortBy or sortOrder)' }],
     })
     async listSimulations(@Query() dto: ListSimulationsQueryDto): Promise<ListSimulationsResponseDto> {
         this.logger.log('List simulations request');

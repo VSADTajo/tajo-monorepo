@@ -18,15 +18,8 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { SimulationStatus } from '@domain/entities/simulation.entity';
+import { SIMULATION_SORT_FIELDS, SORT_ORDERS } from '@domain/ports/simulation-repository.port';
 import type { SimulationSortBy, SortOrder } from '@domain/ports/simulation-repository.port';
-
-export const SIMULATION_SORT_FIELDS: readonly SimulationSortBy[] = [
-    'createdAt',
-    'updatedAt',
-    'simulationDate',
-    'status',
-];
-export const SORT_ORDERS: readonly SortOrder[] = ['ASC', 'DESC'];
 
 // ─────────────────────────────────────────────────────────────
 // ListSimulations

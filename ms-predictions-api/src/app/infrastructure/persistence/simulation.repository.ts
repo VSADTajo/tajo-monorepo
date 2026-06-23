@@ -7,24 +7,11 @@ import {
     ISimulationRepository,
     PaginatedResult,
     SimulationFilters,
-    SimulationSortBy,
+    SIMULATION_SORT_FIELDS,
 } from '@domain/ports/simulation-repository.port';
 import { Simulation, SimulationStatus, SimulationType } from '@domain/entities/simulation.entity';
 import { Prediction } from '@domain/entities/prediction.entity';
 import { RepositoryError } from '@domain/errors/repository.error';
-
-/**
- * Whitelist of sortable columns → qualified column reference.
- * Defends in depth against SQL injection through the sort param: the DTO already
- * restricts sortBy to these keys, and the repository only ever orders by a value
- * looked up here (never by raw input).
- */
-const SIMULATION_SORT_COLUMNS: Record<SimulationSortBy, string> = {
-    createdAt: 'simulation.createdAt',
-    updatedAt: 'simulation.updatedAt',
-    simulationDate: 'simulation.simulationDate',
-    status: 'simulation.status',
-};
 
 @Injectable()
 export class SimulationRepository implements ISimulationRepository {
@@ -167,7 +154,11 @@ export class SimulationRepository implements ISimulationRepository {
 
             const total = await qb.getCount();
 
-            const sortColumn = SIMULATION_SORT_COLUMNS[filters.sortBy ?? 'createdAt'] ?? SIMULATION_SORT_COLUMNS.createdAt;
+            // Defence in depth against SQL injection: only ever order by a whitelisted field
+            // (the DTO already enforces this; the repository never trusts raw input).
+            const sortField =
+                filters.sortBy && SIMULATION_SORT_FIELDS.includes(filters.sortBy) ? filters.sortBy : 'createdAt';
+            const sortColumn = `simulation.${sortField}`;
             const sortOrder = filters.sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
             const data = await qb
