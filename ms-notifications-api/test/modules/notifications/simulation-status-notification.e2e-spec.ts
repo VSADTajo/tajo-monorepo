@@ -3,6 +3,8 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RmqContext } from '@nestjs/microservices';
+import { CommandBus } from '@nestjs/cqrs';
+import { Logger } from 'nestjs-pino';
 import { TraceContext } from 'tajo-toolkit';
 
 import { Notification } from '../../../src/app/domain/entities/notification.entity';
@@ -39,12 +41,54 @@ describe('SimulationStatusNotificationMapper', () => {
         expect(command.metadata).toEqual({ simulationId: 'sim-1', status: 'MODEL_FAILED' });
     });
 
+    it('maps FINALIZED to an INFO notification', () => {
+        const command = SimulationStatusNotificationMapper.fromEvent('sim-2', 'FINALIZED');
+
+        expect(command.severity).toBe(NotificationSeverity.INFO);
+        expect(command.title).toBe('Simulación finalizada');
+        expect(command.message).toContain('sim-2');
+    });
+
     it('falls back to a generic INFO notification for an unknown status', () => {
         const command = SimulationStatusNotificationMapper.fromEvent('sim-3', 'SOMETHING_NEW');
 
         expect(command.severity).toBe(NotificationSeverity.INFO);
         expect(command.title).toBe('Estado de simulación actualizado');
         expect(command.message).toContain('SOMETHING_NEW');
+    });
+});
+
+// ─────────────────────────────────────────────────────────────
+// Consumer error handling (unit — no infrastructure)
+// ─────────────────────────────────────────────────────────────
+
+describe('SimulationStatusConsumer — transient error handling', () => {
+    it('requeues the message (nack requeue=true) when the command bus throws', async () => {
+        const ack = jest.fn();
+        const nack = jest.fn();
+        const context = {
+            getChannelRef: () => ({ ack, nack }),
+            getMessage: () => ({ properties: { headers: {} } }),
+        } as unknown as RmqContext;
+
+        const mockLogger = {
+            log: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+        } as unknown as Logger;
+        const mockCommandBus = {
+            execute: jest.fn().mockRejectedValue(new Error('db down')),
+        } as unknown as CommandBus;
+        const mockTrace = {
+            runInContext: (_traceId: string, cb: () => Promise<void>) => cb(),
+        } as unknown as TraceContext;
+
+        const consumer = new SimulationStatusConsumer(mockLogger, mockCommandBus, mockTrace);
+        await consumer.handleSimulationStatusUpdated({ simulationId: 'sim-1', status: 'MODEL_FAILED' }, context);
+
+        expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
+        expect(ack).not.toHaveBeenCalled();
     });
 });
 
