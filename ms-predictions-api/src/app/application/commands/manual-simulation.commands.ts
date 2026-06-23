@@ -24,6 +24,8 @@ export type ModmeteoChoice = 'HARMONIE' | 'EPS' | 'BOTH';
 export interface IManeuverInput {
     reservoirCode: string;
     outputFlowValue: number;
+    startDate?: string;
+    endDate?: string;
 }
 
 export interface ICreateManualSimulationCommand {
@@ -106,6 +108,8 @@ export class CreateManualSimulationHandler implements ICommandHandler<
                 const maneuver = new Maneuver({
                     reservoirCode: input.reservoirCode,
                     outputFlowValue: input.outputFlowValue,
+                    startDate: input.startDate ? new Date(input.startDate) : null,
+                    endDate: input.endDate ? new Date(input.endDate) : null,
                 });
                 maneuver.validate();
                 return maneuver;

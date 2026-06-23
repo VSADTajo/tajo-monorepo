@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
     ArrayMinSize,
     IsArray,
+    IsDateString,
     IsEnum,
     IsInt,
     IsNotEmpty,
@@ -279,6 +280,16 @@ export class ManeuverInputDto {
     @IsNumber()
     @Min(0)
     outputFlowValue: number;
+
+    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
 }
 
 export class CreateManualSimulationRequestDto {
@@ -329,6 +340,8 @@ export class ManeuverResponseDto {
     @ApiProperty({ description: 'Maneuver unique identifier' }) id: string;
     @ApiProperty({ description: 'Reservoir code', example: 'E001' }) reservoirCode: string;
     @ApiProperty({ description: 'Output flow value in m³/s', example: 12.5 }) outputFlowValue: number;
+    @ApiProperty({ description: 'Maneuver start date (ISO 8601)', nullable: true }) startDate: Date | null;
+    @ApiProperty({ description: 'Maneuver end date (ISO 8601)', nullable: true }) endDate: Date | null;
 }
 
 export class ManualSimulationResponseDto {

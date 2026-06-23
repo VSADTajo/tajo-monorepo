@@ -2,7 +2,7 @@ export interface CreateManualSimulationDtoShape {
     description?: string;
     modmeteo: 'HARMONIE' | 'EPS' | 'BOTH';
     maneuverIds?: string[];
-    maneuvers?: { reservoirCode: string; outputFlowValue: number }[];
+    maneuvers?: { reservoirCode: string; outputFlowValue: number; startDate?: string; endDate?: string }[];
 }
 
 export function buildCreateManualSimulationDto(

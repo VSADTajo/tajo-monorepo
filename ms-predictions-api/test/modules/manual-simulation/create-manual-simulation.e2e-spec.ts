@@ -244,4 +244,66 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(body).toBeDefined();
         });
     });
+
+    describe('maneuver dates (optional startDate / endDate)', () => {
+        function postManeuver(body: object) {
+            return request(app.getHttpServer()).post('/maneuvers').send(body);
+        }
+
+        it('should create a maneuver with start/end dates and echo them', async () => {
+            const { body } = await postManeuver({
+                reservoirCode: 'E001',
+                outputFlowValue: 12.5,
+                startDate: '2026-06-20T00:00:00.000Z',
+                endDate: '2026-06-21T00:00:00.000Z',
+            }).expect(HttpStatus.CREATED);
+
+            expect(new Date(body.startDate).toISOString()).toBe('2026-06-20T00:00:00.000Z');
+            expect(new Date(body.endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
+        });
+
+        it('should default the dates to null when omitted', async () => {
+            const { body } = await postManeuver({ reservoirCode: 'E002', outputFlowValue: 5 }).expect(
+                HttpStatus.CREATED,
+            );
+
+            expect(body.startDate).toBeNull();
+            expect(body.endDate).toBeNull();
+        });
+
+        it('should reject a maneuver whose endDate is before its startDate', async () => {
+            await postManeuver({
+                reservoirCode: 'E003',
+                outputFlowValue: 5,
+                startDate: '2026-06-21T00:00:00.000Z',
+                endDate: '2026-06-20T00:00:00.000Z',
+            }).expect(HttpStatus.BAD_REQUEST);
+        });
+
+        it('should reject a non-ISO startDate', async () => {
+            await postManeuver({ reservoirCode: 'E004', outputFlowValue: 5, startDate: 'not-a-date' }).expect(
+                HttpStatus.BAD_REQUEST,
+            );
+        });
+
+        it('should accept inline maneuvers with dates in the manual simulation POST', async () => {
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: undefined,
+                maneuvers: [
+                    {
+                        reservoirCode: 'E001',
+                        outputFlowValue: 12.5,
+                        startDate: '2026-06-20T00:00:00.000Z',
+                        endDate: '2026-06-21T00:00:00.000Z',
+                    },
+                ],
+            });
+
+            const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(body.maneuvers).toHaveLength(1);
+            expect(new Date(body.maneuvers[0].startDate).toISOString()).toBe('2026-06-20T00:00:00.000Z');
+            expect(new Date(body.maneuvers[0].endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
+        });
+    });
 });
