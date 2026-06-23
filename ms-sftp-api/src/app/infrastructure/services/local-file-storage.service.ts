@@ -198,7 +198,7 @@ export class LocalFileStorageService extends IFileStorageService {
             const relativePath = path.relative(this.storageConfig.basePath, folderPath);
             return new CreateFolderResult({ path: relativePath });
         } catch (error: unknown) {
-            this.handleFsError(error, folderPath);
+            return this.handleFsError(error, folderPath);
         }
     }
 

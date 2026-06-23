@@ -90,4 +90,10 @@ describe('Create Folder (e2e)', () => {
     it('should return 400 on path traversal outside the base directory', async () => {
         await createFolder('../escape').expect(HttpStatus.BAD_REQUEST);
     });
+
+    it('should return 400 on a sibling path that shares the base prefix (no prefix-overlap bypass)', async () => {
+        // e.g. basePath="/tmp/abc" must NOT accept "/tmp/abc-evil/hack"
+        await createFolder(`${tempDir}-evil/hack`).expect(HttpStatus.BAD_REQUEST);
+        expect(fs.existsSync(`${tempDir}-evil`)).toBe(false);
+    });
 });
