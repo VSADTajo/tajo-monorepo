@@ -97,8 +97,11 @@ export class ManeuverRepository implements IManeuverRepository {
         }
         try {
             // Single batched query: join through simulation_maneuvers, hydrate the
-            // Maneuver entities and keep the owning simulationId from the raw row so
-            // results can be grouped per simulation without an N+1 lookup.
+            // Maneuver entities and keep the owning simulationId from each raw row.
+            // NOTE: getRawAndEntities deduplicates `entities` by PK, so a maneuver
+            // shared across simulations appears once in `entities` but once per
+            // (simulation, maneuver) pair in `raw`. We therefore group by iterating
+            // `raw` (not deduplicated) and resolving each maneuver from a by-id map.
             const { entities, raw } = await this.maneuverRepository
                 .createQueryBuilder('maneuver')
                 .innerJoin('simulation_maneuvers', 'sm', 'sm."maneuverId" = maneuver.id')
@@ -107,9 +110,13 @@ export class ManeuverRepository implements IManeuverRepository {
                 .orderBy('maneuver."reservoirCode"', 'ASC')
                 .getRawAndEntities();
 
-            return entities.reduce<Record<string, Maneuver[]>>((acc, maneuver, index) => {
-                const simulationId = raw[index].sm_simulationId as string;
-                (acc[simulationId] ??= []).push(maneuver);
+            const maneuverById = new Map(entities.map((maneuver) => [maneuver.id, maneuver]));
+
+            return raw.reduce<Record<string, Maneuver[]>>((acc, row) => {
+                const maneuver = maneuverById.get(row.maneuver_id);
+                if (maneuver) {
+                    (acc[row.sm_simulationId as string] ??= []).push(maneuver);
+                }
                 return acc;
             }, {});
         } catch (error) {

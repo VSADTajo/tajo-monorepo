@@ -173,6 +173,27 @@ describe('List Manual Simulations (e2e)', () => {
         });
     });
 
+    it('should return a shared (reused) maneuver on every simulation that references it', async () => {
+        // Maneuvers are reusable many-to-many: the same maneuver attached to two
+        // simulations must appear in both list items (guards the getRawAndEntities
+        // dedup trap in findBySimulationIds).
+        const sharedId = (await createManeuver().expect(HttpStatus.CREATED)).body.id;
+
+        await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: [sharedId] })).expect(
+            HttpStatus.CREATED,
+        );
+        await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: [sharedId] })).expect(
+            HttpStatus.CREATED,
+        );
+
+        const { body } = await listManualSimulations().expect(HttpStatus.OK);
+
+        expect(body.data).toHaveLength(2);
+        body.data.forEach((sim: { maneuvers: Array<{ id: string }> }) => {
+            expect(sim.maneuvers.map((m) => m.id)).toContain(sharedId);
+        });
+    });
+
     it('should support pagination', async () => {
         await createManualSimulation(
             buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),

@@ -57,9 +57,9 @@ export const PredictionCacheKeys = {
 
 export const ManualSimulationCacheKeys = {
     byId: (id: string) => `manual-simulation:${id}`,
-    // v2: list result shape changed from { maneuvers[] } to { maneuverCount }.
-    // The version segment invalidates stale entries instantly on deploy.
-    list: (params: string) => `manual-simulation:list:v2:${params}`,
+    // v3: list items now carry the full maneuvers[] array per simulation.
+    // The version segment invalidates entries cached under any older shape.
+    list: (params: string) => `manual-simulation:list:v3:${params}`,
     pattern: () => 'manual-simulation:*',
 };
 
