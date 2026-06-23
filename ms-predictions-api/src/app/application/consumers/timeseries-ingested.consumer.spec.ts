@@ -77,7 +77,13 @@ describe('TimeSeriesIngestedConsumer — cache invalidation on auto-finalize', (
             debug: jest.fn(),
         } as unknown as jest.Mocked<Logger>;
 
-        consumer = new TimeSeriesIngestedConsumer(mockLogger, commandBus, simulationRepository, cacheService, traceContext);
+        consumer = new TimeSeriesIngestedConsumer(
+            mockLogger,
+            commandBus,
+            simulationRepository,
+            cacheService,
+            traceContext,
+        );
     });
 
     it('invalidates BOTH simulation cache namespaces after auto-finalizing', async () => {
