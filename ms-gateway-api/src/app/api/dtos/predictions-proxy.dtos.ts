@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, MaxLength, ValidateNested } from 'class-validator';
+import { IsArray, IsDateString, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, MaxLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 // ─────────────────────────────────────────────────────────────
@@ -202,6 +202,16 @@ export class ManeuverInputDto {
     @IsNumber()
     @Min(0)
     outputFlowValue: number;
+
+    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
 }
 
 export class CreateManualSimulationRequestDto {
@@ -254,6 +264,8 @@ export class ManeuverItemDto {
     @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
     @ApiProperty({ example: 'E001' }) reservoirCode: string;
     @ApiProperty({ example: 12.5 }) outputFlowValue: number;
+    @ApiProperty({ nullable: true, example: '2026-06-20T00:00:00.000Z' }) startDate: Date | null;
+    @ApiProperty({ nullable: true, example: '2026-06-21T00:00:00.000Z' }) endDate: Date | null;
 }
 
 export class ManualSimulationItemDto extends SimulationItemDto {
@@ -307,6 +319,16 @@ export class CreateManeuverGwRequestDto {
     @IsNumber()
     @Min(0)
     outputFlowValue: number;
+
+    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
 }
 
 export class UpdateManeuverGwRequestDto {
@@ -321,12 +343,24 @@ export class UpdateManeuverGwRequestDto {
     @IsNumber()
     @Min(0)
     outputFlowValue?: number;
+
+    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
 }
 
 export class ManeuverGwResponseDto {
     @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
     @ApiProperty({ example: 'AR01' }) reservoirCode: string;
     @ApiProperty({ example: 12.5 }) outputFlowValue: number;
+    @ApiProperty({ nullable: true, example: '2026-06-20T00:00:00.000Z' }) startDate: Date | null;
+    @ApiProperty({ nullable: true, example: '2026-06-21T00:00:00.000Z' }) endDate: Date | null;
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) createdAt: Date | undefined;
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) updatedAt: Date | undefined;
 }

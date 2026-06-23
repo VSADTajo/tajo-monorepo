@@ -147,5 +147,33 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
             await postManeuver({ reservoirCode: 'AR01', outputFlowValue: -1 }).expect(HttpStatus.BAD_REQUEST);
             expect(mockProxyService.forward).not.toHaveBeenCalled();
         });
+
+        it('should accept optional start/end dates and forward them', async () => {
+            mockProxyService.forward.mockResolvedValue({ status: 201, data: { id: 'man-uuid' } });
+
+            await postManeuver({
+                reservoirCode: 'AR01',
+                outputFlowValue: 12.5,
+                startDate: '2026-06-20T00:00:00.000Z',
+                endDate: '2026-06-21T00:00:00.000Z',
+            }).expect(HttpStatus.CREATED);
+
+            expect(mockProxyService.forward).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    path: '/maneuvers',
+                    body: expect.objectContaining({
+                        startDate: '2026-06-20T00:00:00.000Z',
+                        endDate: '2026-06-21T00:00:00.000Z',
+                    }),
+                }),
+            );
+        });
+
+        it('should reject a non-ISO startDate and NOT forward', async () => {
+            await postManeuver({ reservoirCode: 'AR01', outputFlowValue: 12.5, startDate: 'nope' }).expect(
+                HttpStatus.BAD_REQUEST,
+            );
+            expect(mockProxyService.forward).not.toHaveBeenCalled();
+        });
     });
 });
