@@ -42,6 +42,7 @@ describe('List Manual Simulations (e2e)', () => {
 
     const mockSftpService = {
         uploadInputFile: jest.fn().mockResolvedValue(undefined),
+        ensureOutputFolder: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockMessageBroker = {

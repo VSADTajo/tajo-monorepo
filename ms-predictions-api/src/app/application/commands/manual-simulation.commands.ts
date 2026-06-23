@@ -161,6 +161,20 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             });
         }
 
+        // 3b. Pre-create the output folder so the model can drop its response file there.
+        // Best-effort: a failure must not abort the dispatch (the SFTP server also creates
+        // parent directories on write).
+        try {
+            await this.sftpService.ensureOutputFolder(persistedSimulation.id);
+        } catch (error) {
+            this.logger.warn({
+                msg: 'Could not pre-create manual simulation output folder (non-blocking)',
+                entity: 'Simulations',
+                simulationId: persistedSimulation.id,
+                error: String(error),
+            });
+        }
+
         // 4. Transition simulation to MODEL_PROCESSING
         persistedSimulation.advanceStatus();
         const updatedSimulation = await this.simulationRepository.update(persistedSimulation);

@@ -42,6 +42,7 @@ describe('Create Manual Simulation (e2e)', () => {
 
     const mockSftpService = {
         uploadInputFile: jest.fn().mockResolvedValue(undefined),
+        ensureOutputFolder: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockMessageBroker = {
@@ -163,6 +164,23 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(typeof simulationId).toBe('string');
             expect(fileName).toMatch(/^tagus_harmonie_Q_\d{12}\.json$/);
             expect(content).toBeInstanceOf(Buffer);
+        });
+
+        it('should pre-create the output folder on the SFTP for the simulation', async () => {
+            const maneuverIds = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
+
+            const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(mockSftpService.ensureOutputFolder).toHaveBeenCalledWith(body.id);
+        });
+
+        it('should still dispatch when output-folder creation fails (best-effort, non-blocking)', async () => {
+            mockSftpService.ensureOutputFolder.mockRejectedValueOnce(new ProviderError('SFTP unavailable'));
+            const maneuverIds = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
+
+            await createManualSimulation(dto).expect(HttpStatus.CREATED);
         });
 
         it('should call SFTP service once per modmeteo when BOTH is requested', async () => {
