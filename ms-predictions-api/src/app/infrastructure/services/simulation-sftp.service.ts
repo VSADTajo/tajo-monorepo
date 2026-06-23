@@ -58,4 +58,32 @@ export class SimulationSftpService implements ISimulationSftpService {
             throw new ProviderError(`Failed to upload simulation input file: ${String(error)}`);
         }
     }
+
+    async ensureOutputFolder(simulationId: string): Promise<void> {
+        const folderPath = `tajo/SIMULATIONS/${simulationId}/output`;
+
+        try {
+            await axios.post(
+                `${this.sftpApiConfig.baseUrl}/files/folder`,
+                { path: folderPath },
+                { headers: { 'x-internal-caller': 'ms-predictions-api' } },
+            );
+
+            this.logger.log({
+                msg: 'Simulation output folder ensured on SFTP API',
+                entity: 'Simulations',
+                simulationId,
+                path: folderPath,
+            });
+        } catch (error) {
+            this.logger.error({
+                msg: 'Failed to ensure simulation output folder on SFTP API',
+                entity: 'Simulations',
+                simulationId,
+                path: folderPath,
+                error: String(error),
+            });
+            throw new ProviderError(`Failed to ensure simulation output folder: ${String(error)}`);
+        }
+    }
 }

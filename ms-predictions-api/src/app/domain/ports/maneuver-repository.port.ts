@@ -18,6 +18,7 @@ export abstract class IManeuverRepository {
     abstract findByIds(ids: string[]): Promise<Maneuver[]>;
     abstract findAll(filters: ManeuverFilters, page: number, limit: number): Promise<PaginatedManeuvers>;
     abstract findBySimulationId(simulationId: string): Promise<Maneuver[]>;
+    abstract findBySimulationIds(simulationIds: string[]): Promise<Record<string, Maneuver[]>>;
     abstract update(maneuver: Maneuver): Promise<Maneuver>;
     abstract delete(id: string): Promise<void>;
 }

@@ -21,12 +21,20 @@ import { ApiError } from '@domain/errors/api.error';
 
 export type ModmeteoChoice = 'HARMONIE' | 'EPS' | 'BOTH';
 
+export interface IManeuverInput {
+    reservoirCode: string;
+    outputFlowValue: number;
+    startDate?: string;
+    endDate?: string;
+}
+
 export interface ICreateManualSimulationCommand {
     simulationDate: string;
     description?: string;
     createdBy?: string | null;
     modmeteo: ModmeteoChoice;
-    maneuverIds: string[];
+    maneuverIds?: string[];
+    maneuvers?: IManeuverInput[];
 }
 
 export class CreateManualSimulationCommand {
@@ -49,7 +57,11 @@ export class CreateManualSimulationCommand {
     }
 
     get maneuverIds(): string[] {
-        return this.parameters.maneuverIds;
+        return this.parameters.maneuverIds ?? [];
+    }
+
+    get maneuvers(): IManeuverInput[] {
+        return this.parameters.maneuvers ?? [];
     }
 }
 
@@ -69,17 +81,43 @@ export class CreateManualSimulationHandler implements ICommandHandler<
     ) {}
 
     async execute(command: CreateManualSimulationCommand): Promise<ManualSimulationResult> {
-        if (!command.maneuverIds || command.maneuverIds.length === 0) {
-            throw new ApiError(HttpStatus.BAD_REQUEST, 'At least one maneuver ID is required');
+        const referencedIds = command.maneuverIds;
+        const inlineManeuvers = command.maneuvers;
+        if (referencedIds.length === 0 && inlineManeuvers.length === 0) {
+            throw new ApiError(
+                HttpStatus.BAD_REQUEST,
+                'At least one maneuver is required (provide maneuverIds and/or maneuvers)',
+            );
         }
 
-        // 1. Load and validate the referenced maneuvers
-        const maneuvers = await this.maneuverRepository.findByIds(command.maneuverIds);
-        if (maneuvers.length !== command.maneuverIds.length) {
-            const foundIds = new Set(maneuvers.map((m) => m.id));
-            const missing = command.maneuverIds.filter((id) => !foundIds.has(id));
-            throw new ApiError(HttpStatus.NOT_FOUND, `Maneuver(s) not found: ${missing.join(', ')}`);
+        // 1a. Load and validate the referenced (existing) maneuvers
+        let referenced: Maneuver[] = [];
+        if (referencedIds.length > 0) {
+            referenced = await this.maneuverRepository.findByIds(referencedIds);
+            if (referenced.length !== referencedIds.length) {
+                const foundIds = new Set(referenced.map((m) => m.id));
+                const missing = referencedIds.filter((id) => !foundIds.has(id));
+                throw new ApiError(HttpStatus.NOT_FOUND, `Maneuver(s) not found: ${missing.join(', ')}`);
+            }
         }
+
+        // 1b. Create the inline maneuvers (validated as domain entities first)
+        let created: Maneuver[] = [];
+        if (inlineManeuvers.length > 0) {
+            const toCreate = inlineManeuvers.map((input) => {
+                const maneuver = new Maneuver({
+                    reservoirCode: input.reservoirCode,
+                    outputFlowValue: input.outputFlowValue,
+                    startDate: input.startDate ? new Date(input.startDate) : null,
+                    endDate: input.endDate ? new Date(input.endDate) : null,
+                });
+                maneuver.validate();
+                return maneuver;
+            });
+            created = await this.maneuverRepository.createMany(toCreate);
+        }
+
+        const maneuvers = [...referenced, ...created];
 
         // 2. Create Simulation (MANUAL, CREATED) with the referenced maneuvers attached
         const simulation = new Simulation({
@@ -120,6 +158,20 @@ export class CreateManualSimulationHandler implements ICommandHandler<
                 fileName,
                 modmeteo: spec.fileTag,
                 seriesCount: reservoirSeries.length,
+            });
+        }
+
+        // 3b. Pre-create the output folder so the model can drop its response file there.
+        // Best-effort: a failure must not abort the dispatch (the SFTP server also creates
+        // parent directories on write).
+        try {
+            await this.sftpService.ensureOutputFolder(persistedSimulation.id);
+        } catch (error) {
+            this.logger.warn({
+                msg: 'Could not pre-create manual simulation output folder (non-blocking)',
+                entity: 'Simulations',
+                simulationId: persistedSimulation.id,
+                error: String(error),
             });
         }
 

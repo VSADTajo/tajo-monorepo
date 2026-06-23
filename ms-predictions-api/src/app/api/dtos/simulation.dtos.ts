@@ -2,17 +2,21 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
     ArrayMinSize,
     IsArray,
+    IsDateString,
     IsEnum,
     IsInt,
     IsNotEmpty,
     IsNumber,
     IsOptional,
     IsString,
+    IsUUID,
     Max,
+    MaxLength,
     Min,
     ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SimulationStatus } from '@domain/entities/simulation.entity';
 
 // ─────────────────────────────────────────────────────────────
 // ListSimulations
@@ -22,11 +26,11 @@ export class ListSimulationsQueryDto {
     @ApiProperty({
         description: 'Filter by status',
         required: false,
-        enum: ['CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'],
+        enum: SimulationStatus,
     })
     @IsOptional()
-    @IsString()
-    status?: string;
+    @IsEnum(SimulationStatus)
+    status?: SimulationStatus;
 
     @ApiProperty({ description: 'Start date filter (YYYYMMDDHHMMSS or ISO)', required: false })
     @IsOptional()
@@ -266,10 +270,33 @@ export enum ModmeteoChoice {
     BOTH = 'BOTH',
 }
 
+export class ManeuverInputDto {
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'E001' })
+    @IsNotEmpty()
+    @IsString()
+    reservoirCode: string;
+
+    @ApiProperty({ description: 'Output flow value in m³/s', example: 12.5, minimum: 0 })
+    @IsNumber()
+    @Min(0)
+    outputFlowValue: number;
+
+    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
+}
+
 export class CreateManualSimulationRequestDto {
-    @ApiProperty({ description: 'Optional description', required: false, example: 'Operación de control Tranco' })
+    @ApiProperty({ description: 'Optional description', required: false, maxLength: 500, example: 'Operación de control Tranco' })
     @IsOptional()
     @IsString()
+    @MaxLength(500)
     description?: string;
 
     @ApiProperty({
@@ -284,22 +311,37 @@ export class CreateManualSimulationRequestDto {
 
     @ApiProperty({
         description:
-            'IDs of existing maneuvers to attach to this simulation. ' +
-            'Maneuvers are standalone, reusable entities created via POST /maneuvers.',
+            'IDs of existing reusable maneuvers to attach. Combine with `maneuvers` as needed; ' +
+            'at least one maneuver in total (from `maneuverIds` and/or `maneuvers`) is required.',
         type: [String],
+        required: false,
         example: ['7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c'],
-        minItems: 1,
     })
+    @IsOptional()
     @IsArray()
-    @IsString({ each: true })
-    @ArrayMinSize(1)
-    maneuverIds: string[];
+    @IsUUID('all', { each: true })
+    maneuverIds?: string[];
+
+    @ApiProperty({
+        description:
+            'New maneuvers to create and attach inline. Combine with `maneuverIds` as needed; ' +
+            'at least one maneuver in total is required.',
+        type: [ManeuverInputDto],
+        required: false,
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ManeuverInputDto)
+    maneuvers?: ManeuverInputDto[];
 }
 
 export class ManeuverResponseDto {
     @ApiProperty({ description: 'Maneuver unique identifier' }) id: string;
     @ApiProperty({ description: 'Reservoir code', example: 'E001' }) reservoirCode: string;
     @ApiProperty({ description: 'Output flow value in m³/s', example: 12.5 }) outputFlowValue: number;
+    @ApiProperty({ description: 'Maneuver start date (ISO 8601)', nullable: true }) startDate: Date | null;
+    @ApiProperty({ description: 'Maneuver end date (ISO 8601)', nullable: true }) endDate: Date | null;
 }
 
 export class ManualSimulationResponseDto {
@@ -330,11 +372,11 @@ export class ListManualSimulationsQueryDto {
     @ApiProperty({
         description: 'Filter by status',
         required: false,
-        enum: ['CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'],
+        enum: SimulationStatus,
     })
     @IsOptional()
-    @IsString()
-    status?: string;
+    @IsEnum(SimulationStatus)
+    status?: SimulationStatus;
 
     @ApiProperty({ description: 'Page number', required: false, default: 1 })
     @IsOptional()
@@ -359,6 +401,8 @@ export class ManualSimulationListItemDto {
     @ApiProperty() type: string;
     @ApiProperty({ nullable: true }) description: string | null;
     @ApiProperty() maneuverCount: number;
+    @ApiProperty({ description: 'Maneuvers attached to the simulation', type: [ManeuverResponseDto] })
+    maneuvers: ManeuverResponseDto[];
     @ApiProperty() createdAt: Date | undefined;
 }
 

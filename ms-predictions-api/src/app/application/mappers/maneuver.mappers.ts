@@ -23,6 +23,8 @@ export class CreateManeuverMapper {
         return new CreateManeuverCommand({
             reservoirCode: dto.reservoirCode,
             outputFlowValue: dto.outputFlowValue,
+            startDate: dto.startDate,
+            endDate: dto.endDate,
         });
     }
 
@@ -41,6 +43,8 @@ export class UpdateManeuverMapper {
             id,
             reservoirCode: dto.reservoirCode,
             outputFlowValue: dto.outputFlowValue,
+            startDate: dto.startDate,
+            endDate: dto.endDate,
         });
     }
 
@@ -106,6 +110,8 @@ class ManeuverDtoBuilder {
             id: m.id,
             reservoirCode: m.reservoirCode,
             outputFlowValue: Number(m.outputFlowValue),
+            startDate: m.startDate ?? null,
+            endDate: m.endDate ?? null,
             createdAt: m.createdAt,
             updatedAt: m.updatedAt,
         };

@@ -15,6 +15,8 @@ import { ManeuverCacheKeys, ManualSimulationCacheKeys } from '@infrastructure/ca
 export interface ICreateManeuverCommand {
     reservoirCode: string;
     outputFlowValue: number;
+    startDate?: string;
+    endDate?: string;
 }
 
 export class CreateManeuverCommand {
@@ -24,6 +26,12 @@ export class CreateManeuverCommand {
     }
     get outputFlowValue(): number {
         return this.parameters.outputFlowValue;
+    }
+    get startDate(): string | undefined {
+        return this.parameters.startDate;
+    }
+    get endDate(): string | undefined {
+        return this.parameters.endDate;
     }
 }
 
@@ -39,6 +47,8 @@ export class CreateManeuverHandler implements ICommandHandler<CreateManeuverComm
         const maneuver = new Maneuver({
             reservoirCode: command.reservoirCode,
             outputFlowValue: command.outputFlowValue,
+            startDate: command.startDate ? new Date(command.startDate) : null,
+            endDate: command.endDate ? new Date(command.endDate) : null,
         });
         maneuver.validate();
 
@@ -59,6 +69,8 @@ export interface IUpdateManeuverCommand {
     id: string;
     reservoirCode?: string;
     outputFlowValue?: number;
+    startDate?: string | null;
+    endDate?: string | null;
 }
 
 export class UpdateManeuverCommand {
@@ -71,6 +83,12 @@ export class UpdateManeuverCommand {
     }
     get outputFlowValue(): number | undefined {
         return this.parameters.outputFlowValue;
+    }
+    get startDate(): string | null | undefined {
+        return this.parameters.startDate;
+    }
+    get endDate(): string | null | undefined {
+        return this.parameters.endDate;
     }
 }
 
@@ -90,6 +108,13 @@ export class UpdateManeuverHandler implements ICommandHandler<UpdateManeuverComm
 
         if (command.reservoirCode !== undefined) existing.reservoirCode = command.reservoirCode;
         if (command.outputFlowValue !== undefined) existing.outputFlowValue = command.outputFlowValue;
+        // Omitting a date leaves it unchanged; an explicit null clears it; a string sets it.
+        if (command.startDate !== undefined) {
+            existing.startDate = command.startDate === null ? null : new Date(command.startDate);
+        }
+        if (command.endDate !== undefined) {
+            existing.endDate = command.endDate === null ? null : new Date(command.endDate);
+        }
         existing.validate();
 
         const updated = await this.maneuverRepository.update(existing);

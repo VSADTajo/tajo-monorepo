@@ -17,7 +17,9 @@ export class FilePathValueObject {
         const normalized = relativePath.trim().replace(/\\/g, '/');
         const resolved = path.resolve(basePath, normalized);
 
-        if (!resolved.startsWith(basePath)) {
+        // Guard against path-prefix overlap (e.g. basePath="/data/storage" must NOT
+        // accept "/data/storage-evil"): require an exact match or a real path-separator boundary.
+        if (resolved !== basePath && !resolved.startsWith(basePath + path.sep)) {
             throw new EntityError('Invalid path: access outside base directory is not allowed', 'path');
         }
 

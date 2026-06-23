@@ -32,6 +32,8 @@ import {
     MoveFileRequestDto,
     MoveFileResponseDto,
     DeleteFileResponseDto,
+    CreateFolderRequestDto,
+    CreateFolderResponseDto,
     ReadFileTextResponseDto,
 } from '@api/dtos/file.dtos';
 
@@ -44,6 +46,7 @@ import {
     ReadFileTextMapper,
     MoveFileMapper,
     DeleteFileMapper,
+    CreateFolderMapper,
 } from '@application/mappers/file.mappers';
 import { IListPathsOverviewResult, IReadFileTextResult } from '@application/queries/file.queries';
 
@@ -342,6 +345,29 @@ export class FileController {
             const command = DeleteFileMapper.toCommand(filePath);
             const result = await this.commandBus.execute(command);
             return DeleteFileMapper.toResponseDto(result);
+        } catch (error) {
+            return this.handleError(error);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Create Folder
+    // ─────────────────────────────────────────────────────────────
+
+    @Post('folder')
+    @ApiEndpoint({
+        summary: 'Create a folder (recursive, idempotent)',
+        body: CreateFolderRequestDto,
+        response: { status: 201, type: CreateFolderResponseDto, description: 'Folder created (or already existed)' },
+        errors: [{ status: 400, description: 'Invalid path or path traversal detected' }],
+    })
+    async createFolder(@Body() dto: CreateFolderRequestDto): Promise<CreateFolderResponseDto> {
+        this.logger.log(`Create folder request: path=${dto.path}`);
+
+        try {
+            const command = CreateFolderMapper.toCommand(dto);
+            const result = await this.commandBus.execute(command);
+            return CreateFolderMapper.toResponseDto(result);
         } catch (error) {
             return this.handleError(error);
         }

@@ -11,6 +11,7 @@ import { DownloadFileResult } from '@domain/results/download-file.result';
 import { UploadFileResult } from '@domain/results/upload-file.result';
 import { MoveFileResult } from '@domain/results/move-file.result';
 import { DeleteFileResult } from '@domain/results/delete-file.result';
+import { CreateFolderResult } from '@domain/results/create-folder.result';
 import { ApiError } from '@domain/errors/api.error';
 import { ProviderError } from '@domain/errors/provider.error';
 import { StorageConfigService } from '@config/storage/storage-config.service';
@@ -185,6 +186,19 @@ export class LocalFileStorageService extends IFileStorageService {
         } catch (error: unknown) {
             if (error instanceof ApiError) throw error;
             this.handleFsError(error, sourcePath);
+        }
+    }
+
+    async createFolder(folderPath: string): Promise<CreateFolderResult> {
+        this.logger.log(`Creating folder: ${folderPath}`);
+
+        try {
+            // recursive mkdir is idempotent: no error if the folder already exists.
+            await fs.mkdir(folderPath, { recursive: true });
+            const relativePath = path.relative(this.storageConfig.basePath, folderPath);
+            return new CreateFolderResult({ path: relativePath });
+        } catch (error: unknown) {
+            return this.handleFsError(error, folderPath);
         }
     }
 

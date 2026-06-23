@@ -91,6 +91,44 @@ export class ManeuverRepository implements IManeuverRepository {
         }
     }
 
+    async findBySimulationIds(simulationIds: string[]): Promise<Record<string, Maneuver[]>> {
+        if (simulationIds.length === 0) {
+            return {};
+        }
+        try {
+            // Single batched query: join through simulation_maneuvers, hydrate the
+            // Maneuver entities and keep the owning simulationId from each raw row.
+            // NOTE: getRawAndEntities deduplicates `entities` by PK, so a maneuver
+            // shared across simulations appears once in `entities` but once per
+            // (simulation, maneuver) pair in `raw`. We therefore group by iterating
+            // `raw` (not deduplicated) and resolving each maneuver from a by-id map.
+            const { entities, raw } = await this.maneuverRepository
+                .createQueryBuilder('maneuver')
+                .innerJoin('simulation_maneuvers', 'sm', 'sm."maneuverId" = maneuver.id')
+                .addSelect('sm."simulationId"', 'sm_simulationId')
+                .where('sm."simulationId" IN (:...simulationIds)', { simulationIds })
+                .orderBy('maneuver."reservoirCode"', 'ASC')
+                .getRawAndEntities();
+
+            const maneuverById = new Map(entities.map((maneuver) => [maneuver.id, maneuver]));
+
+            return raw.reduce<Record<string, Maneuver[]>>((acc, row) => {
+                const maneuver = maneuverById.get(row.maneuver_id);
+                if (maneuver) {
+                    (acc[row.sm_simulationId as string] ??= []).push(maneuver);
+                }
+                return acc;
+            }, {});
+        } catch (error) {
+            this.logger.error({
+                msg: 'Error finding maneuvers by simulationIds',
+                entity: 'Maneuvers',
+                error: String(error),
+            });
+            throw new RepositoryError('Error finding maneuvers by simulationIds', error);
+        }
+    }
+
     async update(maneuver: Maneuver): Promise<Maneuver> {
         try {
             return await this.maneuverRepository.save(maneuver);

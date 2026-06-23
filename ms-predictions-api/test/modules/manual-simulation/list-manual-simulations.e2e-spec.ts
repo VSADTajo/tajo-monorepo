@@ -42,6 +42,7 @@ describe('List Manual Simulations (e2e)', () => {
 
     const mockSftpService = {
         uploadInputFile: jest.fn().mockResolvedValue(undefined),
+        ensureOutputFolder: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockMessageBroker = {
@@ -100,17 +101,13 @@ describe('List Manual Simulations (e2e)', () => {
             .query(query || {});
     }
 
-    async function createOneManeuverId(): Promise<string> {
-        const { body } = await request(app.getHttpServer())
-            .post('/maneuvers')
-            .send(buildCreateManeuverDto())
-            .expect(HttpStatus.CREATED);
-        return body.id;
+    function createManeuver() {
+        return request(app.getHttpServer()).post('/maneuvers').send(buildCreateManeuverDto());
     }
 
     it('should list only MANUAL simulations', async () => {
-        const dto1 = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
-        const dto2 = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
+        const dto1 = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
+        const dto2 = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
 
         await createManualSimulation(dto1).expect(HttpStatus.CREATED);
         await createManualSimulation(dto2).expect(HttpStatus.CREATED);
@@ -125,7 +122,7 @@ describe('List Manual Simulations (e2e)', () => {
     });
 
     it('should filter by status', async () => {
-        const dto = buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] });
+        const dto = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
         await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
         // MODEL_PROCESSING simulations (the default after SFTP upload)
@@ -146,15 +143,67 @@ describe('List Manual Simulations (e2e)', () => {
         expect(body.limit).toBe(20);
     });
 
+    it('should reject an invalid status with 400 instead of 500 (bug A)', async () => {
+        await listManualSimulations({ status: 'NOT_A_REAL_STATUS' }).expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should return the correct maneuverCount per simulation via a single aggregate (bug B)', async () => {
+        const twoManeuverIds = [(await createManeuver().expect(HttpStatus.CREATED)).body.id, (await createManeuver().expect(HttpStatus.CREATED)).body.id];
+        const oneManeuverId = [(await createManeuver().expect(HttpStatus.CREATED)).body.id];
+
+        await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: twoManeuverIds })).expect(
+            HttpStatus.CREATED,
+        );
+        await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: oneManeuverId })).expect(
+            HttpStatus.CREATED,
+        );
+
+        const { body } = await listManualSimulations().expect(HttpStatus.OK);
+
+        const counts = body.data.map((sim: { maneuverCount: number }) => sim.maneuverCount).sort();
+        expect(counts).toEqual([1, 2]);
+
+        // Seba's ask: the list must also bring the full maneuvers, not just the count.
+        body.data.forEach((sim: { maneuverCount: number; maneuvers: Array<{ id: string; reservoirCode: string }> }) => {
+            expect(Array.isArray(sim.maneuvers)).toBe(true);
+            expect(sim.maneuvers).toHaveLength(sim.maneuverCount);
+            sim.maneuvers.forEach((m) => {
+                expect(m.id).toBeDefined();
+                expect(m.reservoirCode).toBeDefined();
+            });
+        });
+    });
+
+    it('should return a shared (reused) maneuver on every simulation that references it', async () => {
+        // Maneuvers are reusable many-to-many: the same maneuver attached to two
+        // simulations must appear in both list items (guards the getRawAndEntities
+        // dedup trap in findBySimulationIds).
+        const sharedId = (await createManeuver().expect(HttpStatus.CREATED)).body.id;
+
+        await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: [sharedId] })).expect(
+            HttpStatus.CREATED,
+        );
+        await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: [sharedId] })).expect(
+            HttpStatus.CREATED,
+        );
+
+        const { body } = await listManualSimulations().expect(HttpStatus.OK);
+
+        expect(body.data).toHaveLength(2);
+        body.data.forEach((sim: { maneuvers: Array<{ id: string }> }) => {
+            expect(sim.maneuvers.map((m) => m.id)).toContain(sharedId);
+        });
+    });
+
     it('should support pagination', async () => {
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
         ).expect(HttpStatus.CREATED);
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
         ).expect(HttpStatus.CREATED);
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [await createOneManeuverId()] }),
+            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
         ).expect(HttpStatus.CREATED);
 
         const { body } = await listManualSimulations({ page: 1, limit: 2 }).expect(HttpStatus.OK);

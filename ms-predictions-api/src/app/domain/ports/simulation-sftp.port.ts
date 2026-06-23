@@ -8,4 +8,13 @@ export abstract class ISimulationSftpService {
      * @param content       The file content as a binary buffer
      */
     abstract uploadInputFile(simulationId: string, fileName: string, content: Buffer): Promise<void>;
+
+    /**
+     * Ensures the output folder exists in the SFTP storage at
+     * `tajo/SIMULATIONS/<simulationId>/output/`, so the model can drop its
+     * response file there. Idempotent (recursive mkdir).
+     *
+     * @param simulationId  The manual simulation ID (used as folder name)
+     */
+    abstract ensureOutputFolder(simulationId: string): Promise<void>;
 }

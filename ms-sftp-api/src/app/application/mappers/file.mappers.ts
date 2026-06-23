@@ -6,6 +6,8 @@ import {
     MoveFileRequestDto,
     MoveFileResponseDto,
     DeleteFileResponseDto,
+    CreateFolderRequestDto,
+    CreateFolderResponseDto,
     ListPathsOverviewResponseDto,
     PathOverviewDto,
     PathSchemaInfoDto,
@@ -15,6 +17,7 @@ import {
 import { UploadFileCommand } from '@application/commands/file.commands';
 import { MoveFileCommand } from '@application/commands/file.commands';
 import { DeleteFileCommand } from '@application/commands/file.commands';
+import { CreateFolderCommand } from '@application/commands/file.commands';
 import {
     ListFilesQuery,
     DownloadFileQuery,
@@ -27,6 +30,7 @@ import { UploadFileResult } from '@domain/results/upload-file.result';
 import { ListFilesResult } from '@domain/results/list-files.result';
 import { MoveFileResult } from '@domain/results/move-file.result';
 import { DeleteFileResult } from '@domain/results/delete-file.result';
+import { CreateFolderResult } from '@domain/results/create-folder.result';
 
 // ─────────────────────────────────────────────────────────────
 // ListPathsOverview
@@ -176,5 +180,19 @@ export class DeleteFileMapper {
 
     static toResponseDto(result: DeleteFileResult): DeleteFileResponseDto {
         return { deletedPath: result.deletedPath };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// CreateFolder
+// ─────────────────────────────────────────────────────────────
+
+export class CreateFolderMapper {
+    static toCommand(dto: CreateFolderRequestDto): CreateFolderCommand {
+        return new CreateFolderCommand({ path: dto.path });
+    }
+
+    static toResponseDto(result: CreateFolderResult): CreateFolderResponseDto {
+        return { path: result.path };
     }
 }

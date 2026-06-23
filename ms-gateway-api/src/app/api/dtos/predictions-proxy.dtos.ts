@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsArray, IsDateString, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 // ─────────────────────────────────────────────────────────────
 // Shared: SimulationItem
@@ -191,32 +193,79 @@ export class CreatePredictionTypeResponseDto {
 // ─────────────────────────────────────────────────────────────
 
 export class ManeuverInputDto {
-    @ApiProperty({ description: 'Reservoir code', example: 'E001' }) reservoirCode: string;
-    @ApiProperty({ description: 'Output flow value (m3/s)', example: 12.5, minimum: 0 }) outputFlowValue: number;
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'E001' })
+    @IsNotEmpty()
+    @IsString()
+    reservoirCode: string;
+
+    @ApiProperty({ description: 'Output flow value (m³/s)', example: 12.5, minimum: 0 })
+    @IsNumber()
+    @Min(0)
+    outputFlowValue: number;
+
+    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
 }
 
 export class CreateManualSimulationRequestDto {
     @ApiProperty({
         description: 'Optional operator description',
         required: false,
+        maxLength: 500,
         example: 'Operación de control Tranco',
     })
+    @IsOptional()
+    @IsString()
+    @MaxLength(500)
     description?: string;
+
     @ApiProperty({
         description:
             'Meteorological forcing for the SFTP input file. HARMONIE → Q.NAM.harmonie, EPS → Q.NAM.ens, BOTH → both files',
         enum: ['HARMONIE', 'EPS', 'BOTH'],
         example: 'BOTH',
     })
+    @IsIn(['HARMONIE', 'EPS', 'BOTH'])
     modmeteo: 'HARMONIE' | 'EPS' | 'BOTH';
-    @ApiProperty({ type: [ManeuverInputDto], description: 'Maneuvers (at least one required)' })
-    maneuvers: ManeuverInputDto[];
+
+    @ApiProperty({
+        description:
+            'IDs of existing reusable maneuvers to attach. Combine with `maneuvers`; at least one maneuver in total is required.',
+        type: [String],
+        required: false,
+        example: ['7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c'],
+    })
+    @IsOptional()
+    @IsArray()
+    @IsUUID('all', { each: true })
+    maneuverIds?: string[];
+
+    @ApiProperty({
+        description:
+            'New maneuvers to create and attach inline. Combine with `maneuverIds`; at least one maneuver in total is required.',
+        type: [ManeuverInputDto],
+        required: false,
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ManeuverInputDto)
+    maneuvers?: ManeuverInputDto[];
 }
 
 export class ManeuverItemDto {
     @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
     @ApiProperty({ example: 'E001' }) reservoirCode: string;
     @ApiProperty({ example: 12.5 }) outputFlowValue: number;
+    @ApiProperty({ nullable: true, example: '2026-06-20T00:00:00.000Z' }) startDate: Date | null;
+    @ApiProperty({ nullable: true, example: '2026-06-21T00:00:00.000Z' }) endDate: Date | null;
 }
 
 export class ManualSimulationItemDto extends SimulationItemDto {
@@ -243,6 +292,8 @@ export class ManualSimulationListItemDto {
     @ApiProperty({ nullable: true, example: 'Sebastián Aliceio' }) createdBy: string | null;
     @ApiProperty({ nullable: true, example: 'BOTH' }) modmeteo: string | null;
     @ApiProperty({ example: 2 }) maneuverCount: number;
+    @ApiProperty({ type: [ManeuverItemDto], description: 'Maneuvers attached to the simulation' })
+    maneuvers: ManeuverItemDto[];
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) createdAt: Date | undefined;
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) updatedAt: Date | undefined;
 }
@@ -259,19 +310,57 @@ export class ListManualSimulationsResponseDto {
 // ─────────────────────────────────────────────────────────────
 
 export class CreateManeuverGwRequestDto {
-    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01' }) reservoirCode: string;
-    @ApiProperty({ description: 'Output flow value (m³/s)', example: 12.5, minimum: 0 }) outputFlowValue: number;
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01' })
+    @IsNotEmpty()
+    @IsString()
+    reservoirCode: string;
+
+    @ApiProperty({ description: 'Output flow value (m³/s)', example: 12.5, minimum: 0 })
+    @IsNumber()
+    @Min(0)
+    outputFlowValue: number;
+
+    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
 }
 
 export class UpdateManeuverGwRequestDto {
-    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01', required: false }) reservoirCode?: string;
-    @ApiProperty({ description: 'Output flow value (m³/s)', example: 14.0, required: false }) outputFlowValue?: number;
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01', required: false })
+    @IsOptional()
+    @IsString()
+    @IsNotEmpty()
+    reservoirCode?: string;
+
+    @ApiProperty({ description: 'Output flow value (m³/s)', example: 14.0, required: false })
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    outputFlowValue?: number;
+
+    @ApiProperty({ description: 'Maneuver start date (ISO 8601). Send null to clear it.', required: false, nullable: true, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string | null;
+
+    @ApiProperty({ description: 'Maneuver end date (ISO 8601). Send null to clear it.', required: false, nullable: true, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string | null;
 }
 
 export class ManeuverGwResponseDto {
     @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
     @ApiProperty({ example: 'AR01' }) reservoirCode: string;
     @ApiProperty({ example: 12.5 }) outputFlowValue: number;
+    @ApiProperty({ nullable: true, example: '2026-06-20T00:00:00.000Z' }) startDate: Date | null;
+    @ApiProperty({ nullable: true, example: '2026-06-21T00:00:00.000Z' }) endDate: Date | null;
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) createdAt: Date | undefined;
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) updatedAt: Date | undefined;
 }

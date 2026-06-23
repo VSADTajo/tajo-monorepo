@@ -129,7 +129,7 @@ export class PredictionsProxyController {
             description: 'Manual simulation created and dispatched',
         },
         errors: [
-            { status: 400, description: 'Invalid payload (zero maneuvers or negative output flow)' },
+            { status: 400, description: 'Invalid payload (empty maneuverIds, non-UUID id, or invalid modmeteo)' },
             { status: 503, description: 'SFTP upload failed; simulation remains in CREATED' },
         ],
     })

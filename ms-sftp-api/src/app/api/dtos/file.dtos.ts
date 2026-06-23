@@ -168,3 +168,25 @@ export class DeleteFileResponseDto {
     @ApiProperty({ description: 'Deleted file path', example: 'processed/old-report.csv' })
     deletedPath: string;
 }
+
+// ─────────────────────────────────────────────────────────────
+// CreateFolder
+// ─────────────────────────────────────────────────────────────
+
+export class CreateFolderRequestDto {
+    @ApiProperty({
+        description: 'Folder path to create (recursive, idempotent — no error if it already exists)',
+        example: 'tajo/SIMULATIONS/7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c/output',
+    })
+    @IsNotEmpty()
+    @IsString()
+    path: string;
+}
+
+export class CreateFolderResponseDto {
+    @ApiProperty({
+        description: 'Created folder path',
+        example: 'tajo/SIMULATIONS/7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c/output',
+    })
+    path: string;
+}

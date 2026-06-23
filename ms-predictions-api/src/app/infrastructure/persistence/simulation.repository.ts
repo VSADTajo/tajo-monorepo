@@ -183,7 +183,7 @@ export class SimulationRepository implements ISimulationRepository {
         }
     }
 
-    async findManual(status?: string, page = 1, limit = 20): Promise<PaginatedResult<Simulation>> {
+    async findManual(status?: SimulationStatus, page = 1, limit = 20): Promise<PaginatedResult<Simulation>> {
         try {
             const qb = this.simulationRepository.createQueryBuilder('simulation');
             qb.where('simulation.type = :type', { type: SimulationType.MANUAL });

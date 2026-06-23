@@ -42,6 +42,7 @@ describe('Create Manual Simulation (e2e)', () => {
 
     const mockSftpService = {
         uploadInputFile: jest.fn().mockResolvedValue(undefined),
+        ensureOutputFolder: jest.fn().mockResolvedValue(undefined),
     };
 
     const mockMessageBroker = {
@@ -83,6 +84,7 @@ describe('Create Manual Simulation (e2e)', () => {
         await cleanDatabase(dataSource);
         jest.clearAllMocks();
         mockSftpService.uploadInputFile.mockResolvedValue(undefined);
+        mockSftpService.ensureOutputFolder.mockResolvedValue(undefined);
     });
 
     afterAll(async () => {
@@ -124,6 +126,34 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(body.maneuvers.map((m: { id: string }) => m.id).sort()).toEqual([...maneuverIds].sort());
         });
 
+        it('should create and attach inline maneuvers', async () => {
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: undefined,
+                maneuvers: [{ reservoirCode: 'E001', outputFlowValue: 12.5 }],
+            });
+
+            const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(body.maneuvers).toHaveLength(1);
+            expect(body.maneuvers[0].reservoirCode).toBe('E001');
+            expect(body.maneuvers[0].outputFlowValue).toBe(12.5);
+            expect(body.maneuvers[0].id).toBeDefined(); // the API created it
+        });
+
+        it('should accept a hybrid payload (existing ids + inline maneuvers)', async () => {
+            const [existingId] = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: [existingId],
+                maneuvers: [{ reservoirCode: 'E200', outputFlowValue: 7 }],
+            });
+
+            const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(body.maneuvers).toHaveLength(2);
+            const codes = body.maneuvers.map((m: { reservoirCode: string }) => m.reservoirCode).sort();
+            expect(codes).toContain('E200');
+        });
+
         it('should call SFTP service to upload input file', async () => {
             const maneuverIds = await createManeuvers(1);
             const dto = buildCreateManualSimulationDto({ maneuverIds, modmeteo: 'HARMONIE' });
@@ -135,6 +165,23 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(typeof simulationId).toBe('string');
             expect(fileName).toMatch(/^tagus_harmonie_Q_\d{12}\.json$/);
             expect(content).toBeInstanceOf(Buffer);
+        });
+
+        it('should pre-create the output folder on the SFTP for the simulation', async () => {
+            const maneuverIds = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
+
+            const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(mockSftpService.ensureOutputFolder).toHaveBeenCalledWith(body.id);
+        });
+
+        it('should still dispatch when output-folder creation fails (best-effort, non-blocking)', async () => {
+            mockSftpService.ensureOutputFolder.mockRejectedValueOnce(new ProviderError('SFTP unavailable'));
+            const maneuverIds = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
+
+            await createManualSimulation(dto).expect(HttpStatus.CREATED);
         });
 
         it('should call SFTP service once per modmeteo when BOTH is requested', async () => {
@@ -177,6 +224,27 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(body).toBeDefined();
         });
 
+        it('should return 400 when neither maneuverIds nor maneuvers are provided', async () => {
+            await createManualSimulation({ modmeteo: 'HARMONIE', description: 'no maneuvers' }).expect(
+                HttpStatus.BAD_REQUEST,
+            );
+        });
+
+        it('should return 400 when an inline maneuver has a negative outputFlowValue', async () => {
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: undefined,
+                maneuvers: [{ reservoirCode: 'E001', outputFlowValue: -3 }],
+            });
+
+            await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
+        });
+
+        it('should return 400 (not 500) when a maneuverId is not a valid UUID', async () => {
+            const dto = buildCreateManualSimulationDto({ maneuverIds: ['not-a-uuid'] });
+
+            await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
+        });
+
         it('should return 404 when a referenced maneuverId does not exist', async () => {
             const dto = buildCreateManualSimulationDto({
                 maneuverIds: ['00000000-0000-0000-0000-000000000000'],
@@ -193,6 +261,97 @@ describe('Create Manual Simulation (e2e)', () => {
 
             const { body } = await createManualSimulation(dto).expect(HttpStatus.SERVICE_UNAVAILABLE);
             expect(body).toBeDefined();
+        });
+    });
+
+    describe('maneuver dates (optional startDate / endDate)', () => {
+        function postManeuver(body: object) {
+            return request(app.getHttpServer()).post('/maneuvers').send(body);
+        }
+
+        it('should create a maneuver with start/end dates and echo them', async () => {
+            const { body } = await postManeuver({
+                reservoirCode: 'E001',
+                outputFlowValue: 12.5,
+                startDate: '2026-06-20T00:00:00.000Z',
+                endDate: '2026-06-21T00:00:00.000Z',
+            }).expect(HttpStatus.CREATED);
+
+            expect(new Date(body.startDate).toISOString()).toBe('2026-06-20T00:00:00.000Z');
+            expect(new Date(body.endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
+        });
+
+        it('should default the dates to null when omitted', async () => {
+            const { body } = await postManeuver({ reservoirCode: 'E002', outputFlowValue: 5 }).expect(
+                HttpStatus.CREATED,
+            );
+
+            expect(body.startDate).toBeNull();
+            expect(body.endDate).toBeNull();
+        });
+
+        it('should reject a maneuver whose endDate is before its startDate', async () => {
+            await postManeuver({
+                reservoirCode: 'E003',
+                outputFlowValue: 5,
+                startDate: '2026-06-21T00:00:00.000Z',
+                endDate: '2026-06-20T00:00:00.000Z',
+            }).expect(HttpStatus.BAD_REQUEST);
+        });
+
+        it('should reject a non-ISO startDate', async () => {
+            await postManeuver({ reservoirCode: 'E004', outputFlowValue: 5, startDate: 'not-a-date' }).expect(
+                HttpStatus.BAD_REQUEST,
+            );
+        });
+
+        it('should accept a maneuver with only an endDate (the two dates are independent)', async () => {
+            const { body } = await postManeuver({
+                reservoirCode: 'E005',
+                outputFlowValue: 5,
+                endDate: '2026-06-21T00:00:00.000Z',
+            }).expect(HttpStatus.CREATED);
+
+            expect(body.startDate).toBeNull();
+            expect(new Date(body.endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
+        });
+
+        it('should clear a date back to null via PATCH (startDate: null), not set it to epoch', async () => {
+            const { body: created } = await postManeuver({
+                reservoirCode: 'E006',
+                outputFlowValue: 5,
+                startDate: '2026-06-20T00:00:00.000Z',
+                endDate: '2026-06-21T00:00:00.000Z',
+            }).expect(HttpStatus.CREATED);
+
+            const { body: updated } = await request(app.getHttpServer())
+                .patch(`/maneuvers/${created.id}`)
+                .send({ startDate: null })
+                .expect(HttpStatus.OK);
+
+            expect(updated.startDate).toBeNull();
+            // the untouched endDate stays put
+            expect(new Date(updated.endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
+        });
+
+        it('should accept inline maneuvers with dates in the manual simulation POST', async () => {
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: undefined,
+                maneuvers: [
+                    {
+                        reservoirCode: 'E001',
+                        outputFlowValue: 12.5,
+                        startDate: '2026-06-20T00:00:00.000Z',
+                        endDate: '2026-06-21T00:00:00.000Z',
+                    },
+                ],
+            });
+
+            const { body } = await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(body.maneuvers).toHaveLength(1);
+            expect(new Date(body.maneuvers[0].startDate).toISOString()).toBe('2026-06-20T00:00:00.000Z');
+            expect(new Date(body.maneuvers[0].endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
         });
     });
 });

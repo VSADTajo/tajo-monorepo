@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 // ─────────────────────────────────────────────────────────────
@@ -16,6 +16,16 @@ export class CreateManeuverRequestDto {
     @IsNumber()
     @Min(0)
     outputFlowValue: number;
+
+    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string;
+
+    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -33,6 +43,26 @@ export class UpdateManeuverRequestDto {
     @IsNumber()
     @Min(0)
     outputFlowValue?: number;
+
+    @ApiProperty({
+        description: 'Maneuver start date (ISO 8601). Send null to clear it.',
+        required: false,
+        nullable: true,
+        example: '2026-06-20T00:00:00.000Z',
+    })
+    @IsOptional()
+    @IsDateString()
+    startDate?: string | null;
+
+    @ApiProperty({
+        description: 'Maneuver end date (ISO 8601). Send null to clear it.',
+        required: false,
+        nullable: true,
+        example: '2026-06-21T00:00:00.000Z',
+    })
+    @IsOptional()
+    @IsDateString()
+    endDate?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -69,6 +99,8 @@ export class ManeuverResponseDto {
     @ApiProperty({ description: 'Maneuver unique identifier' }) id: string;
     @ApiProperty({ description: 'Reservoir SAIH code', example: 'AR01' }) reservoirCode: string;
     @ApiProperty({ description: 'Output flow value (m³/s)', example: 12.5 }) outputFlowValue: number;
+    @ApiProperty({ description: 'Maneuver start date (ISO 8601)', nullable: true }) startDate: Date | null;
+    @ApiProperty({ description: 'Maneuver end date (ISO 8601)', nullable: true }) endDate: Date | null;
     @ApiProperty({ description: 'Creation timestamp' }) createdAt: Date | undefined;
     @ApiProperty({ description: 'Last update timestamp' }) updatedAt: Date | undefined;
 }
