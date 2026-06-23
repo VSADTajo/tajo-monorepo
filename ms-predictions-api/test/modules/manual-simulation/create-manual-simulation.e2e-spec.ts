@@ -297,6 +297,24 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(new Date(body.endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
         });
 
+        it('should clear a date back to null via PATCH (startDate: null), not set it to epoch', async () => {
+            const { body: created } = await postManeuver({
+                reservoirCode: 'E006',
+                outputFlowValue: 5,
+                startDate: '2026-06-20T00:00:00.000Z',
+                endDate: '2026-06-21T00:00:00.000Z',
+            }).expect(HttpStatus.CREATED);
+
+            const { body: updated } = await request(app.getHttpServer())
+                .patch(`/maneuvers/${created.id}`)
+                .send({ startDate: null })
+                .expect(HttpStatus.OK);
+
+            expect(updated.startDate).toBeNull();
+            // the untouched endDate stays put
+            expect(new Date(updated.endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
+        });
+
         it('should accept inline maneuvers with dates in the manual simulation POST', async () => {
             const dto = buildCreateManualSimulationDto({
                 maneuverIds: undefined,

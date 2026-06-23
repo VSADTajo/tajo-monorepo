@@ -69,8 +69,8 @@ export interface IUpdateManeuverCommand {
     id: string;
     reservoirCode?: string;
     outputFlowValue?: number;
-    startDate?: string;
-    endDate?: string;
+    startDate?: string | null;
+    endDate?: string | null;
 }
 
 export class UpdateManeuverCommand {
@@ -84,10 +84,10 @@ export class UpdateManeuverCommand {
     get outputFlowValue(): number | undefined {
         return this.parameters.outputFlowValue;
     }
-    get startDate(): string | undefined {
+    get startDate(): string | null | undefined {
         return this.parameters.startDate;
     }
-    get endDate(): string | undefined {
+    get endDate(): string | null | undefined {
         return this.parameters.endDate;
     }
 }
@@ -108,10 +108,13 @@ export class UpdateManeuverHandler implements ICommandHandler<UpdateManeuverComm
 
         if (command.reservoirCode !== undefined) existing.reservoirCode = command.reservoirCode;
         if (command.outputFlowValue !== undefined) existing.outputFlowValue = command.outputFlowValue;
-        // Omitting a date leaves it unchanged. Clearing a previously-set date back
-        // to null is not supported via PATCH (only setting a new value).
-        if (command.startDate !== undefined) existing.startDate = new Date(command.startDate);
-        if (command.endDate !== undefined) existing.endDate = new Date(command.endDate);
+        // Omitting a date leaves it unchanged; an explicit null clears it; a string sets it.
+        if (command.startDate !== undefined) {
+            existing.startDate = command.startDate === null ? null : new Date(command.startDate);
+        }
+        if (command.endDate !== undefined) {
+            existing.endDate = command.endDate === null ? null : new Date(command.endDate);
+        }
         existing.validate();
 
         const updated = await this.maneuverRepository.update(existing);

@@ -44,15 +44,25 @@ export class UpdateManeuverRequestDto {
     @Min(0)
     outputFlowValue?: number;
 
-    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Maneuver start date (ISO 8601). Send null to clear it.',
+        required: false,
+        nullable: true,
+        example: '2026-06-20T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
-    startDate?: string;
+    startDate?: string | null;
 
-    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Maneuver end date (ISO 8601). Send null to clear it.',
+        required: false,
+        nullable: true,
+        example: '2026-06-21T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
-    endDate?: string;
+    endDate?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────
