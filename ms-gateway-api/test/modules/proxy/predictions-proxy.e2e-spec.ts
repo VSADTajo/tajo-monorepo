@@ -176,4 +176,56 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
             expect(mockProxyService.forward).not.toHaveBeenCalled();
         });
     });
+
+    describe('GET /simulations — forwards filters, sort and station-code', () => {
+        function listSimulations(query: Record<string, string>) {
+            return request(app.getHttpServer()).get('/simulations').query(query);
+        }
+
+        it('should forward all query params (filters + sort + stationCode) to predictions-api', async () => {
+            mockProxyService.forward.mockResolvedValue({
+                status: 200,
+                data: { data: [], total: 0, page: 2, limit: 10 },
+            });
+
+            const { body } = await listSimulations({
+                status: 'FINALIZED',
+                stationCode: 'E001',
+                sortBy: 'simulationDate',
+                sortOrder: 'ASC',
+                page: '2',
+                limit: '10',
+            }).expect(HttpStatus.OK);
+
+            expect(body).toEqual({ data: [], total: 0, page: 2, limit: 10 });
+            expect(mockProxyService.forward).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'GET',
+                    baseUrl: 'http://predictions-api:3007',
+                    path: '/simulations',
+                    query: expect.objectContaining({
+                        status: 'FINALIZED',
+                        stationCode: 'E001',
+                        sortBy: 'simulationDate',
+                        sortOrder: 'ASC',
+                        page: '2',
+                        limit: '10',
+                    }),
+                }),
+            );
+        });
+
+        it('should forward GET /simulations even with no query params', async () => {
+            mockProxyService.forward.mockResolvedValue({
+                status: 200,
+                data: { data: [], total: 0, page: 1, limit: 20 },
+            });
+
+            await request(app.getHttpServer()).get('/simulations').expect(HttpStatus.OK);
+
+            expect(mockProxyService.forward).toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'GET', path: '/simulations' }),
+            );
+        });
+    });
 });

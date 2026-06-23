@@ -59,6 +59,13 @@ export class HistoricalSimulationsResponseDto {
     @ApiProperty({ example: 20 }) limit: number;
 }
 
+export class ListSimulationsResponseDto {
+    @ApiProperty({ type: [SimulationItemDto] }) data: SimulationItemDto[];
+    @ApiProperty({ example: 15 }) total: number;
+    @ApiProperty({ example: 1 }) page: number;
+    @ApiProperty({ example: 20 }) limit: number;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Shared: nested prediction item (used by Raw and Forecast)
 // ─────────────────────────────────────────────────────────────
