@@ -3,8 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Logger } from 'nestjs-pino';
 
-import { ISimulationRepository, PaginatedResult, SimulationFilters } from '@domain/ports/simulation-repository.port';
+import {
+    ISimulationRepository,
+    PaginatedResult,
+    SimulationFilters,
+    SIMULATION_SORT_FIELDS,
+} from '@domain/ports/simulation-repository.port';
 import { Simulation, SimulationStatus, SimulationType } from '@domain/entities/simulation.entity';
+import { Prediction } from '@domain/entities/prediction.entity';
 import { RepositoryError } from '@domain/errors/repository.error';
 
 @Injectable()
@@ -129,12 +135,38 @@ export class SimulationRepository implements ISimulationRepository {
                 qb.andWhere('simulation.dataOrigin = :dataOrigin', { dataOrigin: filters.dataOrigin });
             }
 
+            // Filter by station code via a correlated EXISTS subquery instead of a JOIN:
+            // a simulation has many predictions, so a JOIN would duplicate rows and break
+            // both the count and pagination. EXISTS keeps one row per simulation.
+            if (filters.stationCode) {
+                qb.andWhere(
+                    (subQb) =>
+                        'EXISTS ' +
+                        subQb
+                            .subQuery()
+                            .select('1')
+                            .from(Prediction, 'prediction')
+                            .where('prediction.simulationId = simulation.id')
+                            .andWhere('prediction.stationId = :stationCode')
+                            .getQuery(),
+                ).setParameter('stationCode', filters.stationCode);
+            }
+
             const total = await qb.getCount();
 
+            // Defence in depth against SQL injection: only ever order by a whitelisted field
+            // (the DTO already enforces this; the repository never trusts raw input).
+            const sortField =
+                filters.sortBy && SIMULATION_SORT_FIELDS.includes(filters.sortBy) ? filters.sortBy : 'createdAt';
+            const sortColumn = `simulation.${sortField}`;
+            const sortOrder = filters.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
             const data = await qb
+                .orderBy(sortColumn, sortOrder)
+                // Stable tie-break so pagination is deterministic when the sort column ties.
+                .addOrderBy('simulation.id', 'ASC')
                 .skip((page - 1) * limit)
                 .take(limit)
-                .orderBy('simulation.createdAt', 'DESC')
                 .getMany();
 
             return { data, total, page, limit };

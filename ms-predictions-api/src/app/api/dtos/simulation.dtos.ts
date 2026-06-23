@@ -4,6 +4,7 @@ import {
     IsArray,
     IsDateString,
     IsEnum,
+    IsIn,
     IsInt,
     IsNotEmpty,
     IsNumber,
@@ -15,8 +16,10 @@ import {
     Min,
     ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { SimulationStatus } from '@domain/entities/simulation.entity';
+import { SIMULATION_SORT_FIELDS, SORT_ORDERS } from '@domain/ports/simulation-repository.port';
+import type { SimulationSortBy, SortOrder } from '@domain/ports/simulation-repository.port';
 
 // ─────────────────────────────────────────────────────────────
 // ListSimulations
@@ -56,6 +59,36 @@ export class ListSimulationsQueryDto {
     @IsOptional()
     @IsString()
     dataOrigin?: string;
+
+    @ApiProperty({
+        description: 'Keep only simulations with at least one prediction for this station code',
+        required: false,
+        example: 'E001',
+    })
+    @IsOptional()
+    @IsString()
+    stationCode?: string;
+
+    @ApiProperty({
+        description: 'Field to sort by',
+        required: false,
+        enum: SIMULATION_SORT_FIELDS,
+        default: 'createdAt',
+    })
+    @IsOptional()
+    @IsIn(SIMULATION_SORT_FIELDS)
+    sortBy?: SimulationSortBy;
+
+    @ApiProperty({
+        description: 'Sort direction (case-insensitive)',
+        required: false,
+        enum: SORT_ORDERS,
+        default: 'DESC',
+    })
+    @IsOptional()
+    @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
+    @IsIn(SORT_ORDERS)
+    sortOrder?: SortOrder;
 
     @ApiProperty({ description: 'Page number', required: false, default: 1 })
     @IsOptional()

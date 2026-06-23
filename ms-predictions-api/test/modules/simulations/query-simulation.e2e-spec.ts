@@ -103,14 +103,29 @@ describe('Query Simulations (e2e)', () => {
 
     // Helper: seed a simulation via ProcessTimeSeriesCommand
     async function seedSimulation(
-        overrides?: Partial<{ forecastDate: string; providerName: string; moduleInstanceId: string }>,
+        overrides?: Partial<{ startDate: string; providerName: string; moduleInstanceId: string }>,
     ) {
         const cmdData = buildProcessTimeSeriesCommand({
+            // simulationDate is derived from startDate (see ProcessTimeSeriesHandler), so drive
+            // the seed's date through startDate. Only override keys that were actually provided
+            // — passing undefined would wipe the factory defaults.
             series: buildTimeSeriesData({
-                forecastDate: overrides?.forecastDate,
-                moduleInstanceId: overrides?.moduleInstanceId,
+                ...(overrides?.startDate ? { startDate: overrides.startDate } : {}),
+                ...(overrides?.moduleInstanceId ? { moduleInstanceId: overrides.moduleInstanceId } : {}),
             }),
             providerName: overrides?.providerName,
+        });
+        return commandBus.execute(new ProcessTimeSeriesCommand(cmdData));
+    }
+
+    // Helper: seed a simulation whose prediction is linked to a specific station code
+    async function seedSimulationForStation(
+        stationCode: string,
+        startDate: string,
+        parameterId = 'Discharge_forecast',
+    ) {
+        const cmdData = buildProcessTimeSeriesCommand({
+            series: buildTimeSeriesData({ locationId: stationCode, startDate, parameterId }),
         });
         return commandBus.execute(new ProcessTimeSeriesCommand(cmdData));
     }
@@ -157,8 +172,8 @@ describe('Query Simulations (e2e)', () => {
     // ─────────────────────────────────────────────────────────────
 
     it('should list simulations', async () => {
-        await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
-        await seedSimulation({ forecastDate: '2026-03-11T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-11T10:00:00.000Z' });
 
         const { body } = await listSimulations().expect(HttpStatus.OK);
 
@@ -169,7 +184,7 @@ describe('Query Simulations (e2e)', () => {
     });
 
     it('should filter simulations by status', async () => {
-        await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
 
         const { body } = await listSimulations({ status: 'IN_PROGRESS' }).expect(HttpStatus.OK);
 
@@ -180,7 +195,7 @@ describe('Query Simulations (e2e)', () => {
     });
 
     it('should return empty list when filtering by non-matching status', async () => {
-        await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
 
         const { body } = await listSimulations({ status: 'FINALIZED' }).expect(HttpStatus.OK);
 
@@ -189,11 +204,135 @@ describe('Query Simulations (e2e)', () => {
     });
 
     // ─────────────────────────────────────────────────────────────
+    // GET /simulations — sort (TJ-89)
+    // ─────────────────────────────────────────────────────────────
+
+    it('should sort by simulationDate ascending', async () => {
+        await seedSimulation({ startDate: '2026-03-12T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-11T10:00:00.000Z' });
+
+        const { body } = await listSimulations({ sortBy: 'simulationDate', sortOrder: 'ASC' }).expect(HttpStatus.OK);
+
+        expect(body.data.map((s: { simulationDate: string }) => s.simulationDate)).toEqual([
+            '20260310100000',
+            '20260311100000',
+            '20260312100000',
+        ]);
+    });
+
+    it('should sort by simulationDate descending', async () => {
+        await seedSimulation({ startDate: '2026-03-12T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-11T10:00:00.000Z' });
+
+        const { body } = await listSimulations({ sortBy: 'simulationDate', sortOrder: 'DESC' }).expect(HttpStatus.OK);
+
+        expect(body.data.map((s: { simulationDate: string }) => s.simulationDate)).toEqual([
+            '20260312100000',
+            '20260311100000',
+            '20260310100000',
+        ]);
+    });
+
+    it('should default to createdAt DESC when no sort is given (newest first)', async () => {
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' }); // created first → older
+        await seedSimulation({ startDate: '2026-03-11T10:00:00.000Z' }); // created second → newer
+
+        const { body } = await listSimulations().expect(HttpStatus.OK);
+
+        expect(body.data[0].simulationDate).toBe('20260311100000');
+        expect(body.data[1].simulationDate).toBe('20260310100000');
+    });
+
+    it('should sort by status', async () => {
+        await seedSimulation({ startDate: '2026-03-20T10:00:00.000Z' }); // stays IN_PROGRESS
+        const toFinalize = await seedSimulation({ startDate: '2026-03-21T10:00:00.000Z' });
+        await finalizeSimulation(toFinalize.simulationId).expect(HttpStatus.OK); // → FINALIZED
+
+        const { body } = await listSimulations({ sortBy: 'status', sortOrder: 'ASC' }).expect(HttpStatus.OK);
+
+        // status is a Postgres enum, so ORDER BY uses the enum's DEFINITION order
+        // (…, IN_PROGRESS, FINALIZED, …), not alphabetical order.
+        expect(body.data.map((s: { status: string }) => s.status)).toEqual(['IN_PROGRESS', 'FINALIZED']);
+    });
+
+    it('should accept a lowercase sortOrder (case-insensitive)', async () => {
+        await seedSimulation({ startDate: '2026-03-12T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
+
+        const { body } = await listSimulations({ sortBy: 'simulationDate', sortOrder: 'asc' }).expect(HttpStatus.OK);
+
+        expect(body.data.map((s: { simulationDate: string }) => s.simulationDate)).toEqual([
+            '20260310100000',
+            '20260312100000',
+        ]);
+    });
+
+    it('should reject an invalid sortBy with 400 (whitelist)', async () => {
+        await listSimulations({ sortBy: 'id; DROP TABLE simulations' }).expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject an invalid sortOrder with 400', async () => {
+        await listSimulations({ sortBy: 'createdAt', sortOrder: 'sideways' }).expect(HttpStatus.BAD_REQUEST);
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // GET /simulations — filter by station code (TJ-86)
+    // ─────────────────────────────────────────────────────────────
+
+    it('should filter simulations by station code', async () => {
+        await seedSimulationForStation('E001', '2026-05-02T10:00:00.000Z');
+        await seedSimulationForStation('E002', '2026-05-03T10:00:00.000Z');
+
+        const { body } = await listSimulations({ stationCode: 'E001' }).expect(HttpStatus.OK);
+
+        expect(body.total).toBe(1);
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].simulationDate).toBe('20260502100000');
+    });
+
+    it('should return an empty list when no simulation matches the station code', async () => {
+        await seedSimulationForStation('E001', '2026-05-02T10:00:00.000Z');
+
+        const { body } = await listSimulations({ stationCode: 'E999' }).expect(HttpStatus.OK);
+
+        expect(body.data).toHaveLength(0);
+        expect(body.total).toBe(0);
+    });
+
+    it('should not duplicate a simulation that has several predictions for the same station', async () => {
+        // Two predictions, same station, same simulation (same date/env/modmeteo).
+        await seedSimulationForStation('E001', '2026-05-04T10:00:00.000Z', 'Q.forecast');
+        await seedSimulationForStation('E001', '2026-05-04T10:00:00.000Z', 'Precip.forecast');
+
+        const { body } = await listSimulations({ stationCode: 'E001' }).expect(HttpStatus.OK);
+
+        // EXISTS keeps one row per simulation — no JOIN duplication.
+        expect(body.total).toBe(1);
+        expect(body.data).toHaveLength(1);
+    });
+
+    it('should return every distinct simulation that has a prediction for the station', async () => {
+        await seedSimulationForStation('E001', '2026-05-05T10:00:00.000Z');
+        await seedSimulationForStation('E001', '2026-05-06T10:00:00.000Z');
+        await seedSimulationForStation('E002', '2026-05-07T10:00:00.000Z');
+
+        const { body } = await listSimulations({ stationCode: 'E001' }).expect(HttpStatus.OK);
+
+        // Two separate simulations match E001 → count is 2 (a JOIN would inflate this).
+        expect(body.total).toBe(2);
+        expect(body.data).toHaveLength(2);
+        const dates = body.data.map((s: { simulationDate: string }) => s.simulationDate).sort();
+        expect(dates).toEqual(['20260505100000', '20260506100000']);
+    });
+
+    // ─────────────────────────────────────────────────────────────
     // GET /simulations/:simulationDate
     // ─────────────────────────────────────────────────────────────
 
     it('should get simulation by date', async () => {
-        await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
 
         const { body } = await getSimulationByDate('20260310100000').expect(HttpStatus.OK);
 
@@ -210,7 +349,7 @@ describe('Query Simulations (e2e)', () => {
     // ─────────────────────────────────────────────────────────────
 
     it('should get latest finalized simulation', async () => {
-        const result = await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
+        const result = await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
 
         // Finalize the simulation
         await finalizeSimulation(result.simulationId).expect(HttpStatus.OK);
@@ -222,7 +361,7 @@ describe('Query Simulations (e2e)', () => {
     });
 
     it('should return 404 when no finalized simulation exists', async () => {
-        await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
 
         await getLatestSimulation().expect(HttpStatus.NOT_FOUND);
     });
@@ -232,7 +371,7 @@ describe('Query Simulations (e2e)', () => {
     // ─────────────────────────────────────────────────────────────
 
     it('should get historical simulations', async () => {
-        const result = await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
+        const result = await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
         await finalizeSimulation(result.simulationId).expect(HttpStatus.OK);
 
         const { body } = await getHistoricalSimulations().expect(HttpStatus.OK);
@@ -247,8 +386,8 @@ describe('Query Simulations (e2e)', () => {
     // ─────────────────────────────────────────────────────────────
 
     it('should get available dates', async () => {
-        await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
-        await seedSimulation({ forecastDate: '2026-03-11T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-03-11T10:00:00.000Z' });
 
         const { body } = await getAvailableDates().expect(HttpStatus.OK);
 
@@ -262,7 +401,7 @@ describe('Query Simulations (e2e)', () => {
     // ─────────────────────────────────────────────────────────────
 
     it('should finalize an IN_PROGRESS simulation', async () => {
-        const result = await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
+        const result = await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
 
         const { body } = await finalizeSimulation(result.simulationId).expect(HttpStatus.OK);
 
@@ -271,7 +410,7 @@ describe('Query Simulations (e2e)', () => {
     });
 
     it('should return 409 when finalizing a non-IN_PROGRESS simulation', async () => {
-        const result = await seedSimulation({ forecastDate: '2026-03-10T10:00:00.000Z' });
+        const result = await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
 
         // Finalize first time
         await finalizeSimulation(result.simulationId).expect(HttpStatus.OK);
@@ -292,7 +431,7 @@ describe('Query Simulations (e2e)', () => {
         const cmdData = buildProcessTimeSeriesCommand({
             series: buildTimeSeriesData({
                 parameterId: 'Q.historical',
-                forecastDate: '2026-04-08T00:00:00.000Z',
+                startDate: '2026-04-08T00:00:00.000Z',
             }),
             providerName: 'FlowCast Observados',
         });
@@ -304,7 +443,7 @@ describe('Query Simulations (e2e)', () => {
     });
 
     it('should set dataOrigin=FORECAST when parameterId does not contain .historical', async () => {
-        await seedSimulation({ forecastDate: '2026-03-15T10:00:00.000Z', providerName: 'FEWS' });
+        await seedSimulation({ startDate: '2026-03-15T10:00:00.000Z', providerName: 'FEWS' });
 
         const { body } = await getSimulationByDate('20260315100000').expect(HttpStatus.OK);
 
@@ -316,14 +455,14 @@ describe('Query Simulations (e2e)', () => {
         const historicalCmd = buildProcessTimeSeriesCommand({
             series: buildTimeSeriesData({
                 parameterId: 'Q.historical',
-                forecastDate: '2026-04-10T00:00:00.000Z',
+                startDate: '2026-04-10T00:00:00.000Z',
             }),
             providerName: 'FlowCast Observados',
         });
         await commandBus.execute(new ProcessTimeSeriesCommand(historicalCmd));
 
         // Seed FORECAST
-        await seedSimulation({ forecastDate: '2026-04-11T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-04-11T10:00:00.000Z' });
 
         const { body } = await listSimulations({ dataOrigin: 'HISTORICAL' }).expect(HttpStatus.OK);
 
@@ -336,14 +475,14 @@ describe('Query Simulations (e2e)', () => {
         const historicalCmd = buildProcessTimeSeriesCommand({
             series: buildTimeSeriesData({
                 parameterId: 'Precip.historical',
-                forecastDate: '2026-04-12T00:00:00.000Z',
+                startDate: '2026-04-12T00:00:00.000Z',
             }),
             providerName: 'FlowCast Observados',
         });
         await commandBus.execute(new ProcessTimeSeriesCommand(historicalCmd));
 
         // Seed FORECAST
-        await seedSimulation({ forecastDate: '2026-04-13T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-04-13T10:00:00.000Z' });
 
         const { body } = await listSimulations({ dataOrigin: 'FORECAST' }).expect(HttpStatus.OK);
 
@@ -356,22 +495,22 @@ describe('Query Simulations (e2e)', () => {
         const historicalCmd = buildProcessTimeSeriesCommand({
             series: buildTimeSeriesData({
                 parameterId: 'Q.historical',
-                forecastDate: '2026-04-14T00:00:00.000Z',
+                startDate: '2026-04-14T00:00:00.000Z',
             }),
             providerName: 'FlowCast Observados',
         });
         await commandBus.execute(new ProcessTimeSeriesCommand(historicalCmd));
 
         // Seed FORECAST
-        await seedSimulation({ forecastDate: '2026-04-15T10:00:00.000Z' });
+        await seedSimulation({ startDate: '2026-04-15T10:00:00.000Z' });
 
         const { body: historicalDates } = await getAvailableDates({ dataOrigin: 'HISTORICAL' }).expect(HttpStatus.OK);
         expect(historicalDates.dates).toHaveLength(1);
         expect(historicalDates.dates[0]).toBe('20260414000000');
 
-        const { body: forecastDates } = await getAvailableDates({ dataOrigin: 'FORECAST' }).expect(HttpStatus.OK);
-        expect(forecastDates.dates).toHaveLength(1);
-        expect(forecastDates.dates[0]).toBe('20260415100000');
+        const { body: startDates } = await getAvailableDates({ dataOrigin: 'FORECAST' }).expect(HttpStatus.OK);
+        expect(startDates.dates).toHaveLength(1);
+        expect(startDates.dates[0]).toBe('20260415100000');
 
         const { body: allDates } = await getAvailableDates().expect(HttpStatus.OK);
         expect(allDates.dates).toHaveLength(2);
