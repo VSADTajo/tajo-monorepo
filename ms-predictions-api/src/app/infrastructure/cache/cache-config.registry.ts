@@ -78,7 +78,7 @@ export const ManeuverCacheKeys = {
  * cleared keep serving a stale status. Use this list at every point that
  * mutates simulation status.
  */
-export const SIMULATION_STATE_CACHE_PATTERNS: readonly string[] = [
+export const SIMULATION_STATE_CACHE_PATTERNS: readonly [string, string] = [
     SimulationCacheKeys.pattern(),
     ManualSimulationCacheKeys.pattern(),
 ];
