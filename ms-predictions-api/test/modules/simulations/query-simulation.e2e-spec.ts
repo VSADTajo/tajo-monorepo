@@ -245,6 +245,18 @@ describe('Query Simulations (e2e)', () => {
         expect(body.data[1].simulationDate).toBe('20260310100000');
     });
 
+    it('should sort by status', async () => {
+        await seedSimulation({ startDate: '2026-03-20T10:00:00.000Z' }); // stays IN_PROGRESS
+        const toFinalize = await seedSimulation({ startDate: '2026-03-21T10:00:00.000Z' });
+        await finalizeSimulation(toFinalize.simulationId).expect(HttpStatus.OK); // → FINALIZED
+
+        const { body } = await listSimulations({ sortBy: 'status', sortOrder: 'ASC' }).expect(HttpStatus.OK);
+
+        // status is a Postgres enum, so ORDER BY uses the enum's DEFINITION order
+        // (…, IN_PROGRESS, FINALIZED, …), not alphabetical order.
+        expect(body.data.map((s: { status: string }) => s.status)).toEqual(['IN_PROGRESS', 'FINALIZED']);
+    });
+
     it('should accept a lowercase sortOrder (case-insensitive)', async () => {
         await seedSimulation({ startDate: '2026-03-12T10:00:00.000Z' });
         await seedSimulation({ startDate: '2026-03-10T10:00:00.000Z' });
@@ -299,6 +311,20 @@ describe('Query Simulations (e2e)', () => {
         // EXISTS keeps one row per simulation — no JOIN duplication.
         expect(body.total).toBe(1);
         expect(body.data).toHaveLength(1);
+    });
+
+    it('should return every distinct simulation that has a prediction for the station', async () => {
+        await seedSimulationForStation('E001', '2026-05-05T10:00:00.000Z');
+        await seedSimulationForStation('E001', '2026-05-06T10:00:00.000Z');
+        await seedSimulationForStation('E002', '2026-05-07T10:00:00.000Z');
+
+        const { body } = await listSimulations({ stationCode: 'E001' }).expect(HttpStatus.OK);
+
+        // Two separate simulations match E001 → count is 2 (a JOIN would inflate this).
+        expect(body.total).toBe(2);
+        expect(body.data).toHaveLength(2);
+        const dates = body.data.map((s: { simulationDate: string }) => s.simulationDate).sort();
+        expect(dates).toEqual(['20260505100000', '20260506100000']);
     });
 
     // ─────────────────────────────────────────────────────────────
