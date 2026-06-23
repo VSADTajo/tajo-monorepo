@@ -11,7 +11,7 @@ import { ISimulationSftpService } from '@domain/ports/simulation-sftp.port';
 import { IMessageBroker } from '@domain/ports/message-broker.port';
 import { ICacheService } from '@domain/ports/cache-service.port';
 import { ManualSimulationResult } from '@domain/results/manual-simulation.result';
-import { ManualSimulationCacheKeys } from '@infrastructure/cache/cache-config.registry';
+import { SIMULATION_STATE_CACHE_PATTERNS } from '@infrastructure/cache/cache-config.registry';
 import { Topics } from '@infrastructure/messaging/messaging.registry';
 import { ApiError } from '@domain/errors/api.error';
 
@@ -191,8 +191,10 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             },
         );
 
-        // 6. Invalidate cache
-        await this.cacheService.delByPattern(ManualSimulationCacheKeys.pattern());
+        // 6. Invalidate every simulation cache namespace (general + manual)
+        for (const pattern of SIMULATION_STATE_CACHE_PATTERNS) {
+            await this.cacheService.delByPattern(pattern);
+        }
 
         this.logger.log({
             msg: 'Manual simulation dispatched successfully',

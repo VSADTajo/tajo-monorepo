@@ -3,7 +3,9 @@ import { Ctx, EventPattern, Payload, RmqContext } from '@nestjs/microservices';
 import { Logger } from 'nestjs-pino';
 
 import { Topics } from '@infrastructure/messaging/messaging.registry';
+import { SIMULATION_STATE_CACHE_PATTERNS } from '@infrastructure/cache/cache-config.registry';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
+import { ICacheService } from '@domain/ports/cache-service.port';
 
 interface SimulationStatusUpdatedPayload {
     simulationId: string;
@@ -15,6 +17,7 @@ export class SimulationStatusUpdatedConsumer {
     constructor(
         @Inject(Logger) private readonly logger: Logger,
         private readonly simulationRepository: ISimulationRepository,
+        private readonly cacheService: ICacheService,
     ) {}
 
     @EventPattern(Topics.SIMULATION_EVENTS.routingKeys.STATUS_UPDATED)
@@ -46,6 +49,12 @@ export class SimulationStatusUpdatedConsumer {
             if (data.status === 'MODEL_FAILED') {
                 simulation.fail();
                 await this.simulationRepository.update(simulation);
+
+                // Invalidate every simulation cache namespace (general + manual)
+                // so GET endpoints stop serving the pre-failure status.
+                for (const pattern of SIMULATION_STATE_CACHE_PATTERNS) {
+                    await this.cacheService.delByPattern(pattern);
+                }
 
                 this.logger.log({
                     msg: 'Simulation marked as MODEL_FAILED',
