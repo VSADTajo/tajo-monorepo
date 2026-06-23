@@ -84,6 +84,7 @@ describe('Create Manual Simulation (e2e)', () => {
         await cleanDatabase(dataSource);
         jest.clearAllMocks();
         mockSftpService.uploadInputFile.mockResolvedValue(undefined);
+        mockSftpService.ensureOutputFolder.mockResolvedValue(undefined);
     });
 
     afterAll(async () => {
