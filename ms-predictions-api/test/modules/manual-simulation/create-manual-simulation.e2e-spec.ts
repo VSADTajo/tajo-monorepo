@@ -286,6 +286,17 @@ describe('Create Manual Simulation (e2e)', () => {
             );
         });
 
+        it('should accept a maneuver with only an endDate (the two dates are independent)', async () => {
+            const { body } = await postManeuver({
+                reservoirCode: 'E005',
+                outputFlowValue: 5,
+                endDate: '2026-06-21T00:00:00.000Z',
+            }).expect(HttpStatus.CREATED);
+
+            expect(body.startDate).toBeNull();
+            expect(new Date(body.endDate).toISOString()).toBe('2026-06-21T00:00:00.000Z');
+        });
+
         it('should accept inline maneuvers with dates in the manual simulation POST', async () => {
             const dto = buildCreateManualSimulationDto({
                 maneuverIds: undefined,

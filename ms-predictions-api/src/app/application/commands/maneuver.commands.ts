@@ -108,6 +108,8 @@ export class UpdateManeuverHandler implements ICommandHandler<UpdateManeuverComm
 
         if (command.reservoirCode !== undefined) existing.reservoirCode = command.reservoirCode;
         if (command.outputFlowValue !== undefined) existing.outputFlowValue = command.outputFlowValue;
+        // Omitting a date leaves it unchanged. Clearing a previously-set date back
+        // to null is not supported via PATCH (only setting a new value).
         if (command.startDate !== undefined) existing.startDate = new Date(command.startDate);
         if (command.endDate !== undefined) existing.endDate = new Date(command.endDate);
         existing.validate();
