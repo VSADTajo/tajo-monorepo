@@ -213,6 +213,22 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(payload.simulationId).toBe(body.id);
             expect(payload.outputFolder).toContain(body.id);
         });
+
+        it('should invalidate BOTH simulation cache namespaces on dispatch', async () => {
+            const maneuverIds = await createManeuvers(1);
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
+
+            // Drop the cache calls made while seeding maneuvers; assert only the dispatch.
+            mockCacheService.delByPattern.mockClear();
+
+            await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            // A manual simulation surfaces in both the general and manual GET endpoints,
+            // so dispatch must clear both namespaces.
+            expect(mockCacheService.delByPattern).toHaveBeenCalledWith('simulations:*');
+            expect(mockCacheService.delByPattern).toHaveBeenCalledWith('manual-simulation:*');
+            expect(mockCacheService.delByPattern).toHaveBeenCalledTimes(2);
+        });
     });
 
     // T021: Validation errors

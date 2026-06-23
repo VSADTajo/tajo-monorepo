@@ -6,7 +6,7 @@ import { Simulation, SimulationStatus, SimulationType } from '@domain/entities/s
 import { SimulationDateValueObject } from '@domain/value-objects/simulation-date.value-object';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
 import { ICacheService } from '@domain/ports/cache-service.port';
-import { SimulationCacheKeys } from '@infrastructure/cache/cache-config.registry';
+import { SIMULATION_STATE_CACHE_PATTERNS } from '@infrastructure/cache/cache-config.registry';
 import { ApiError } from '@domain/errors/api.error';
 import { RepositoryError } from '@domain/errors/repository.error';
 import { ProcessTimeSeriesCommand } from '@application/commands/prediction.commands';
@@ -56,8 +56,10 @@ export class FinalizeSimulationHandler implements ICommandHandler<FinalizeSimula
         // 3. Save updated simulation
         const updated = await this.simulationRepository.update(simulation);
 
-        // 4. Invalidate cache
-        await this.cacheService.delByPattern(SimulationCacheKeys.pattern());
+        // 4. Invalidate every simulation cache namespace (general + manual)
+        for (const pattern of SIMULATION_STATE_CACHE_PATTERNS) {
+            await this.cacheService.delByPattern(pattern);
+        }
 
         this.logger.log({ msg: 'Simulation finalized', simulationId: updated.id });
 

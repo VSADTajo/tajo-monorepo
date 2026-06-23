@@ -69,6 +69,20 @@ export const ManeuverCacheKeys = {
     pattern: () => 'maneuver:*',
 };
 
+/**
+ * Cache namespaces that expose a simulation's status.
+ *
+ * A simulation (manual or general) is a single entity served through two
+ * separate cache namespaces. Whenever a simulation changes status, BOTH must
+ * be invalidated — otherwise the GET endpoints in the namespace that was not
+ * cleared keep serving a stale status. Use this list at every point that
+ * mutates simulation status.
+ */
+export const SIMULATION_STATE_CACHE_PATTERNS: readonly [string, string] = [
+    SimulationCacheKeys.pattern(),
+    ManualSimulationCacheKeys.pattern(),
+];
+
 // ─────────────────────────────────────────────────────────────
 // Cache Registry — maps query class names to cache config
 // ─────────────────────────────────────────────────────────────

@@ -5,8 +5,10 @@ import { Logger } from 'nestjs-pino';
 import { TraceContext, extractTraceId } from 'tajo-toolkit';
 
 import { Topics } from '@infrastructure/messaging/messaging.registry';
+import { SIMULATION_STATE_CACHE_PATTERNS } from '@infrastructure/cache/cache-config.registry';
 import { ProcessTimeSeriesCommand, ITimeSeriesData } from '@application/commands/prediction.commands';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
+import { ICacheService } from '@domain/ports/cache-service.port';
 import { SimulationStatus } from '@domain/entities/simulation.entity';
 
 interface TimeSeriesIngestedPayload {
@@ -25,6 +27,7 @@ export class TimeSeriesIngestedConsumer {
         @Inject(Logger) private readonly logger: Logger,
         private readonly commandBus: CommandBus,
         private readonly simulationRepository: ISimulationRepository,
+        private readonly cacheService: ICacheService,
         private readonly traceContext: TraceContext,
     ) {}
 
@@ -62,12 +65,22 @@ export class TimeSeriesIngestedConsumer {
                 }
 
                 // Auto-finalize simulations after all series are processed
+                let anyStatusChanged = false;
                 for (const simId of simulationIds) {
                     const simulation = await this.simulationRepository.findById(simId);
                     if (simulation && simulation.status !== SimulationStatus.FINALIZED) {
                         simulation.finalize();
                         await this.simulationRepository.update(simulation);
+                        anyStatusChanged = true;
                         this.logger.log(`Simulation ${simId} auto-finalized`);
+                    }
+                }
+
+                // Invalidate every simulation cache namespace (general + manual)
+                // so GET endpoints stop serving the pre-finalize status.
+                if (anyStatusChanged) {
+                    for (const pattern of SIMULATION_STATE_CACHE_PATTERNS) {
+                        await this.cacheService.delByPattern(pattern);
                     }
                 }
 

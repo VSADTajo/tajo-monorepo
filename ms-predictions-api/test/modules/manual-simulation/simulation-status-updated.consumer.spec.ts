@@ -1,6 +1,7 @@
 import { Logger } from 'nestjs-pino';
 import { SimulationStatusUpdatedConsumer } from '../../../src/app/application/consumers/simulation-status-updated.consumer';
 import { ISimulationRepository } from '../../../src/app/domain/ports/simulation-repository.port';
+import { ICacheService } from '../../../src/app/domain/ports/cache-service.port';
 import {
     Simulation,
     SimulationStatus,
@@ -11,6 +12,7 @@ import {
 describe('SimulationStatusUpdatedConsumer', () => {
     let consumer: SimulationStatusUpdatedConsumer;
     let simulationRepository: jest.Mocked<ISimulationRepository>;
+    let cacheService: jest.Mocked<ICacheService>;
     let mockLogger: jest.Mocked<Logger>;
 
     const mockChannel = {
@@ -38,6 +40,13 @@ describe('SimulationStatusUpdatedConsumer', () => {
             findManual: jest.fn(),
         } as jest.Mocked<ISimulationRepository>;
 
+        cacheService = {
+            get: jest.fn(),
+            set: jest.fn(),
+            del: jest.fn(),
+            delByPattern: jest.fn().mockResolvedValue(undefined),
+        } as jest.Mocked<ICacheService>;
+
         mockLogger = {
             log: jest.fn(),
             error: jest.fn(),
@@ -45,7 +54,7 @@ describe('SimulationStatusUpdatedConsumer', () => {
             debug: jest.fn(),
         } as unknown as jest.Mocked<Logger>;
 
-        consumer = new SimulationStatusUpdatedConsumer(mockLogger, simulationRepository);
+        consumer = new SimulationStatusUpdatedConsumer(mockLogger, simulationRepository, cacheService);
 
         jest.clearAllMocks();
         mockChannel.ack.mockClear();
@@ -72,6 +81,10 @@ describe('SimulationStatusUpdatedConsumer', () => {
         expect(simulationRepository.findById).toHaveBeenCalledWith(simulationId);
         expect(simulation.status).toBe(SimulationStatus.MODEL_FAILED);
         expect(simulationRepository.update).toHaveBeenCalledWith(simulation);
+        // A status change must invalidate BOTH simulation cache namespaces.
+        expect(cacheService.delByPattern).toHaveBeenCalledWith('simulations:*');
+        expect(cacheService.delByPattern).toHaveBeenCalledWith('manual-simulation:*');
+        expect(cacheService.delByPattern).toHaveBeenCalledTimes(2);
         expect(mockChannel.ack).toHaveBeenCalledTimes(1);
         expect(mockChannel.nack).not.toHaveBeenCalled();
     });
