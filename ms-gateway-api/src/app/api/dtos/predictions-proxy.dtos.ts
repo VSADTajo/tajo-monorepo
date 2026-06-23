@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMinSize, IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, MaxLength } from 'class-validator';
+import { IsArray, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 // ─────────────────────────────────────────────────────────────
 // Shared: SimulationItem
@@ -191,6 +192,18 @@ export class CreatePredictionTypeResponseDto {
 // Manual Simulation
 // ─────────────────────────────────────────────────────────────
 
+export class ManeuverInputDto {
+    @ApiProperty({ description: 'Reservoir SAIH code', example: 'E001' })
+    @IsNotEmpty()
+    @IsString()
+    reservoirCode: string;
+
+    @ApiProperty({ description: 'Output flow value (m³/s)', example: 12.5, minimum: 0 })
+    @IsNumber()
+    @Min(0)
+    outputFlowValue: number;
+}
+
 export class CreateManualSimulationRequestDto {
     @ApiProperty({
         description: 'Optional operator description',
@@ -213,15 +226,28 @@ export class CreateManualSimulationRequestDto {
     modmeteo: 'HARMONIE' | 'EPS' | 'BOTH';
 
     @ApiProperty({
-        description: 'IDs of existing maneuvers to attach to this simulation (created via POST /maneuvers).',
+        description:
+            'IDs of existing reusable maneuvers to attach. Combine with `maneuvers`; at least one maneuver in total is required.',
         type: [String],
+        required: false,
         example: ['7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c'],
-        minItems: 1,
     })
+    @IsOptional()
     @IsArray()
-    @ArrayMinSize(1)
     @IsUUID('all', { each: true })
-    maneuverIds: string[];
+    maneuverIds?: string[];
+
+    @ApiProperty({
+        description:
+            'New maneuvers to create and attach inline. Combine with `maneuverIds`; at least one maneuver in total is required.',
+        type: [ManeuverInputDto],
+        required: false,
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ManeuverInputDto)
+    maneuvers?: ManeuverInputDto[];
 }
 
 export class ManeuverItemDto {
@@ -254,6 +280,8 @@ export class ManualSimulationListItemDto {
     @ApiProperty({ nullable: true, example: 'Sebastián Aliceio' }) createdBy: string | null;
     @ApiProperty({ nullable: true, example: 'BOTH' }) modmeteo: string | null;
     @ApiProperty({ example: 2 }) maneuverCount: number;
+    @ApiProperty({ type: [ManeuverItemDto], description: 'Maneuvers attached to the simulation' })
+    maneuvers: ManeuverItemDto[];
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) createdAt: Date | undefined;
     @ApiProperty({ example: '2026-06-19T12:00:00.000Z' }) updatedAt: Date | undefined;
 }

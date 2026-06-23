@@ -79,6 +79,24 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
             await postManual(body).expect(HttpStatus.CREATED);
             expect(mockProxyService.forward).toHaveBeenCalledTimes(1);
         });
+
+        it('should accept an inline-maneuvers body (no ids) and forward it', async () => {
+            mockProxyService.forward.mockResolvedValue({ status: 201, data: { id: 'sim-uuid' } });
+
+            await postManual({
+                modmeteo: 'HARMONIE',
+                maneuvers: [{ reservoirCode: 'E001', outputFlowValue: 12.5 }],
+            }).expect(HttpStatus.CREATED);
+
+            expect(mockProxyService.forward).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    path: '/simulations/manual',
+                    body: expect.objectContaining({
+                        maneuvers: [{ reservoirCode: 'E001', outputFlowValue: 12.5 }],
+                    }),
+                }),
+            );
+        });
     });
 
     describe('POST /simulations/manual — invalid payloads are rejected BEFORE forwarding', () => {
@@ -87,8 +105,11 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
             expect(mockProxyService.forward).not.toHaveBeenCalled();
         });
 
-        it('should reject an empty maneuverIds array (ArrayMinSize)', async () => {
-            await postManual(buildValidManualBody({ maneuverIds: [] })).expect(HttpStatus.BAD_REQUEST);
+        it('should reject an inline maneuver with a negative outputFlowValue (nested validation)', async () => {
+            await postManual({
+                modmeteo: 'HARMONIE',
+                maneuvers: [{ reservoirCode: 'E001', outputFlowValue: -5 }],
+            }).expect(HttpStatus.BAD_REQUEST);
             expect(mockProxyService.forward).not.toHaveBeenCalled();
         });
 
