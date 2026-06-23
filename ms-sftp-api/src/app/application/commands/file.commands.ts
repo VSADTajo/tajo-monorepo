@@ -11,6 +11,7 @@ import { FilePathValueObject } from '@domain/value-objects/file-path.value-objec
 import { UploadFileResult } from '@domain/results/upload-file.result';
 import { MoveFileResult } from '@domain/results/move-file.result';
 import { DeleteFileResult } from '@domain/results/delete-file.result';
+import { CreateFolderResult } from '@domain/results/create-folder.result';
 import { StorageConfigService } from '@config/storage/storage-config.service';
 
 // Cache
@@ -174,6 +175,50 @@ export class DeleteFileHandler implements ICommandHandler<DeleteFileCommand, Del
 
         this.logger.log({
             msg: 'File deleted',
+            path: command.path,
+            durationMs: Date.now() - startTime,
+        });
+        return result;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// CreateFolder
+// ─────────────────────────────────────────────────────────────
+
+export interface ICreateFolderCommand {
+    path: string;
+}
+
+export class CreateFolderCommand {
+    constructor(private readonly parameters: ICreateFolderCommand) {}
+
+    get path(): string {
+        return this.parameters.path;
+    }
+}
+
+@CommandHandler(CreateFolderCommand)
+export class CreateFolderHandler implements ICommandHandler<CreateFolderCommand, CreateFolderResult> {
+    constructor(
+        @Inject(Logger) private readonly logger: Logger,
+        private readonly fileStorageService: IFileStorageService,
+        private readonly storageConfig: StorageConfigService,
+        private readonly cacheService: ICacheService,
+    ) {}
+
+    async execute(command: CreateFolderCommand): Promise<CreateFolderResult> {
+        const startTime = Date.now();
+        const folder = new FilePathValueObject(command.path, this.storageConfig.basePath);
+        const result = await this.fileStorageService.createFolder(folder.absolutePath);
+
+        // Invalidate the parent directory listing + paths overview caches
+        const parent = path.dirname(command.path);
+        await this.cacheService.del(FileCacheKeys.list(parent));
+        await this.cacheService.del(FileCacheKeys.pathsOverview());
+
+        this.logger.log({
+            msg: 'Folder created',
             path: command.path,
             durationMs: Date.now() - startTime,
         });

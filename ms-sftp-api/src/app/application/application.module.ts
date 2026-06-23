@@ -6,7 +6,7 @@ import { AuthMiddleware } from '@infrastructure/middleware/auth.middleware';
 import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 
 // Command Handlers
-import { UploadFileHandler, MoveFileHandler, DeleteFileHandler } from '@application/commands/file.commands';
+import { UploadFileHandler, MoveFileHandler, DeleteFileHandler, CreateFolderHandler } from '@application/commands/file.commands';
 import {
     SftpDownloadToLocalHandler,
     SftpMoveFileHandler,
@@ -76,6 +76,7 @@ import { ExampleConsumer } from '@application/consumers/example.consumer';
         UploadFileHandler,
         MoveFileHandler,
         DeleteFileHandler,
+        CreateFolderHandler,
         ListFilesHandler,
         DownloadFileHandler,
         ReadFileTextHandler,
