@@ -126,15 +126,30 @@ export class PredictionsProxyController {
     @ApiQuery({ name: 'endDate', required: false, type: String, description: 'End date (YYYYMMDDHHMMSS or ISO)' })
     @ApiQuery({ name: 'modmeteo', required: false, type: String, description: 'Filter by modmeteo' })
     @ApiQuery({ name: 'environment', required: false, type: String, description: 'Filter by environment' })
-    @ApiQuery({ name: 'dataOrigin', required: false, enum: ['HISTORICAL', 'FORECAST'], description: 'Filter by data origin' })
-    @ApiQuery({ name: 'stationCode', required: false, type: String, description: 'Keep only simulations with a prediction for this station code' })
+    @ApiQuery({
+        name: 'dataOrigin',
+        required: false,
+        enum: ['HISTORICAL', 'FORECAST'],
+        description: 'Filter by data origin',
+    })
+    @ApiQuery({
+        name: 'stationCode',
+        required: false,
+        type: String,
+        description: 'Keep only simulations with a prediction for this station code',
+    })
     @ApiQuery({
         name: 'sortBy',
         required: false,
         enum: ['createdAt', 'updatedAt', 'simulationDate', 'status'],
         description: 'Field to sort by (default createdAt)',
     })
-    @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'], description: 'Sort direction (default DESC)' })
+    @ApiQuery({
+        name: 'sortOrder',
+        required: false,
+        enum: ['ASC', 'DESC'],
+        description: 'Sort direction (default DESC)',
+    })
     @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
     @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
     async listSimulations(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {

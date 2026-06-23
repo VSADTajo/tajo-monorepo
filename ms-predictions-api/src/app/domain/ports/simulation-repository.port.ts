@@ -11,7 +11,12 @@ export type SimulationSortBy = 'createdAt' | 'updatedAt' | 'simulationDate' | 's
 export type SortOrder = 'ASC' | 'DESC';
 
 /** Single source of truth for the sortable columns — shared by the DTO whitelist and the repository. */
-export const SIMULATION_SORT_FIELDS: readonly SimulationSortBy[] = ['createdAt', 'updatedAt', 'simulationDate', 'status'];
+export const SIMULATION_SORT_FIELDS: readonly SimulationSortBy[] = [
+    'createdAt',
+    'updatedAt',
+    'simulationDate',
+    'status',
+];
 export const SORT_ORDERS: readonly SortOrder[] = ['ASC', 'DESC'];
 
 export interface SimulationFilters {
