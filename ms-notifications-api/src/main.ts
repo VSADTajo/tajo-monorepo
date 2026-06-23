@@ -9,6 +9,7 @@ import { RabbitmqConfigService } from '@config/rabbitmq/rabbitmq-config.service'
 import { CustomValidationPipe } from './common/pipes/custom-validation.pipe';
 import { HttpExceptionFilter } from './common/exceptions/http.exception';
 import { setupAdminPanel } from './admin';
+import { Queues } from '@infrastructure/messaging/messaging.registry';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -26,14 +27,28 @@ async function bootstrap() {
             transport: Transport.RMQ,
             options: {
                 urls: [rabbitmqConfig.url],
-                queue: 'ms-notifications-api.notification.created',
+                queue: Queues.NOTIFICATION_PROCESSING,
                 queueOptions: { durable: true },
                 prefetchCount: rabbitmqConfig.prefetch,
                 noAck: false,
             },
         });
+
+        app.connectMicroservice<MicroserviceOptions>({
+            transport: Transport.RMQ,
+            options: {
+                urls: [rabbitmqConfig.url],
+                queue: Queues.SIMULATION_STATUS_PROCESSING,
+                queueOptions: { durable: true },
+                prefetchCount: rabbitmqConfig.prefetch,
+                noAck: false,
+            },
+        });
+
         await app.startAllMicroservices();
-        logger.log('RabbitMQ consumer listening on queue: ms-notifications-api.notification.created');
+        logger.log(
+            `RabbitMQ consumers listening on: ${Queues.NOTIFICATION_PROCESSING}, ${Queues.SIMULATION_STATUS_PROCESSING}`,
+        );
     } else {
         logger.log('RabbitMQ is disabled (RABBITMQ_ENABLED=false) — skipping microservice setup');
     }
