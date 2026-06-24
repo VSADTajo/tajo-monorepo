@@ -47,6 +47,12 @@ export abstract class ISimulationRepository {
     abstract findAll(filters: SimulationFilters, page: number, limit: number): Promise<PaginatedResult<Simulation>>;
     abstract findHistorical(page: number, limit: number): Promise<PaginatedResult<Simulation>>;
     abstract update(data: Simulation): Promise<Simulation>;
+    /**
+     * Soft-delete a simulation and the maneuvers exclusively associated with it
+     * (maneuvers still linked to another non-deleted simulation are kept).
+     * Returns the number of maneuvers that were soft-deleted.
+     */
+    abstract softDelete(id: string): Promise<number>;
     abstract findAvailableDates(dataOrigin?: string, predictionTypes?: string[]): Promise<string[]>;
     abstract deleteOlderThan(date: Date): Promise<number>;
     abstract findManual(status?: SimulationStatus, page?: number, limit?: number): Promise<PaginatedResult<Simulation>>;

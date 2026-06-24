@@ -1,4 +1,4 @@
-import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, DeleteDateColumn, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseAuditEntity } from '@app/infrastructure/persistence/base-entity';
 import { IValidable } from '@domain/types/validable.type';
 import { SimulationDateValueObject } from '@domain/value-objects/simulation-date.value-object';
@@ -70,6 +70,9 @@ export class Simulation extends BaseAuditEntity implements IValidable {
 
     @Column('varchar', { length: 20, nullable: true, default: 'FORECAST' })
     dataOrigin: DataOrigin | null;
+
+    @DeleteDateColumn()
+    deletedAt?: Date;
 
     @OneToMany('Prediction', (p: Prediction) => p.simulation)
     predictions: Prediction[];

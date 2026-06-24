@@ -6,7 +6,11 @@ import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 
 // Command Handlers
 import { ProcessTimeSeriesHandler } from '@application/commands/prediction.commands';
-import { FinalizeSimulationHandler, BatchIngestHandler } from '@application/commands/simulation.commands';
+import {
+    FinalizeSimulationHandler,
+    DeleteSimulationHandler,
+    BatchIngestHandler,
+} from '@application/commands/simulation.commands';
 import { CreatePredictionTypeHandler } from '@application/commands/prediction-type.commands';
 import { PurgeOldSimulationsHandler } from '@application/commands/cleanup.commands';
 import { CreateManualSimulationHandler } from '@application/commands/manual-simulation.commands';
@@ -64,6 +68,7 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
     providers: [
         ProcessTimeSeriesHandler,
         FinalizeSimulationHandler,
+        DeleteSimulationHandler,
         CreateManualSimulationHandler,
         CreateManeuverHandler,
         UpdateManeuverHandler,

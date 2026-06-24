@@ -5,11 +5,13 @@ import {
     LatestSimulationResponseDto,
     HistoricalSimulationsResponseDto,
     FinalizeSimulationResponseDto,
+    DeleteSimulationResponseDto,
     SimulationAvailableDatesResponseDto,
     BatchIngestRequestDto,
     BatchIngestResponseDto,
 } from '@api/dtos/simulation.dtos';
 import { BatchIngestCommand, BatchIngestResult } from '@application/commands/simulation.commands';
+import { DeleteSimulationResult } from '@domain/results/delete-simulation.result';
 import { Simulation } from '@domain/entities/simulation.entity';
 import { PaginatedResult } from '@domain/ports/simulation-repository.port';
 
@@ -92,6 +94,16 @@ export class HistoricalSimulationsMapper {
 export class FinalizeSimulationMapper {
     static toResponseDto(entity: Simulation): FinalizeSimulationResponseDto {
         return toSimulationItemDto(entity);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DeleteSimulation
+// ─────────────────────────────────────────────────────────────
+
+export class DeleteSimulationMapper {
+    static toResponseDto(result: DeleteSimulationResult): DeleteSimulationResponseDto {
+        return { id: result.id, deleted: true, deletedManeuvers: result.deletedManeuvers };
     }
 }
 

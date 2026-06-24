@@ -176,6 +176,24 @@ export class HistoricalSimulationsResponseDto {
 export class FinalizeSimulationResponseDto extends SimulationItemDto {}
 
 // ─────────────────────────────────────────────────────────────
+// DeleteSimulation
+// ─────────────────────────────────────────────────────────────
+
+export class DeleteSimulationResponseDto {
+    @ApiProperty({ description: 'Id of the soft-deleted simulation', example: '7c1f8e2a-...' })
+    id: string;
+
+    @ApiProperty({ description: 'Whether the simulation was soft-deleted', example: true })
+    deleted: boolean;
+
+    @ApiProperty({
+        description: 'Number of exclusively-associated maneuvers also soft-deleted (shared ones are kept)',
+        example: 2,
+    })
+    deletedManeuvers: number;
+}
+
+// ─────────────────────────────────────────────────────────────
 // AvailableDates
 // ─────────────────────────────────────────────────────────────
 

@@ -10,6 +10,7 @@ import {
     SIMULATION_SORT_FIELDS,
 } from '@domain/ports/simulation-repository.port';
 import { Simulation, SimulationStatus, SimulationType } from '@domain/entities/simulation.entity';
+import { Maneuver } from '@domain/entities/maneuver.entity';
 import { Prediction } from '@domain/entities/prediction.entity';
 import { RepositoryError } from '@domain/errors/repository.error';
 
@@ -47,6 +48,43 @@ export class SimulationRepository implements ISimulationRepository {
         } catch (error) {
             this.logger.error({ msg: 'Error updating simulation', entity: 'Simulations', error: String(error) });
             throw new RepositoryError('Error updating simulation', error);
+        }
+    }
+
+    async softDelete(id: string): Promise<number> {
+        try {
+            return await this.simulationRepository.manager.transaction(async (manager) => {
+                // Maneuvers exclusive to this simulation: linked to it, and not linked to any
+                // OTHER non-deleted simulation. Shared maneuvers are intentionally kept alive.
+                const exclusive: Array<{ id: string }> = await manager.query(
+                    `SELECT m.id
+                       FROM maneuvers m
+                      WHERE m."deletedAt" IS NULL
+                        AND EXISTS (
+                            SELECT 1 FROM simulation_maneuvers sm
+                             WHERE sm."maneuverId" = m.id AND sm."simulationId" = $1
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1 FROM simulation_maneuvers sm2
+                              JOIN simulations s2 ON s2.id = sm2."simulationId"
+                             WHERE sm2."maneuverId" = m.id
+                               AND sm2."simulationId" <> $1
+                               AND s2."deletedAt" IS NULL
+                        )`,
+                    [id],
+                );
+
+                const maneuverIds = exclusive.map((row) => row.id);
+                if (maneuverIds.length > 0) {
+                    await manager.getRepository(Maneuver).softDelete(maneuverIds);
+                }
+                await manager.getRepository(Simulation).softDelete(id);
+
+                return maneuverIds.length;
+            });
+        } catch (error) {
+            this.logger.error({ msg: 'Error soft-deleting simulation', entity: 'Simulations', error: String(error) });
+            throw new RepositoryError('Error soft-deleting simulation', error);
         }
     }
 
