@@ -1,70 +1,63 @@
-import apiClient from '../../api/api';
+import axios from 'axios';
+import { TOKEN_KEY } from '../../api/auth';
 import type {
-  PaginatedHistoricalSimulationResponse,
-  HistoricalSimulationsParams,
-  PredictionResultResponse,
-  PredictionResultsParams,
-  Station,
-} from '../../types/predictions-data';
+    ForecastResponse,
+    ListPredictionTypesResponse,
+    ListSimulationsResponse,
+    SimulationFilters,
+} from './types';
 
-export async function getHistoricalSimulations(
-  params: HistoricalSimulationsParams
-): Promise<PaginatedHistoricalSimulationResponse> {
-  const search = new URLSearchParams();
-  if (params.page != null) search.set('page', String(params.page));
-  if (params.page_size != null) search.set('page_size', String(params.page_size));
-  if (params.simulation_environment) search.set('simulation_environment', params.simulation_environment);
-  if (params.basin) search.set('basin', params.basin);
-  if (params.created_by) search.set('created_by', params.created_by);
-  if (params.maneuver_created_by) search.set('maneuver_created_by', params.maneuver_created_by);
-  if (params.only_unarchived_maneuvers != null)
-    search.set('only_unarchived_maneuvers', String(params.only_unarchived_maneuvers));
+// All predictions data goes through the API gateway — never hit ms-predictions-api directly.
+const GATEWAY_URL = import.meta.env.VITE_URL_API_GATEWAY || 'http://65.21.97.113';
 
-  const response = await apiClient.get<PaginatedHistoricalSimulationResponse>(
-    `/predictions-data/simulations/historical?${search.toString()}`
-  );
-  return response.data;
+const gatewayClient = axios.create({ baseURL: GATEWAY_URL });
+
+gatewayClient.interceptors.request.use((config) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+});
+
+// ── Prediction types ──────────────────────────────────────────
+
+export async function listPredictionTypes(signal?: AbortSignal): Promise<ListPredictionTypesResponse> {
+    const { data } = await gatewayClient.get('/prediction-types', { signal });
+    return data as ListPredictionTypesResponse;
 }
 
-export async function getPredictionResults(
-  params: PredictionResultsParams
-): Promise<PredictionResultResponse[]> {
-  const search = new URLSearchParams();
-  search.set('start_date', params.start_date);
-  search.set('end_date', params.end_date);
-  if (params.simulation_date) search.set('simulation_date', params.simulation_date);
-  if (params.station_name) search.set('station_name', params.station_name);
-  if (params.sub_basin_name) search.set('sub_basin_name', params.sub_basin_name);
-  if (params.prediction_type) search.set('prediction_type', params.prediction_type);
-  if (params.prediction_provider != null) search.set('prediction_provider', params.prediction_provider);
-  if (params.predicted_by) search.set('predicted_by', params.predicted_by);
-  if (params.percentile != null) search.set('percentile', String(params.percentile));
+// ── Simulations ───────────────────────────────────────────────
 
-  const response = await apiClient.get<PredictionResultResponse[]>(
-    `/predictions-data/prediction-results?${search.toString()}`
-  );
-  return response.data;
+export async function listSimulations(
+    filters: SimulationFilters,
+    signal?: AbortSignal,
+): Promise<ListSimulationsResponse> {
+    const params: Record<string, string | number> = {
+        stationCode: filters.stationCode,
+        page: filters.page ?? 1,
+        limit: filters.limit ?? 20,
+        sortBy: filters.sortBy ?? 'simulationDate',
+        sortOrder: filters.sortOrder ?? 'DESC',
+    };
+    if (filters.status) params.status = filters.status;
+    if (filters.dataOrigin) params.dataOrigin = filters.dataOrigin;
+
+    const { data } = await gatewayClient.get('/simulations', { params, signal });
+    return data as ListSimulationsResponse;
 }
 
-export async function getStations(limit = 1000): Promise<Station[]> {
-  const response = await apiClient.get<Station[]>(
-    `/predictions-data/stations?limit=${limit}`
-  );
-  return Array.isArray(response.data) ? response.data : [];
-}
+// ── Forecast series for a single simulation + prediction type ─
 
-export async function getHistoricalPredictions(
-  subBasinName: string,
-  startDate: string,
-  endDate: string,
-  simulationDate?: string
-): Promise<PredictionResultResponse[]> {
-  const search = new URLSearchParams();
-  search.set('start_date', startDate);
-  search.set('end_date', endDate);
-  if (simulationDate) search.set('simulation_date', simulationDate);
-  const response = await apiClient.get<PredictionResultResponse[]>(
-    `/predictions-data/historical-predictions/${encodeURIComponent(subBasinName)}?${search.toString()}`
-  );
-  return Array.isArray(response.data) ? response.data : [];
+export async function getForecastSeries(
+    args: { stationCode: string; simulationDate: string; predictionType: string },
+    signal?: AbortSignal,
+): Promise<ForecastResponse> {
+    const { data } = await gatewayClient.get('/predictions/forecast', {
+        params: {
+            stationId: args.stationCode,
+            simulationDate: args.simulationDate,
+            predictionType: args.predictionType,
+        },
+        signal,
+    });
+    return data as ForecastResponse;
 }

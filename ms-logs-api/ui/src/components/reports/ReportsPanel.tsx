@@ -3,7 +3,7 @@ import { Download, FilePlus, FileText, Loader2, RefreshCcw, Trash2 } from 'lucid
 import { useEffect, useState } from 'react';
 import type { ExportFile } from '../../types/exports';
 import type { ReportFile } from '../../types/reports';
-import { getHistoricalSimulations } from '../predictions-data/api';
+import { getHistoricalSimulations } from './simulations-legacy-api';
 import { LoadingSpinner } from '../ui';
 import { deleteReport, downloadReport, generateReport, getReports } from './api';
 import { ExportCsvModal } from './ExportCsvModal';
