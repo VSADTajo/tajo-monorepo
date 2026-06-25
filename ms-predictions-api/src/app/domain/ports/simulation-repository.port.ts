@@ -34,6 +34,14 @@ export interface SimulationFilters {
     sortOrder?: SortOrder;
 }
 
+export interface ManualSimulationFilters {
+    status?: SimulationStatus;
+    /** Keep only manual simulations that have at least one prediction for this station code. */
+    stationCode?: string;
+    sortBy?: SimulationSortBy;
+    sortOrder?: SortOrder;
+}
+
 export abstract class ISimulationRepository {
     abstract create(data: Simulation): Promise<Simulation>;
     abstract findById(id: string): Promise<Simulation>;
@@ -49,5 +57,9 @@ export abstract class ISimulationRepository {
     abstract update(data: Simulation): Promise<Simulation>;
     abstract findAvailableDates(dataOrigin?: string, predictionTypes?: string[]): Promise<string[]>;
     abstract deleteOlderThan(date: Date): Promise<number>;
-    abstract findManual(status?: SimulationStatus, page?: number, limit?: number): Promise<PaginatedResult<Simulation>>;
+    abstract findManual(
+        filters: ManualSimulationFilters,
+        page: number,
+        limit: number,
+    ): Promise<PaginatedResult<Simulation>>;
 }
