@@ -1,4 +1,4 @@
-import { Bell, Droplets, FileText, Gauge, LogOut, Shield } from 'lucide-react';
+import { Bell, Droplets, FileText, Gauge, LineChart, LogOut, Shield } from 'lucide-react';
 import { memo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { isAdmin } from '../utils/jwt';
@@ -102,6 +102,20 @@ function Sidebar({ activePanel, onPanelChange }: SidebarProps) {
           >
             <Gauge className="w-5 h-5" />
             <span>Prediction Types</span>
+          </button>
+        )}
+
+        {isAdmin() && (
+          <button
+            onClick={() => onPanelChange('predictions-data')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+              activePanel === 'predictions-data'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/50'
+                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+            }`}
+          >
+            <LineChart className="w-5 h-5" />
+            <span>Predicciones</span>
           </button>
         )}
 

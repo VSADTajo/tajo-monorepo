@@ -61,9 +61,9 @@ export const PredictionCacheKeys = {
 
 export const ManualSimulationCacheKeys = {
     byId: (id: string) => `manual-simulation:${id}`,
-    // v3: list items now carry the full maneuvers[] array per simulation.
-    // The version segment invalidates entries cached under any older shape.
-    list: (params: string) => `manual-simulation:list:v3:${params}`,
+    // v4: list now accepts stationCode/sortBy/sortOrder; bumping the version segment
+    // forces any entry cached under the older v3 shape to be ignored.
+    list: (params: string) => `manual-simulation:list:v4:${params}`,
     pattern: () => 'manual-simulation:*',
 };
 
@@ -174,7 +174,16 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         {
             ttl: 60,
             key: (q: ListManualSimulationsQuery) =>
-                ManualSimulationCacheKeys.list(JSON.stringify({ status: q.status, p: q.page, l: q.limit })),
+                ManualSimulationCacheKeys.list(
+                    JSON.stringify({
+                        status: q.status,
+                        stationCode: q.stationCode,
+                        sortBy: q.sortBy,
+                        sortOrder: q.sortOrder,
+                        p: q.page,
+                        l: q.limit,
+                    }),
+                ),
         },
     ],
     [

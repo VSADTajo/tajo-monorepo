@@ -12,10 +12,11 @@ import Dashboard from './components/dashboard';
 // import InputDataPanel from './components/input-data/InputDataPanel';
 // import { IOHistoryPanel } from './components/io-history';
 import Login from './components/Login';
-// import { PredictionsDataPanel } from './components/predictions-data';
+import { PredictionsDataPanel } from './components/predictions-data';
 // import { ReportsPanel } from './components/reports';
 import Sidebar from './components/Sidebar';
 import { useAuth } from './contexts/AuthContext';
+import { isAdmin } from './utils/jwt';
 
 function App() {
   const location = useLocation();
@@ -66,8 +67,8 @@ function App() {
       //   return <InputDataPanel />;
       // case 'io-history':
       //   return <IOHistoryPanel />;
-      // case 'predictions-data':
-      //   return <PredictionsDataPanel />;
+      case 'predictions-data':
+        return isAdmin() ? <PredictionsDataPanel /> : <Dashboard />;
       // case 'reports':
       //   return <ReportsPanel />;
       // case 'balancer':

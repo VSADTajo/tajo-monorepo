@@ -204,7 +204,7 @@ export class PredictionsProxyController {
 
     @Get('simulations/manual')
     @ApiEndpoint({
-        summary: 'List manual simulations with their status and maneuver count',
+        summary: 'List manual simulations with their status, maneuver count, station-code filter and sorting',
         response: {
             status: 200,
             type: ListManualSimulationsResponseDto,
@@ -212,6 +212,24 @@ export class PredictionsProxyController {
         },
     })
     @ApiQuery({ name: 'status', required: false, description: 'Filter by SimulationStatus (e.g. MODEL_PROCESSING)' })
+    @ApiQuery({
+        name: 'stationCode',
+        required: false,
+        type: String,
+        description: 'Keep only manual simulations with a prediction for this station code',
+    })
+    @ApiQuery({
+        name: 'sortBy',
+        required: false,
+        enum: ['createdAt', 'updatedAt', 'simulationDate', 'status'],
+        description: 'Field to sort by (default createdAt)',
+    })
+    @ApiQuery({
+        name: 'sortOrder',
+        required: false,
+        enum: ['ASC', 'DESC'],
+        description: 'Sort direction (default DESC)',
+    })
     @ApiQuery({ name: 'page', required: false, type: Number })
     @ApiQuery({ name: 'limit', required: false, type: Number })
     async listManualSimulations(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {

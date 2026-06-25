@@ -332,19 +332,32 @@ export class ManeuverInputDto {
     @Min(0)
     outputFlowValue: number;
 
-    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Optional maneuver start date (ISO 8601)',
+        required: false,
+        example: '2026-06-20T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     startDate?: string;
 
-    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Optional maneuver end date (ISO 8601)',
+        required: false,
+        example: '2026-06-21T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     endDate?: string;
 }
 
 export class CreateManualSimulationRequestDto {
-    @ApiProperty({ description: 'Optional description', required: false, maxLength: 500, example: 'Operación de control Tranco' })
+    @ApiProperty({
+        description: 'Optional description',
+        required: false,
+        maxLength: 500,
+        example: 'Operación de control Tranco',
+    })
     @IsOptional()
     @IsString()
     @MaxLength(500)
@@ -428,6 +441,36 @@ export class ListManualSimulationsQueryDto {
     @IsOptional()
     @IsEnum(SimulationStatus)
     status?: SimulationStatus;
+
+    @ApiProperty({
+        description: 'Keep only manual simulations with at least one prediction for this station code',
+        required: false,
+        example: 'E001',
+    })
+    @IsOptional()
+    @IsString()
+    stationCode?: string;
+
+    @ApiProperty({
+        description: 'Field to sort by',
+        required: false,
+        enum: SIMULATION_SORT_FIELDS,
+        default: 'createdAt',
+    })
+    @IsOptional()
+    @IsIn(SIMULATION_SORT_FIELDS)
+    sortBy?: SimulationSortBy;
+
+    @ApiProperty({
+        description: 'Sort direction (case-insensitive)',
+        required: false,
+        enum: SORT_ORDERS,
+        default: 'DESC',
+    })
+    @IsOptional()
+    @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
+    @IsIn(SORT_ORDERS)
+    sortOrder?: SortOrder;
 
     @ApiProperty({ description: 'Page number', required: false, default: 1 })
     @IsOptional()

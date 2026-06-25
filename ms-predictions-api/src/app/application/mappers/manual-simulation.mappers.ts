@@ -115,6 +115,9 @@ export class ListManualSimulationsMapper {
     static toQuery(dto: ListManualSimulationsQueryDto): ListManualSimulationsQuery {
         return new ListManualSimulationsQuery({
             status: dto.status,
+            stationCode: dto.stationCode,
+            sortBy: dto.sortBy,
+            sortOrder: dto.sortOrder,
             page: dto.page ?? 1,
             limit: dto.limit ?? 20,
         });
