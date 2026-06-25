@@ -6,7 +6,12 @@ import { Simulation, SimulationStatus, SimulationType } from '@domain/entities/s
 import { SimulationDateValueObject } from '@domain/value-objects/simulation-date.value-object';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
 import { ICacheService } from '@domain/ports/cache-service.port';
-import { SIMULATION_STATE_CACHE_PATTERNS, ManeuverCacheKeys } from '@infrastructure/cache/cache-config.registry';
+import {
+    SIMULATION_STATE_CACHE_PATTERNS,
+    ManeuverCacheKeys,
+    PredictionTypeCacheKeys,
+    PredictionCacheKeys,
+} from '@infrastructure/cache/cache-config.registry';
 import { ApiError } from '@domain/errors/api.error';
 import { RepositoryError } from '@domain/errors/repository.error';
 import { DeleteSimulationResult } from '@domain/results/delete-simulation.result';
@@ -109,11 +114,16 @@ export class DeleteSimulationHandler implements ICommandHandler<DeleteSimulation
         // 2. Soft-delete the simulation + its exclusively-associated maneuvers
         const deletedManeuvers = await this.simulationRepository.softDelete(command.id);
 
-        // 3. Invalidate every simulation + maneuver cache namespace
+        // 3. Invalidate every read-model that depends on the deleted simulation:
+        //    simulation + maneuver namespaces, plus prediction and prediction-type
+        //    namespaces (e.g. prediction-types by-station no longer reflects this
+        //    simulation's types once it is gone).
         for (const pattern of SIMULATION_STATE_CACHE_PATTERNS) {
             await this.cacheService.delByPattern(pattern);
         }
         await this.cacheService.delByPattern(ManeuverCacheKeys.pattern());
+        await this.cacheService.delByPattern(PredictionCacheKeys.pattern());
+        await this.cacheService.delByPattern(PredictionTypeCacheKeys.pattern());
 
         this.logger.log({ msg: 'Simulation soft-deleted', simulationId: command.id, deletedManeuvers });
 
