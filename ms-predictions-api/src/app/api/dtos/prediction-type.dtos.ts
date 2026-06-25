@@ -29,6 +29,21 @@ export class ListPredictionTypesResponseDto {
 }
 
 // ─────────────────────────────────────────────────────────────
+// ListStationPredictionTypes
+// ─────────────────────────────────────────────────────────────
+
+export class StationPredictionTypesResponseDto {
+    @ApiProperty({ description: 'Station code the prediction types belong to', example: 'A001' })
+    stationCode: string;
+
+    @ApiProperty({
+        description: 'Prediction types that have data (results) for this station',
+        type: [PredictionTypeItemDto],
+    })
+    predictionTypes: PredictionTypeItemDto[];
+}
+
+// ─────────────────────────────────────────────────────────────
 // CreatePredictionType
 // ─────────────────────────────────────────────────────────────
 

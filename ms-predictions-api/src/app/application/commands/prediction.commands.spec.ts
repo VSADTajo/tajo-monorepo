@@ -62,6 +62,7 @@ describe('ProcessTimeSeriesHandler — simulationId direct lookup', () => {
             findAll: jest.fn(),
             findHistorical: jest.fn(),
             update: jest.fn(),
+            softDelete: jest.fn(),
             findAvailableDates: jest.fn(),
             deleteOlderThan: jest.fn(),
             findManual: jest.fn(),

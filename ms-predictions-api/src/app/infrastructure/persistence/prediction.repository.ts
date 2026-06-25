@@ -10,6 +10,7 @@ import {
     MaxAndLatestFilters,
     MaxAndLatestValueItem,
     SimulationDateSummaryItem,
+    StationPredictionTypeItem,
 } from '@domain/ports/prediction-repository.port';
 import { Prediction } from '@domain/entities/prediction.entity';
 import { IHistoricalTimelinePoint } from '@domain/results/historical-predictions.result';
@@ -328,6 +329,35 @@ export class PredictionRepository implements IPredictionRepository {
                 error: String(error),
             });
             throw new RepositoryError('Error finding simulation dates by station', error);
+        }
+    }
+
+    async findTypesWithDataByStation(stationId: string): Promise<StationPredictionTypeItem[]> {
+        try {
+            const rows: Array<{ id: string; name: string; unit: string }> =
+                await this.predictionRepository.manager.query(
+                    `
+                    SELECT DISTINCT pt.id AS "id", pt.name AS "name", pt.unit AS "unit"
+                    FROM prediction_types pt
+                    INNER JOIN predictions p        ON p."predictionTypeId" = pt.id
+                    INNER JOIN prediction_results pr ON pr."predictionId"     = p.id
+                    INNER JOIN simulations s         ON s.id                  = p."simulationId"
+                    WHERE p."stationId" = $1
+                      AND s.status      = 'FINALIZED'
+                      AND s."deletedAt" IS NULL
+                    ORDER BY pt.name ASC
+                    `,
+                    [stationId],
+                );
+
+            return rows.map((r) => ({ id: r.id, name: r.name, unit: r.unit }));
+        } catch (error) {
+            this.logger.error({
+                msg: 'Error finding prediction types with data by station',
+                entity: 'Predictions',
+                error: String(error),
+            });
+            throw new RepositoryError('Error finding prediction types with data by station', error);
         }
     }
 

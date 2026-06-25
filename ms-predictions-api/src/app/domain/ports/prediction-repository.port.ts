@@ -41,6 +41,12 @@ export interface SimulationDateSummaryItem {
     totalResults: number;
 }
 
+export interface StationPredictionTypeItem {
+    id: string;
+    name: string;
+    unit: string;
+}
+
 export abstract class IPredictionRepository {
     abstract create(data: Prediction): Promise<Prediction>;
     abstract findById(id: string): Promise<Prediction>;
@@ -53,6 +59,7 @@ export abstract class IPredictionRepository {
         stationId: string,
         predictionTypes?: string[],
     ): Promise<SimulationDateSummaryItem[]>;
+    abstract findTypesWithDataByStation(stationId: string): Promise<StationPredictionTypeItem[]>;
     abstract findByUniqueConstraint(
         simulationId: string,
         stationId: string,

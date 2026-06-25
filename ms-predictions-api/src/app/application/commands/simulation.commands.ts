@@ -6,9 +6,15 @@ import { Simulation, SimulationStatus, SimulationType } from '@domain/entities/s
 import { SimulationDateValueObject } from '@domain/value-objects/simulation-date.value-object';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
 import { ICacheService } from '@domain/ports/cache-service.port';
-import { SIMULATION_STATE_CACHE_PATTERNS } from '@infrastructure/cache/cache-config.registry';
+import {
+    SIMULATION_STATE_CACHE_PATTERNS,
+    ManeuverCacheKeys,
+    PredictionTypeCacheKeys,
+    PredictionCacheKeys,
+} from '@infrastructure/cache/cache-config.registry';
 import { ApiError } from '@domain/errors/api.error';
 import { RepositoryError } from '@domain/errors/repository.error';
+import { DeleteSimulationResult } from '@domain/results/delete-simulation.result';
 import { ProcessTimeSeriesCommand } from '@application/commands/prediction.commands';
 
 // ─────────────────────────────────────────────────────────────
@@ -64,6 +70,64 @@ export class FinalizeSimulationHandler implements ICommandHandler<FinalizeSimula
         this.logger.log({ msg: 'Simulation finalized', simulationId: updated.id });
 
         return updated;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DeleteSimulation
+// ─────────────────────────────────────────────────────────────
+
+export interface IDeleteSimulationCommand {
+    id: string;
+}
+
+export class DeleteSimulationCommand {
+    constructor(private readonly parameters: IDeleteSimulationCommand) {}
+
+    get id(): string {
+        return this.parameters.id;
+    }
+}
+
+@CommandHandler(DeleteSimulationCommand)
+export class DeleteSimulationHandler implements ICommandHandler<DeleteSimulationCommand, DeleteSimulationResult> {
+    constructor(
+        @Inject(Logger)
+        private readonly logger: Logger,
+        private readonly simulationRepository: ISimulationRepository,
+        private readonly cacheService: ICacheService,
+    ) {}
+
+    async execute(command: DeleteSimulationCommand): Promise<DeleteSimulationResult> {
+        this.logger.log(`Deleting simulation: ${command.id}`);
+
+        // 1. Ensure the simulation exists (findById excludes soft-deleted rows → 404 if already gone)
+        try {
+            await this.simulationRepository.findById(command.id);
+        } catch (error) {
+            if (error instanceof RepositoryError) {
+                throw new ApiError(HttpStatus.NOT_FOUND, `Simulation with id "${command.id}" not found`);
+            }
+            throw error;
+        }
+
+        // 2. Soft-delete the simulation + its exclusively-associated maneuvers
+        const deletedManeuvers = await this.simulationRepository.softDelete(command.id);
+
+        // 3. Invalidate every read-model that depends on the deleted simulation:
+        //    simulation + maneuver namespaces, plus prediction and prediction-type
+        //    namespaces (e.g. prediction-types by-station no longer reflects this
+        //    simulation's types once it is gone).
+        for (const pattern of SIMULATION_STATE_CACHE_PATTERNS) {
+            await this.cacheService.delByPattern(pattern);
+        }
+        await this.cacheService.delByPattern(ManeuverCacheKeys.pattern());
+        await this.cacheService.delByPattern(PredictionCacheKeys.pattern());
+        await this.cacheService.delByPattern(PredictionTypeCacheKeys.pattern());
+
+        this.logger.log({ msg: 'Simulation soft-deleted', simulationId: command.id, deletedManeuvers });
+
+        return new DeleteSimulationResult({ id: command.id, deletedManeuvers });
     }
 }
 

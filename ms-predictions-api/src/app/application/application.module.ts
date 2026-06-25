@@ -6,7 +6,11 @@ import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 
 // Command Handlers
 import { ProcessTimeSeriesHandler } from '@application/commands/prediction.commands';
-import { FinalizeSimulationHandler, BatchIngestHandler } from '@application/commands/simulation.commands';
+import {
+    FinalizeSimulationHandler,
+    DeleteSimulationHandler,
+    BatchIngestHandler,
+} from '@application/commands/simulation.commands';
 import { CreatePredictionTypeHandler } from '@application/commands/prediction-type.commands';
 import { PurgeOldSimulationsHandler } from '@application/commands/cleanup.commands';
 import { CreateManualSimulationHandler } from '@application/commands/manual-simulation.commands';
@@ -34,7 +38,10 @@ import {
     GetMaxAndLatestValuesHandler,
     GetSimulationDatesByStationHandler,
 } from '@application/queries/prediction.queries';
-import { ListPredictionTypesHandler } from '@application/queries/prediction-type.queries';
+import {
+    ListPredictionTypesHandler,
+    ListStationPredictionTypesHandler,
+} from '@application/queries/prediction-type.queries';
 import {
     GetManualSimulationByIdHandler,
     ListManualSimulationsHandler,
@@ -64,6 +71,7 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
     providers: [
         ProcessTimeSeriesHandler,
         FinalizeSimulationHandler,
+        DeleteSimulationHandler,
         CreateManualSimulationHandler,
         CreateManeuverHandler,
         UpdateManeuverHandler,
@@ -84,6 +92,7 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
         ListManualSimulationsHandler,
         BatchIngestHandler,
         ListPredictionTypesHandler,
+        ListStationPredictionTypesHandler,
         CreatePredictionTypeHandler,
         PurgeOldSimulationsHandler,
         CleanupScheduler,

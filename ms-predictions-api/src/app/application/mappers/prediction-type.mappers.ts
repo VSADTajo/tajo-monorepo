@@ -2,10 +2,18 @@ import {
     CreatePredictionTypeRequestDto,
     CreatePredictionTypeResponseDto,
     ListPredictionTypesResponseDto,
+    StationPredictionTypesResponseDto,
 } from '@api/dtos/prediction-type.dtos';
 import { CreatePredictionTypeCommand } from '@application/commands/prediction-type.commands';
-import { ListPredictionTypesQuery } from '@application/queries/prediction-type.queries';
-import { ListPredictionTypesResult, PredictionTypeResult } from '@domain/results/prediction-type.result';
+import {
+    ListPredictionTypesQuery,
+    ListStationPredictionTypesQuery,
+} from '@application/queries/prediction-type.queries';
+import {
+    ListPredictionTypesResult,
+    PredictionTypeResult,
+    StationPredictionTypesResult,
+} from '@domain/results/prediction-type.result';
 
 // ─────────────────────────────────────────────────────────────
 // ListPredictionTypes
@@ -18,6 +26,27 @@ export class ListPredictionTypesMapper {
 
     static toResponseDto(result: ListPredictionTypesResult): ListPredictionTypesResponseDto {
         return {
+            predictionTypes: result.predictionTypes.map((pt) => ({
+                id: pt.id,
+                name: pt.name,
+                unit: pt.unit,
+            })),
+        };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ListStationPredictionTypes
+// ─────────────────────────────────────────────────────────────
+
+export class ListStationPredictionTypesMapper {
+    static toQuery(stationCode: string): ListStationPredictionTypesQuery {
+        return new ListStationPredictionTypesQuery(stationCode);
+    }
+
+    static toResponseDto(result: StationPredictionTypesResult): StationPredictionTypesResponseDto {
+        return {
+            stationCode: result.stationCode,
             predictionTypes: result.predictionTypes.map((pt) => ({
                 id: pt.id,
                 name: pt.name,

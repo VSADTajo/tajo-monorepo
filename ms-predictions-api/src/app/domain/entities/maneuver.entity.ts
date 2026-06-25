@@ -1,4 +1,4 @@
-import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, DeleteDateColumn, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseAuditEntity } from '@app/infrastructure/persistence/base-entity';
 import { IValidable } from '@domain/types/validable.type';
 import { EntityError } from '@domain/errors/entity.error';
@@ -25,6 +25,9 @@ export class Maneuver extends BaseAuditEntity implements IValidable {
 
     @Column('timestamp', { nullable: true })
     endDate: Date | null;
+
+    @DeleteDateColumn()
+    deletedAt?: Date;
 
     @ManyToMany('Simulation', (s: Simulation) => s.maneuvers)
     simulations: Simulation[];

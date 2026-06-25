@@ -12,7 +12,10 @@ import {
     GetForecastPredictionsQuery,
     GetMaxAndLatestValuesQuery,
 } from '@app/application/queries/prediction.queries';
-import { ListPredictionTypesQuery } from '@app/application/queries/prediction-type.queries';
+import {
+    ListPredictionTypesQuery,
+    ListStationPredictionTypesQuery,
+} from '@app/application/queries/prediction-type.queries';
 import {
     GetManualSimulationByIdQuery,
     ListManualSimulationsQuery,
@@ -43,6 +46,7 @@ export const SimulationCacheKeys = {
 
 export const PredictionTypeCacheKeys = {
     list: () => 'prediction-types:list',
+    byStation: (stationCode: string) => `prediction-types:by-station:${stationCode}`,
     pattern: () => 'prediction-types:*',
 };
 
@@ -126,6 +130,10 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         },
     ],
     [ListPredictionTypesQuery.name, { ttl: 300, key: () => PredictionTypeCacheKeys.list() }],
+    [
+        ListStationPredictionTypesQuery.name,
+        { ttl: 300, key: (q: ListStationPredictionTypesQuery) => PredictionTypeCacheKeys.byStation(q.stationCode) },
+    ],
     [
         GetHistoricalPredictionsQuery.name,
         {

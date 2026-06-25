@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Inject, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Inject, Param, Post } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiTags } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -9,14 +9,20 @@ import {
     CreatePredictionTypeRequestDto,
     CreatePredictionTypeResponseDto,
     ListPredictionTypesResponseDto,
+    StationPredictionTypesResponseDto,
 } from '@api/dtos/prediction-type.dtos';
 
 // Mappers
-import { ListPredictionTypesMapper, CreatePredictionTypeMapper } from '@application/mappers/prediction-type.mappers';
+import {
+    ListPredictionTypesMapper,
+    CreatePredictionTypeMapper,
+    ListStationPredictionTypesMapper,
+} from '@application/mappers/prediction-type.mappers';
 
 // Results
 import { ListPredictionTypesResult } from '@domain/results/prediction-type.result';
 import { PredictionTypeResult } from '@domain/results/prediction-type.result';
+import { StationPredictionTypesResult } from '@domain/results/prediction-type.result';
 
 // Errors
 import { EntityError } from '@domain/errors/entity.error';
@@ -48,6 +54,30 @@ export class PredictionTypeController {
                 throw new HttpException(error.message, error.statusCode);
             }
             this.logger.error(`Error listing prediction types: ${error}`);
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get('by-station/:stationCode')
+    @ApiEndpoint({
+        summary: 'List prediction types that have data for a station',
+        response: {
+            status: 200,
+            type: StationPredictionTypesResponseDto,
+            description: 'Prediction types with data (results) for the given station code',
+        },
+    })
+    async listByStation(@Param('stationCode') stationCode: string): Promise<StationPredictionTypesResponseDto> {
+        this.logger.log(`List prediction types with data for station: ${stationCode}`);
+        try {
+            const query = ListStationPredictionTypesMapper.toQuery(stationCode);
+            const result = await this.cachingQueryBus.execute<StationPredictionTypesResult>(query);
+            return ListStationPredictionTypesMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error(`Error listing prediction types by station: ${error}`);
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

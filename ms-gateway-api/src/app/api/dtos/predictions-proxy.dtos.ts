@@ -1,5 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, MaxLength, ValidateNested } from 'class-validator';
+import {
+    IsArray,
+    IsDateString,
+    IsIn,
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    IsUUID,
+    Min,
+    MaxLength,
+    ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 // ─────────────────────────────────────────────────────────────
@@ -39,6 +51,18 @@ export class GetSimulationByDateResponseDto extends SimulationItemDto {}
 // ─────────────────────────────────────────────────────────────
 
 export class FinalizeSimulationResponseDto extends SimulationItemDto {}
+
+// ─────────────────────────────────────────────────────────────
+// DeleteSimulation
+// ─────────────────────────────────────────────────────────────
+
+export class DeleteSimulationGwResponseDto {
+    @ApiProperty({ description: 'ID of the deleted simulation', example: '62246c7f-1e77-4806-ba4a-27206d19b69d' })
+    id: string;
+
+    @ApiProperty({ description: 'Number of exclusive maneuvers removed alongside the simulation', example: 2 })
+    deletedManeuvers: number;
+}
 
 // ─────────────────────────────────────────────────────────────
 // SimulationAvailableDates
@@ -186,6 +210,21 @@ export class ListPredictionTypesResponseDto {
 }
 
 // ─────────────────────────────────────────────────────────────
+// StationPredictionTypes
+// ─────────────────────────────────────────────────────────────
+
+export class StationPredictionTypesResponseDto {
+    @ApiProperty({ description: 'Station code the prediction types belong to', example: 'A001' })
+    stationCode: string;
+
+    @ApiProperty({
+        description: 'Prediction types that have data (results) for this station',
+        type: [PredictionTypeItemDto],
+    })
+    predictionTypes: PredictionTypeItemDto[];
+}
+
+// ─────────────────────────────────────────────────────────────
 // CreatePredictionType
 // ─────────────────────────────────────────────────────────────
 
@@ -210,12 +249,20 @@ export class ManeuverInputDto {
     @Min(0)
     outputFlowValue: number;
 
-    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Optional maneuver start date (ISO 8601)',
+        required: false,
+        example: '2026-06-20T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     startDate?: string;
 
-    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Optional maneuver end date (ISO 8601)',
+        required: false,
+        example: '2026-06-21T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     endDate?: string;
@@ -327,12 +374,20 @@ export class CreateManeuverGwRequestDto {
     @Min(0)
     outputFlowValue: number;
 
-    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Optional maneuver start date (ISO 8601)',
+        required: false,
+        example: '2026-06-20T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     startDate?: string;
 
-    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Optional maneuver end date (ISO 8601)',
+        required: false,
+        example: '2026-06-21T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     endDate?: string;
@@ -351,12 +406,22 @@ export class UpdateManeuverGwRequestDto {
     @Min(0)
     outputFlowValue?: number;
 
-    @ApiProperty({ description: 'Maneuver start date (ISO 8601). Send null to clear it.', required: false, nullable: true, example: '2026-06-20T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Maneuver start date (ISO 8601). Send null to clear it.',
+        required: false,
+        nullable: true,
+        example: '2026-06-20T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     startDate?: string | null;
 
-    @ApiProperty({ description: 'Maneuver end date (ISO 8601). Send null to clear it.', required: false, nullable: true, example: '2026-06-21T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Maneuver end date (ISO 8601). Send null to clear it.',
+        required: false,
+        nullable: true,
+        example: '2026-06-21T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     endDate?: string | null;

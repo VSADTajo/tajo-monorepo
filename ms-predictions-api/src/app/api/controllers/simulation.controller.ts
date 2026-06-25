@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     HttpException,
     HttpStatus,
@@ -25,6 +26,7 @@ import {
     HistoricalSimulationsQueryDto,
     HistoricalSimulationsResponseDto,
     FinalizeSimulationResponseDto,
+    DeleteSimulationResponseDto,
     AvailableDatesQueryDto,
     SimulationAvailableDatesResponseDto,
     BatchIngestRequestDto,
@@ -43,6 +45,7 @@ import {
     LatestSimulationMapper,
     HistoricalSimulationsMapper,
     FinalizeSimulationMapper,
+    DeleteSimulationMapper,
     AvailableDatesMapper,
     BatchIngestMapper,
 } from '@application/mappers/simulation.mappers';
@@ -61,7 +64,7 @@ import {
     GetAvailableDatesQuery,
 } from '@application/queries/simulation.queries';
 // Commands
-import { FinalizeSimulationCommand } from '@application/commands/simulation.commands';
+import { FinalizeSimulationCommand, DeleteSimulationCommand } from '@application/commands/simulation.commands';
 import { CreateManualSimulationCommand } from '@application/commands/manual-simulation.commands';
 
 // Domain
@@ -350,6 +353,34 @@ export class SimulationController {
                 throw new HttpException(error.message, error.statusCode);
             }
             this.logger.error({ msg: 'Finalize simulation error', entity: 'Simulations', error: String(error) });
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Delete(':id')
+    @ApiEndpoint({
+        summary: 'Soft-delete a simulation and its exclusively-associated maneuvers',
+        response: {
+            status: 200,
+            type: DeleteSimulationResponseDto,
+            description: 'Simulation soft-deleted',
+        },
+        errors: [{ status: 404, description: 'Simulation not found' }],
+    })
+    async deleteSimulation(@Param('id') id: string): Promise<DeleteSimulationResponseDto> {
+        this.logger.log(`Delete simulation request: ${id}`);
+        try {
+            const command = new DeleteSimulationCommand({ id });
+            const result = await this.commandBus.execute(command);
+            return DeleteSimulationMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof EntityError) {
+                throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+            }
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error({ msg: 'Delete simulation error', entity: 'Simulations', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
