@@ -3,6 +3,7 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Logger } from 'nestjs-pino';
 
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
+import type { SimulationSortBy, SortOrder } from '@domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '@domain/ports/maneuver-repository.port';
 import { SimulationType, SimulationStatus } from '@domain/entities/simulation.entity';
 import {
@@ -65,6 +66,9 @@ export class GetManualSimulationByIdHandler implements IQueryHandler<
 
 export interface IListManualSimulationsQuery {
     status?: SimulationStatus;
+    stationCode?: string;
+    sortBy?: SimulationSortBy;
+    sortOrder?: SortOrder;
     page: number;
     limit: number;
 }
@@ -74,6 +78,18 @@ export class ListManualSimulationsQuery {
 
     get status(): SimulationStatus | undefined {
         return this.parameters.status;
+    }
+
+    get stationCode(): string | undefined {
+        return this.parameters.stationCode;
+    }
+
+    get sortBy(): SimulationSortBy | undefined {
+        return this.parameters.sortBy;
+    }
+
+    get sortOrder(): SortOrder | undefined {
+        return this.parameters.sortOrder;
     }
 
     get page(): number {
@@ -99,7 +115,16 @@ export class ListManualSimulationsHandler implements IQueryHandler<
     async execute(query: ListManualSimulationsQuery): Promise<PaginatedManualSimulationResult> {
         this.logger.debug('Listing manual simulations');
 
-        const paginatedSimulations = await this.simulationRepository.findManual(query.status, query.page, query.limit);
+        const paginatedSimulations = await this.simulationRepository.findManual(
+            {
+                status: query.status,
+                stationCode: query.stationCode,
+                sortBy: query.sortBy,
+                sortOrder: query.sortOrder,
+            },
+            query.page,
+            query.limit,
+        );
 
         const simulationIds = paginatedSimulations.data.map((simulation) => simulation.id);
         const maneuversBySimulationId = await this.maneuverRepository.findBySimulationIds(simulationIds);

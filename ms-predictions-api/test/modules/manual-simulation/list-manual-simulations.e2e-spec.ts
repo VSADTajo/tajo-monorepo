@@ -106,8 +106,12 @@ describe('List Manual Simulations (e2e)', () => {
     }
 
     it('should list only MANUAL simulations', async () => {
-        const dto1 = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
-        const dto2 = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
+        const dto1 = buildCreateManualSimulationDto({
+            maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id],
+        });
+        const dto2 = buildCreateManualSimulationDto({
+            maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id],
+        });
 
         await createManualSimulation(dto1).expect(HttpStatus.CREATED);
         await createManualSimulation(dto2).expect(HttpStatus.CREATED);
@@ -122,7 +126,9 @@ describe('List Manual Simulations (e2e)', () => {
     });
 
     it('should filter by status', async () => {
-        const dto = buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] });
+        const dto = buildCreateManualSimulationDto({
+            maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id],
+        });
         await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
         // MODEL_PROCESSING simulations (the default after SFTP upload)
@@ -148,7 +154,10 @@ describe('List Manual Simulations (e2e)', () => {
     });
 
     it('should return the correct maneuverCount per simulation via a single aggregate (bug B)', async () => {
-        const twoManeuverIds = [(await createManeuver().expect(HttpStatus.CREATED)).body.id, (await createManeuver().expect(HttpStatus.CREATED)).body.id];
+        const twoManeuverIds = [
+            (await createManeuver().expect(HttpStatus.CREATED)).body.id,
+            (await createManeuver().expect(HttpStatus.CREATED)).body.id,
+        ];
         const oneManeuverId = [(await createManeuver().expect(HttpStatus.CREATED)).body.id];
 
         await createManualSimulation(buildCreateManualSimulationDto({ maneuverIds: twoManeuverIds })).expect(
@@ -197,13 +206,19 @@ describe('List Manual Simulations (e2e)', () => {
 
     it('should support pagination', async () => {
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
+            buildCreateManualSimulationDto({
+                maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id],
+            }),
         ).expect(HttpStatus.CREATED);
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
+            buildCreateManualSimulationDto({
+                maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id],
+            }),
         ).expect(HttpStatus.CREATED);
         await createManualSimulation(
-            buildCreateManualSimulationDto({ maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id] }),
+            buildCreateManualSimulationDto({
+                maneuverIds: [(await createManeuver().expect(HttpStatus.CREATED)).body.id],
+            }),
         ).expect(HttpStatus.CREATED);
 
         const { body } = await listManualSimulations({ page: 1, limit: 2 }).expect(HttpStatus.OK);
@@ -212,5 +227,146 @@ describe('List Manual Simulations (e2e)', () => {
         expect(body.total).toBe(3);
         expect(body.page).toBe(1);
         expect(body.limit).toBe(2);
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // GET /simulations/manual — sort + station filter
+    // ─────────────────────────────────────────────────────────────
+
+    // Manual sims auto-generate simulationDate (YYYYMMDDHHMMSS) at create time, so we
+    // overwrite it directly in the DB to get deterministic, non-tied values for sort tests.
+    async function setSimulationDate(simulationId: string, simulationDate: string): Promise<void> {
+        await dataSource.getRepository(Simulation).update({ id: simulationId }, { simulationDate });
+    }
+
+    // Seed a prediction tied to a manual simulation so the EXISTS subquery in stationCode
+    // filter has something to match. We bypass the ProcessTimeSeries pipeline (which would
+    // create its own AUTOMATIC simulation) and write directly via TypeORM — setup only,
+    // never used in assertions.
+    async function seedPredictionForSimulation(simulationId: string, stationCode: string): Promise<void> {
+        const ptRepo = dataSource.getRepository(PredictionType);
+        let predictionType = await ptRepo.findOne({ where: { name: 'Q.test' } });
+        if (!predictionType) {
+            predictionType = await ptRepo.save({ name: 'Q.test', unit: 'm3/s' });
+        }
+        await dataSource.getRepository(Prediction).save({
+            simulationId,
+            predictionTypeId: predictionType.id,
+            stationId: stationCode,
+        });
+    }
+
+    async function createManualSim(): Promise<{ id: string }> {
+        const maneuverId = (await createManeuver().expect(HttpStatus.CREATED)).body.id;
+        const { body } = await createManualSimulation(
+            buildCreateManualSimulationDto({ maneuverIds: [maneuverId] }),
+        ).expect(HttpStatus.CREATED);
+        return body;
+    }
+
+    it('should sort by simulationDate ascending', async () => {
+        const a = await createManualSim();
+        const b = await createManualSim();
+        const c = await createManualSim();
+        await setSimulationDate(a.id, '20260312100000');
+        await setSimulationDate(b.id, '20260310100000');
+        await setSimulationDate(c.id, '20260311100000');
+
+        const { body } = await listManualSimulations({ sortBy: 'simulationDate', sortOrder: 'ASC' }).expect(
+            HttpStatus.OK,
+        );
+
+        expect(body.data.map((s: { simulationDate: string }) => s.simulationDate)).toEqual([
+            '20260310100000',
+            '20260311100000',
+            '20260312100000',
+        ]);
+    });
+
+    it('should sort by simulationDate descending', async () => {
+        const a = await createManualSim();
+        const b = await createManualSim();
+        const c = await createManualSim();
+        await setSimulationDate(a.id, '20260312100000');
+        await setSimulationDate(b.id, '20260310100000');
+        await setSimulationDate(c.id, '20260311100000');
+
+        const { body } = await listManualSimulations({ sortBy: 'simulationDate', sortOrder: 'DESC' }).expect(
+            HttpStatus.OK,
+        );
+
+        expect(body.data.map((s: { simulationDate: string }) => s.simulationDate)).toEqual([
+            '20260312100000',
+            '20260311100000',
+            '20260310100000',
+        ]);
+    });
+
+    it('should default to createdAt DESC when no sort is given (newest first)', async () => {
+        const first = await createManualSim();
+        const second = await createManualSim();
+
+        const { body } = await listManualSimulations().expect(HttpStatus.OK);
+
+        expect(body.data.map((s: { id: string }) => s.id)).toEqual([second.id, first.id]);
+    });
+
+    it('should accept a lowercase sortOrder (case-insensitive)', async () => {
+        const a = await createManualSim();
+        const b = await createManualSim();
+        await setSimulationDate(a.id, '20260312100000');
+        await setSimulationDate(b.id, '20260310100000');
+
+        const { body } = await listManualSimulations({ sortBy: 'simulationDate', sortOrder: 'asc' }).expect(
+            HttpStatus.OK,
+        );
+
+        expect(body.data.map((s: { simulationDate: string }) => s.simulationDate)).toEqual([
+            '20260310100000',
+            '20260312100000',
+        ]);
+    });
+
+    it('should reject an invalid sortBy with 400 (whitelist)', async () => {
+        await listManualSimulations({ sortBy: 'id; DROP TABLE simulations' }).expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject an invalid sortOrder with 400', async () => {
+        await listManualSimulations({ sortBy: 'createdAt', sortOrder: 'sideways' }).expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should filter manual simulations by station code', async () => {
+        const withStation = await createManualSim();
+        const other = await createManualSim();
+        await seedPredictionForSimulation(withStation.id, 'E001');
+        await seedPredictionForSimulation(other.id, 'E002');
+
+        const { body } = await listManualSimulations({ stationCode: 'E001' }).expect(HttpStatus.OK);
+
+        expect(body.total).toBe(1);
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].id).toBe(withStation.id);
+    });
+
+    it('should return an empty list when no manual simulation matches the station code', async () => {
+        const sim = await createManualSim();
+        await seedPredictionForSimulation(sim.id, 'E001');
+
+        const { body } = await listManualSimulations({ stationCode: 'E999' }).expect(HttpStatus.OK);
+
+        expect(body.data).toHaveLength(0);
+        expect(body.total).toBe(0);
+    });
+
+    it('should not duplicate a manual simulation that has several predictions for the same station', async () => {
+        // EXISTS keeps one row per simulation even when multiple predictions match.
+        const sim = await createManualSim();
+        await seedPredictionForSimulation(sim.id, 'E001');
+        await seedPredictionForSimulation(sim.id, 'E001');
+
+        const { body } = await listManualSimulations({ stationCode: 'E001' }).expect(HttpStatus.OK);
+
+        expect(body.total).toBe(1);
+        expect(body.data).toHaveLength(1);
     });
 });
