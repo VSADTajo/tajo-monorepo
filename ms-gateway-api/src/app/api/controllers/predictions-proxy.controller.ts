@@ -17,7 +17,9 @@ import {
     HistoricalPredictionsResponseDto,
     ForecastPredictionsResponseDto,
     ListPredictionTypesResponseDto,
+    StationPredictionTypesResponseDto,
     CreatePredictionTypeResponseDto,
+    DeleteSimulationGwResponseDto,
     CreateManualSimulationRequestDto,
     CreateManualSimulationResponseDto,
     GetManualSimulationByIdResponseDto,
@@ -302,6 +304,32 @@ export class PredictionsProxyController {
         res.status(result.status).json(result.data);
     }
 
+    @Delete('simulations/:id')
+    @ApiEndpoint({
+        summary: 'Delete a simulation (soft delete + removes its exclusive maneuvers)',
+        response: {
+            status: 200,
+            type: DeleteSimulationGwResponseDto,
+            description: 'Simulation deleted',
+        },
+        errors: [{ status: 404, description: 'Simulation not found' }],
+    })
+    async deleteSimulation(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'DELETE',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/simulations/${id}`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Predictions
     // ─────────────────────────────────────────────────────────────
@@ -508,6 +536,31 @@ export class PredictionsProxyController {
             method: 'GET',
             baseUrl: this.servicesConfig.predictionsApiUrl,
             path: '/prediction-types',
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('prediction-types/by-station/:stationCode')
+    @ApiEndpoint({
+        summary: 'List prediction types that have data for a station',
+        response: {
+            status: 200,
+            type: StationPredictionTypesResponseDto,
+            description: 'Prediction types with data (results) for the given station code',
+        },
+    })
+    async listPredictionTypesByStation(
+        @Param('stationCode') stationCode: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/prediction-types/by-station/${stationCode}`,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,

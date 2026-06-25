@@ -38,7 +38,10 @@ import {
     GetMaxAndLatestValuesHandler,
     GetSimulationDatesByStationHandler,
 } from '@application/queries/prediction.queries';
-import { ListPredictionTypesHandler } from '@application/queries/prediction-type.queries';
+import {
+    ListPredictionTypesHandler,
+    ListStationPredictionTypesHandler,
+} from '@application/queries/prediction-type.queries';
 import {
     GetManualSimulationByIdHandler,
     ListManualSimulationsHandler,
@@ -89,6 +92,7 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
         ListManualSimulationsHandler,
         BatchIngestHandler,
         ListPredictionTypesHandler,
+        ListStationPredictionTypesHandler,
         CreatePredictionTypeHandler,
         PurgeOldSimulationsHandler,
         CleanupScheduler,

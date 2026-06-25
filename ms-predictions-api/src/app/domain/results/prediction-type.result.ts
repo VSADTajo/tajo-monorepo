@@ -23,3 +23,13 @@ export class ListPredictionTypesResult {
         this.predictionTypes = predictionTypes;
     }
 }
+
+export class StationPredictionTypesResult {
+    readonly stationCode: string;
+    readonly predictionTypes: IPredictionTypeResult[];
+
+    constructor(parameters: { stationCode: string; predictionTypes: IPredictionTypeResult[] }) {
+        this.stationCode = parameters.stationCode;
+        this.predictionTypes = parameters.predictionTypes;
+    }
+}
