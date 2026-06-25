@@ -6,6 +6,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AdministrationPanel } from './components/administration';
 import { AlertsPanel } from './components/alerts';
 import { HydroPanel } from './components/hydro';
+import { PredictionTypesPanel } from './components/prediction-types';
 import Dashboard from './components/dashboard';
 // import ForecastPanel from './components/forecasts/ForecastPanel';
 // import InputDataPanel from './components/input-data/InputDataPanel';
@@ -21,7 +22,7 @@ function App() {
   const { isAuthenticated, isLoading } = useAuth();
   const isLoginPage = location.pathname === '/login';
 
-  const [activePanel, setActivePanel] = useState<'logs' | 'forecasts' | 'input-data' | 'io-history' | 'balancer' | 'predictions-data' | 'reports' | 'administration' | 'hydro' | 'alerts'>('logs');
+  const [activePanel, setActivePanel] = useState<'logs' | 'forecasts' | 'input-data' | 'io-history' | 'balancer' | 'predictions-data' | 'reports' | 'administration' | 'hydro' | 'alerts' | 'prediction-types'>('logs');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   if (isLoginPage) {
@@ -57,6 +58,8 @@ function App() {
         return <AdministrationPanel />;
       case 'hydro':
         return <HydroPanel />;
+      case 'prediction-types':
+        return <PredictionTypesPanel />;
       // case 'forecasts':
       //   return <ForecastPanel />;
       // case 'input-data':
