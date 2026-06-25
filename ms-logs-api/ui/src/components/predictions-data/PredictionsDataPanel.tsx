@@ -1,562 +1,240 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Bot, ChevronDown, Hand, Search } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { HistoricalSimulation } from '../../types/predictions-data';
-import { LoadingSpinner } from '../ui';
-import PredictionResultsTable from './PredictionResultsTable';
-import {
-  getHistoricalPredictions,
-  getHistoricalSimulations,
-  getPredictionResults,
-  getStations,
-} from './api';
+import { ChevronLeft, ChevronRight, LineChart, Search } from 'lucide-react';
+import SearchableSelect from '../hydro/SearchableSelect';
+import { listStations } from '../hydro/api';
+import { listSimulations } from './api';
+import { formatSimDate } from './format';
+import SimulationSeriesModal from './SimulationSeriesModal';
+import type { DataOrigin, SimulationItem } from './types';
 
-const DROPDOWN_LIST_MAX_HEIGHT = 280;
+const PAGE_SIZE = 20;
 
-function isManualSim(sim: { simulation_environment?: string }): boolean {
-  return sim.simulation_environment === 'HEC_HMS_MANUAL';
-}
-
-function defaultDateRange(): { start: string; end: string } {
-  const end = new Date();
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
-  return {
-    start: start.toISOString().slice(0, 19),
-    end: end.toISOString().slice(0, 19),
-  };
-}
-
-export type ResultType = 'historical' | 'wrf' | 'ecmwf';
-
-const PERCENTILE_OPTIONS: { value: number | null; label: string }[] = [
-  { value: null, label: 'Determinista' },
-  { value: 10, label: '10' },
-  { value: 25, label: '25' },
-  { value: 50, label: '50' },
-  { value: 75, label: '75' },
-  { value: 90, label: '90' },
+const ORIGIN_OPTIONS: { value: '' | DataOrigin; label: string }[] = [
+    { value: '', label: 'Todos los origenes' },
+    { value: 'FORECAST', label: 'Forecast' },
+    { value: 'HISTORICAL', label: 'Historical' },
 ];
 
+function statusBadgeClass(status: string): string {
+    const normalized = status.toUpperCase();
+    if (normalized.includes('FINAL') || normalized.includes('COMPLET') || normalized.includes('SUCCESS'))
+        return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+    if (normalized.includes('FAIL') || normalized.includes('ERROR'))
+        return 'bg-red-500/15 text-red-300 border-red-500/30';
+    if (normalized.includes('PEND') || normalized.includes('PROCESS') || normalized.includes('RUN'))
+        return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+    return 'bg-slate-600/20 text-slate-300 border-slate-600/40';
+}
+
 export default function PredictionsDataPanel() {
-  const defaultRange = useMemo(() => defaultDateRange(), []);
-  const [resultType, setResultType] = useState<ResultType>('wrf');
-  const [ecmwfPercentile, setEcmwfPercentile] = useState<number | null>(null);
-  const [startDate, setStartDate] = useState(defaultRange.start);
-  const [endDate, setEndDate] = useState(defaultRange.end);
-  const [selectedSimulationDate, setSelectedSimulationDate] = useState<string>('');
-  const [selectedSubBasin, setSelectedSubBasin] = useState<string>('');
-  const [simDropdownOpen, setSimDropdownOpen] = useState(false);
-  const [stationDropdownOpen, setStationDropdownOpen] = useState(false);
-  const [stationSearch, setStationSearch] = useState('');
-  const [percentileDropdownOpen, setPercentileDropdownOpen] = useState(false);
-  const simDropdownRef = useRef<HTMLDivElement>(null);
-  const stationDropdownRef = useRef<HTMLDivElement>(null);
-  const percentileDropdownRef = useRef<HTMLDivElement>(null);
-  const stationSearchInputRef = useRef<HTMLInputElement>(null);
+    const [stationCode, setStationCode] = useState('');
+    const [dataOrigin, setDataOrigin] = useState<'' | DataOrigin>('FORECAST');
+    const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const [selectedSim, setSelectedSim] = useState<SimulationItem | null>(null);
 
-  useEffect(() => {
-    const onOutside = (e: MouseEvent) => {
-      if (simDropdownRef.current && !simDropdownRef.current.contains(e.target as Node))
-        setSimDropdownOpen(false);
-    };
-    if (simDropdownOpen) {
-      document.addEventListener('mousedown', onOutside);
-      return () => document.removeEventListener('mousedown', onOutside);
+    // Station selector — reuse the hydro stations endpoint (gateway → ms-hydro-api).
+    const { data: stationsData } = useQuery({
+        queryKey: ['stations'],
+        queryFn: () => listStations(),
+        staleTime: 5 * 60 * 1000,
+    });
+    const stations = stationsData?.items ?? [];
+    const stationOptions = stations.map((st) => ({ value: st.stationCode, label: `${st.name} (${st.stationCode})` }));
+    const selectedStationName = stations.find((st) => st.stationCode === stationCode)?.name ?? stationCode;
+
+    // Simulations for the selected station.
+    const { data, isLoading, isError, isFetching } = useQuery({
+        queryKey: ['simulations', stationCode, dataOrigin, page],
+        queryFn: ({ signal }) =>
+            listSimulations(
+                {
+                    stationCode,
+                    dataOrigin: dataOrigin || undefined,
+                    page,
+                    limit: PAGE_SIZE,
+                    sortBy: 'simulationDate',
+                    sortOrder: 'DESC',
+                },
+                signal,
+            ),
+        enabled: !!stationCode,
+        staleTime: 60 * 1000,
+    });
+
+    const total = data?.total ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    // Client-side quick filter over the loaded page (date or status text).
+    const rows = useMemo(() => {
+        const items = data?.data ?? [];
+        if (!search) return items;
+        const needle = search.toLowerCase();
+        return items.filter(
+            (sim) =>
+                sim.simulationDate.toLowerCase().includes(needle) ||
+                sim.status.toLowerCase().includes(needle),
+        );
+    }, [data, search]);
+
+    function selectStation(code: string) {
+        setStationCode(code);
+        setPage(1);
     }
-  }, [simDropdownOpen]);
 
-  useEffect(() => {
-    const onOutside = (e: MouseEvent) => {
-      if (stationDropdownRef.current && !stationDropdownRef.current.contains(e.target as Node))
-        setStationDropdownOpen(false);
-    };
-    if (stationDropdownOpen) {
-      document.addEventListener('mousedown', onOutside);
-      return () => document.removeEventListener('mousedown', onOutside);
+    function selectOrigin(value: string) {
+        setDataOrigin(value as '' | DataOrigin);
+        setPage(1);
     }
-  }, [stationDropdownOpen]);
 
-  useEffect(() => {
-    const onOutside = (e: MouseEvent) => {
-      if (percentileDropdownRef.current && !percentileDropdownRef.current.contains(e.target as Node))
-        setPercentileDropdownOpen(false);
-    };
-    if (percentileDropdownOpen) {
-      document.addEventListener('mousedown', onOutside);
-      return () => document.removeEventListener('mousedown', onOutside);
-    }
-  }, [percentileDropdownOpen]);
-
-  useEffect(() => {
-    if (stationDropdownOpen) {
-      setStationSearch('');
-      const t = requestAnimationFrame(() => stationSearchInputRef.current?.focus());
-      return () => cancelAnimationFrame(t);
-    }
-  }, [stationDropdownOpen]);
-
-  const { data: simsData, isLoading: loadingSims } = useQuery({
-    queryKey: ['predictions-data-simulations', 1, 24],
-    queryFn: () => getHistoricalSimulations({ page: 1, page_size: 24 }),
-    refetchInterval: 60000,
-  });
-
-  const simulations = simsData?.simulations ?? [];
-  const latestSimulationDate = simulations[0]?.simulation_date ?? '';
-
-  const { data: stationsRaw = [], isLoading: loadingStations } = useQuery({
-    queryKey: ['predictions-data-stations'],
-    queryFn: () => getStations(1000),
-    refetchInterval: 60000,
-  });
-
-  const stations = useMemo(() => {
-    const list = stationsRaw.filter(
-      (s) => s.sub_basin_name != null && String(s.sub_basin_name).trim() !== ''
-    );
-    list.sort((a, b) =>
-      String(a.sub_basin_name).localeCompare(String(b.sub_basin_name), undefined, { sensitivity: 'base' })
-    );
-    return list;
-  }, [stationsRaw]);
-
-  const firstSubBasin = stations[0]?.sub_basin_name ?? '';
-  const effectiveSimulation = selectedSimulationDate || latestSimulationDate;
-  const effectiveSubBasin = selectedSubBasin || firstSubBasin;
-
-  const filteredStations = useMemo(() => {
-    if (!stationSearch.trim()) return stations;
-    const q = stationSearch.trim().toLowerCase();
-    return stations.filter(
-      (s) =>
-        String(s.sub_basin_name).toLowerCase().includes(q) ||
-        String(s.name ?? '').toLowerCase().includes(q)
-    );
-  }, [stations, stationSearch]);
-
-  const selectedSim = simulations.find((s) => s.simulation_date === effectiveSimulation);
-  const selectedSimLabel = selectedSim
-    ? `${selectedSim.formatted_date ?? selectedSim.simulation_date}${selectedSim.status ? ` (${selectedSim.status})` : ''}`
-    : effectiveSimulation || 'Select simulation...';
-  const selectedStation = stations.find((s) => s.sub_basin_name === effectiveSubBasin);
-  const selectedStationLabel = selectedStation
-    ? `${selectedStation.sub_basin_name}${selectedStation.name ? ` — ${selectedStation.name}` : ''}`
-    : effectiveSubBasin || 'Select station...';
-
-  const canFetch =
-    !!effectiveSimulation && !!effectiveSubBasin && !!startDate && !!endDate;
-
-  const { data: wrfResults = [], isLoading: loadingWrf } = useQuery({
-    queryKey: [
-      'predictions-data-wrf',
-      startDate,
-      endDate,
-      effectiveSubBasin,
-      effectiveSimulation,
-    ],
-    queryFn: () =>
-      getPredictionResults({
-        prediction_type: 'Discharge_forecast',
-        start_date: startDate,
-        end_date: endDate,
-        sub_basin_name: effectiveSubBasin,
-        prediction_provider: 'WRF',
-        simulation_date: effectiveSimulation,
-      }),
-    enabled: canFetch && resultType === 'wrf',
-  });
-
-  const { data: ecmwfResults = [], isLoading: loadingEcmwf } = useQuery({
-    queryKey: [
-      'predictions-data-ecmwf',
-      startDate,
-      endDate,
-      effectiveSubBasin,
-      effectiveSimulation,
-      ecmwfPercentile,
-    ],
-    queryFn: () =>
-      getPredictionResults({
-        prediction_type: 'Discharge_forecast',
-        start_date: startDate,
-        end_date: endDate,
-        sub_basin_name: effectiveSubBasin,
-        prediction_provider: 'ECMWF',
-        simulation_date: effectiveSimulation,
-        ...(ecmwfPercentile != null && { percentile: ecmwfPercentile }),
-      }),
-    enabled: canFetch && resultType === 'ecmwf',
-  });
-
-  const { data: historicalResults = [], isLoading: loadingHistorical } = useQuery({
-    queryKey: [
-      'predictions-data-historical',
-      startDate,
-      endDate,
-      effectiveSubBasin,
-      effectiveSimulation,
-    ],
-    queryFn: () =>
-      getHistoricalPredictions(
-        effectiveSubBasin,
-        startDate,
-        endDate,
-        effectiveSimulation
-      ),
-    enabled: canFetch && resultType === 'historical',
-  });
-
-  if (loadingSims && simulations.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <LoadingSpinner message="Loading simulations..." size="lg" />
-      </div>
-    );
-  }
-
-  if (loadingStations && stations.length === 0) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <LoadingSpinner message="Loading stations..." size="lg" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 pointer-events-none" />
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent pointer-events-none" />
-
-      <div className="relative z-10 p-6">
-        <div className="max-w-[1600px] mx-auto space-y-6">
-          <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-500/20">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Model Results</h1>
-                <p className="text-slate-400 text-sm">
-                  Discharge forecast by simulation, station and date range
-                </p>
-              </div>
-            </div>
-          </header>
-
-          {/* Result type tabs – como Model Files */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setResultType('historical')}
-              className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                resultType === 'historical'
-                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/30'
-                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-white'
-              }`}
-            >
-              Historical
-            </button>
-            <button
-              type="button"
-              onClick={() => setResultType('wrf')}
-              className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                resultType === 'wrf'
-                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30'
-                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-white'
-              }`}
-            >
-              WRF
-            </button>
-            <button
-              type="button"
-              onClick={() => setResultType('ecmwf')}
-              className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                resultType === 'ecmwf'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                  : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-white'
-              }`}
-            >
-              ECMWF
-            </button>
-          </div>
-
-          <div
-            className={`bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 ${simDropdownOpen || stationDropdownOpen || percentileDropdownOpen ? 'relative z-[100]' : ''}`}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-              {/* Simulation – mismo estilo que Device (dropdown con botón + chevron) */}
-              <div ref={simDropdownRef} className="relative">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Simulation
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setSimDropdownOpen((o) => !o)}
-                  className="w-full flex items-center gap-2 pl-3 pr-10 py-2.5 min-h-[42px] bg-slate-900/50 border border-slate-700/50 rounded-lg text-left text-slate-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 hover:border-slate-600/50 transition-colors"
-                >
-                  <span className="flex-1 min-w-0 flex items-center gap-2">
-                    {selectedSim && (
-                      <>
-                        {isManualSim(selectedSim) ? (
-                          <Hand className="w-4 h-4 text-amber-400 shrink-0" aria-label="Manual" />
-                        ) : (
-                          <Bot className="w-4 h-4 text-emerald-400 shrink-0" aria-label="Automatic" />
-                        )}
-                        <span className="truncate">{selectedSimLabel}</span>
-                        <span className="text-xs text-slate-500 shrink-0">
-                          {isManualSim(selectedSim) ? 'Manual' : 'Automatic'}
-                        </span>
-                      </>
-                    )}
-                    {!selectedSim && effectiveSimulation && (
-                      <span className="truncate">{selectedSimLabel}</span>
-                    )}
-                    {!selectedSim && !effectiveSimulation && (
-                      <span className="truncate">Select simulation...</span>
-                    )}
-                  </span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${simDropdownOpen ? 'rotate-180' : ''}`}
-                  />
-                </button>
-                {simDropdownOpen && (
-                  <div
-                    className="absolute z-50 mt-1 w-full rounded-lg border border-slate-700/50 bg-slate-800 shadow-xl overflow-hidden"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <ul
-                      className="overflow-y-auto py-1"
-                      style={{ maxHeight: DROPDOWN_LIST_MAX_HEIGHT }}
-                    >
-                      {simulations.length === 0 ? (
-                        <li className="px-3 py-2 text-sm text-slate-500">No simulations</li>
-                      ) : (
-                        simulations.map((sim: HistoricalSimulation) => (
-                          <li key={sim.simulation_date}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSimulationDate(sim.simulation_date);
-                                setSimDropdownOpen(false);
-                              }}
-                              className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors flex items-center gap-2 ${
-                                sim.simulation_date === effectiveSimulation
-                                  ? 'bg-amber-500/20 text-amber-200'
-                                  : 'text-slate-200'
-                              }`}
-                            >
-                              {isManualSim(sim) ? (
-                                <Hand className="w-4 h-4 text-amber-400 shrink-0" aria-label="Manual" />
-                              ) : (
-                                <Bot className="w-4 h-4 text-emerald-400 shrink-0" aria-label="Automatic" />
-                              )}
-                              <span className="flex-1 min-w-0">
-                                {sim.formatted_date ?? sim.simulation_date}
-                                {sim.status ? ` (${sim.status})` : ''}
-                              </span>
-                              <span className="text-xs text-slate-500 shrink-0">
-                                {isManualSim(sim) ? 'Manual' : 'Automatic'}
-                              </span>
-                            </button>
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-              {/* Station – mismo estilo que Device con buscador */}
-              <div ref={stationDropdownRef} className="relative">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Station (sub_basin_name)
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setStationDropdownOpen((o) => !o)}
-                  className="w-full flex items-center gap-2 pl-3 pr-10 py-2.5 min-h-[42px] bg-slate-900/50 border border-slate-700/50 rounded-lg text-left text-slate-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 hover:border-slate-600/50 transition-colors"
-                >
-                  <span className="flex-1 truncate">
-                    {selectedStationLabel}
-                  </span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${stationDropdownOpen ? 'rotate-180' : ''}`}
-                  />
-                </button>
-                {stationDropdownOpen && (
-                  <div
-                    className="absolute z-50 mt-1 w-full rounded-lg border border-slate-700/50 bg-slate-800 shadow-xl overflow-hidden"
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    <div className="p-2 border-b border-slate-700/50 bg-slate-800/80">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
-                        <input
-                          ref={stationSearchInputRef}
-                          type="text"
-                          placeholder="Buscar estación..."
-                          value={stationSearch}
-                          onChange={(e) => setStationSearch(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') setStationDropdownOpen(false);
-                          }}
-                          className="w-full pl-8 pr-3 py-2 bg-slate-900/70 border border-slate-600/50 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 text-sm"
-                        />
-                      </div>
+        <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="border-b border-slate-700/50 bg-slate-900 px-6 py-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30">
+                        <LineChart className="w-5 h-5 text-indigo-400" />
                     </div>
-                    <ul
-                      className="overflow-y-auto py-1"
-                      style={{ maxHeight: DROPDOWN_LIST_MAX_HEIGHT }}
-                    >
-                      {filteredStations.length === 0 ? (
-                        <li className="px-3 py-2 text-sm text-slate-500">No hay estaciones</li>
-                      ) : (
-                        filteredStations.map((st) => (
-                          <li key={String(st.sub_basin_name)}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSubBasin(String(st.sub_basin_name));
-                                setStationDropdownOpen(false);
-                                setStationSearch('');
-                              }}
-                              className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors ${
-                                st.sub_basin_name === effectiveSubBasin
-                                  ? 'bg-amber-500/20 text-amber-200'
-                                  : 'text-slate-200'
-                              }`}
-                            >
-                              {st.sub_basin_name}
-                              {st.name ? ` — ${st.name}` : ''}
-                            </button>
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-              {/* Percentile – mismo estilo que Simulation/Station, solo cuando ECMWF */}
-              {resultType === 'ecmwf' && (
-                <div ref={percentileDropdownRef} className="relative">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Percentile
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setPercentileDropdownOpen((o) => !o)}
-                    className="w-full flex items-center gap-2 pl-3 pr-10 py-2.5 min-h-[42px] bg-slate-900/50 border border-slate-700/50 rounded-lg text-left text-slate-200 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 hover:border-slate-600/50 transition-colors"
-                  >
-                    <span className="flex-1 truncate">
-                      {ecmwfPercentile === null
-                        ? 'Determinista'
-                        : String(ecmwfPercentile)}
-                    </span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${percentileDropdownOpen ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  {percentileDropdownOpen && (
-                    <div
-                      className="absolute z-50 mt-1 w-full rounded-lg border border-slate-700/50 bg-slate-800 shadow-xl overflow-hidden"
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      <ul
-                        className="overflow-y-auto py-1"
-                        style={{ maxHeight: DROPDOWN_LIST_MAX_HEIGHT }}
-                      >
-                        {PERCENTILE_OPTIONS.map((opt) => (
-                          <li key={opt.value ?? 'det'}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEcmwfPercentile(opt.value);
-                                setPercentileDropdownOpen(false);
-                              }}
-                              className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-700/50 transition-colors ${
-                                (opt.value === null && ecmwfPercentile === null) ||
-                                (opt.value !== null && opt.value === ecmwfPercentile)
-                                  ? 'bg-amber-500/20 text-amber-200'
-                                  : 'text-slate-200'
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                    <div>
+                        <h1 className="text-lg font-semibold text-slate-100">Predicciones</h1>
+                        <p className="text-xs text-slate-400">Series de simulaciones por estacion y tipo de prediccion</p>
                     </div>
-                  )}
                 </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Start date
-                </label>
-                <input
-                  type="datetime-local"
-                  value={startDate.slice(0, 16)}
-                  onChange={(e) =>
-                    setStartDate((e.target.value || startDate).slice(0, 16) + ':00')
-                  }
-                  className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  End date
-                </label>
-                <input
-                  type="datetime-local"
-                  value={endDate.slice(0, 16)}
-                  onChange={(e) =>
-                    setEndDate((e.target.value || endDate).slice(0, 16) + ':00')
-                  }
-                  className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20"
-                />
-              </div>
             </div>
-          </div>
 
-          {!canFetch ? (
-            <div className="bg-slate-800/30 rounded-xl border border-slate-700/50 p-12 text-center">
-              <p className="text-slate-400">Select a simulation and station to load results.</p>
+            <div className="flex-1 overflow-auto p-6">
+                {/* Filters */}
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
+                    <SearchableSelect
+                        options={stationOptions}
+                        value={stationCode}
+                        onChange={selectStation}
+                        placeholder="Seleccionar estacion"
+                        className="w-64"
+                    />
+                    <select
+                        value={dataOrigin}
+                        onChange={(e) => selectOrigin(e.target.value)}
+                        className="bg-slate-900 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                    >
+                        {ORIGIN_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
+                    <div className="relative max-w-[200px] ml-auto">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            disabled={!stationCode}
+                            className="w-full bg-slate-900 border border-slate-600 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+                            placeholder="Filtrar fecha / estado..."
+                        />
+                    </div>
+                </div>
+
+                {/* Body */}
+                {!stationCode ? (
+                    <p className="text-center text-slate-600 py-12">Selecciona una estacion para ver sus simulaciones</p>
+                ) : isLoading ? (
+                    <p className="text-center text-slate-500 py-12">Cargando simulaciones...</p>
+                ) : isError ? (
+                    <p className="text-center text-red-400 py-12">Error al cargar las simulaciones</p>
+                ) : rows.length === 0 ? (
+                    <p className="text-center text-slate-600 py-12">
+                        {search ? 'Ninguna simulacion coincide con el filtro' : 'No hay simulaciones para esta estacion'}
+                    </p>
+                ) : (
+                    <>
+                        <div className="border border-slate-700/50 rounded-lg overflow-hidden">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="bg-slate-800/60 text-slate-400">
+                                        <th className="text-left font-medium px-4 py-2.5">Fecha simulacion</th>
+                                        <th className="text-left font-medium px-4 py-2.5">Estado</th>
+                                        <th className="text-left font-medium px-4 py-2.5">Origen</th>
+                                        <th className="text-left font-medium px-4 py-2.5">Tipo</th>
+                                        <th className="text-left font-medium px-4 py-2.5">Meteo</th>
+                                        <th className="px-4 py-2.5 w-24"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.map((sim) => {
+                                        const canViewSeries = sim.dataOrigin !== 'HISTORICAL';
+                                        return (
+                                            <tr
+                                                key={sim.id}
+                                                onClick={canViewSeries ? () => setSelectedSim(sim) : undefined}
+                                                className={`border-t border-slate-700/50 ${
+                                                    canViewSeries ? 'hover:bg-slate-800/40 cursor-pointer' : 'opacity-60'
+                                                }`}
+                                            >
+                                                <td className="px-4 py-2.5 text-slate-200">{formatSimDate(sim.simulationDate)}</td>
+                                                <td className="px-4 py-2.5">
+                                                    <span className={`inline-block px-2 py-0.5 rounded border text-[11px] ${statusBadgeClass(sim.status)}`}>
+                                                        {sim.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-2.5 text-slate-400">{sim.dataOrigin ?? '-'}</td>
+                                                <td className="px-4 py-2.5 text-slate-400">{sim.type}</td>
+                                                <td className="px-4 py-2.5 text-slate-400">{sim.modmeteo ?? '-'}</td>
+                                                <td className="px-4 py-2.5 text-right">
+                                                    {canViewSeries ? (
+                                                        <span className="text-indigo-400 hover:text-indigo-300">Ver serie</span>
+                                                    ) : (
+                                                        <span className="text-slate-600" title="Las series historicas se consultan por rango de fecha">
+                                                            serie por rango
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination */}
+                        <div className="flex items-center justify-between mt-3 text-xs text-slate-400">
+                            <span>
+                                {total} simulacion{total === 1 ? '' : 'es'}
+                                {isFetching && <span className="ml-2 text-slate-500">actualizando...</span>}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    disabled={page <= 1}
+                                    className="p-1.5 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 disabled:opacity-40 disabled:hover:bg-transparent"
+                                >
+                                    <ChevronLeft size={14} />
+                                </button>
+                                <span>
+                                    Pagina {page} de {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={page >= totalPages}
+                                    className="p-1.5 rounded-md border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 disabled:opacity-40 disabled:hover:bg-transparent"
+                                >
+                                    <ChevronRight size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
-          ) : resultType === 'wrf' ? (
-            <PredictionResultsTable
-              title="WRF"
-              tagClass="border-emerald-500/30 bg-emerald-500/5"
-              results={wrfResults}
-              isLoading={loadingWrf}
-            />
-          ) : resultType === 'ecmwf' ? (
-            <PredictionResultsTable
-              title="ECMWF"
-              tagClass="border-blue-500/30 bg-blue-500/5"
-              results={ecmwfResults}
-              isLoading={loadingEcmwf}
-            />
-          ) : (
-            <PredictionResultsTable
-              title="Historical"
-              tagClass="border-amber-500/30 bg-amber-500/5"
-              results={historicalResults}
-              isLoading={loadingHistorical}
-            />
-          )}
+
+            {selectedSim && (
+                <SimulationSeriesModal
+                    stationCode={stationCode}
+                    stationName={selectedStationName}
+                    simulation={selectedSim}
+                    onClose={() => setSelectedSim(null)}
+                />
+            )}
         </div>
-      </div>
-    </div>
-  );
+    );
 }
