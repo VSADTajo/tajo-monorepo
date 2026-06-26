@@ -9,6 +9,31 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { CustomValidationPipe } from '../../src/common/pipes/custom-validation.pipe';
 import { HttpExceptionFilter } from '../../src/common/exceptions/http.exception';
 
+import { User } from '../../src/app/domain/entities/user.entity';
+import { Role } from '../../src/app/domain/entities/role.entity';
+import { UserRole } from '../../src/app/domain/entities/user-role.entity';
+import { Permission } from '../../src/app/domain/entities/permission.entity';
+import { RolePermission } from '../../src/app/domain/entities/role-permission.entity';
+import { Group } from '../../src/app/domain/entities/group.entity';
+import { GroupRole } from '../../src/app/domain/entities/group-role.entity';
+import { UserGroup } from '../../src/app/domain/entities/user-group.entity';
+
+/**
+ * Full TypeORM entity graph for ms-user-api.
+ *
+ * Every entity is interconnected through relations:
+ *   Role  -> RolePermission -> Permission
+ *   Role  -> GroupRole      -> Group
+ *   User  -> UserRole       -> Role
+ *   User  -> UserGroup      -> Group
+ *
+ * TypeORM needs the complete closure registered to resolve inverse relation
+ * metadata (e.g. Role#rolePermissions). Specs only declare which repositories
+ * they exercise; we always register the full set so DataSource initialization,
+ * cleanDatabase() and app.close() never fail on missing metadata.
+ */
+const ALL_ENTITIES = [User, Role, UserRole, Permission, RolePermission, Group, GroupRole, UserGroup];
+
 export interface TestContext {
     app: INestApplication;
     dataSource: DataSource;
@@ -35,6 +60,10 @@ export async function createTestApp(config: {
     // 1. Levantar Postgres en Docker
     const pgContainer = await new PostgreSqlContainer('postgres:16-alpine').withDatabase('test_db').start();
 
+    // Always register the full entity graph so TypeORM can resolve every
+    // inverse relation, regardless of which subset a spec declares.
+    const entities = Array.from(new Set([...ALL_ENTITIES, ...config.entities]));
+
     // 2. Compilar el módulo sin depender de modules de producción que traen config real
     let builder = Test.createTestingModule({
         imports: [
@@ -45,10 +74,10 @@ export async function createTestApp(config: {
                 username: pgContainer.getUsername(),
                 password: pgContainer.getPassword(),
                 database: pgContainer.getDatabase(),
-                entities: config.entities,
+                entities,
                 synchronize: true,
             }),
-            TypeOrmModule.forFeature(config.entities),
+            TypeOrmModule.forFeature(entities),
             CqrsModule,
             LoggerModule.forRoot({
                 pinoHttp: { level: 'silent' },
