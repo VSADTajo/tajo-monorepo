@@ -11,9 +11,13 @@ import {
     Post,
     Query,
     Req,
+    Res,
+    StreamableFile,
 } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { isUUID } from 'class-validator';
+import type { Response } from 'express';
 import { Logger } from 'nestjs-pino';
 import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service';
 
@@ -36,6 +40,7 @@ import {
     ListManualSimulationsQueryDto,
     ListManualSimulationsResponseDto,
     GetManualSimulationByIdResponseDto,
+    SimulationFilesResponseDto,
 } from '@api/dtos/simulation.dtos';
 
 // Mappers
@@ -48,6 +53,7 @@ import {
     DeleteSimulationMapper,
     AvailableDatesMapper,
     BatchIngestMapper,
+    SimulationFilesMapper,
 } from '@application/mappers/simulation.mappers';
 import {
     CreateManualSimulationMapper,
@@ -62,6 +68,8 @@ import {
     GetLatestSimulationQuery,
     GetHistoricalSimulationsQuery,
     GetAvailableDatesQuery,
+    GetSimulationFilesQuery,
+    DownloadSimulationFileQuery,
 } from '@application/queries/simulation.queries';
 // Commands
 import { FinalizeSimulationCommand, DeleteSimulationCommand } from '@application/commands/simulation.commands';
@@ -72,6 +80,13 @@ import { Simulation } from '@domain/entities/simulation.entity';
 import { PaginatedResult } from '@domain/ports/simulation-repository.port';
 import { ManualSimulationResult } from '@domain/results/manual-simulation.result';
 import { PaginatedManualSimulationResult } from '@domain/results/manual-simulation.result';
+import {
+    SimulationFilesResult,
+    SimulationFileDownloadResult,
+    SimulationFolder,
+    SIMULATION_FOLDERS,
+} from '@domain/results/simulation-files.result';
+import { SftpFileNameValueObject } from '@domain/value-objects/sftp-file-name.value-object';
 
 // Errors
 import { ApiError } from '@domain/errors/api.error';
@@ -300,6 +315,85 @@ export class SimulationController {
                 throw new HttpException(error.message, error.statusCode);
             }
             this.logger.error({ msg: 'Get manual simulation error', entity: 'Simulations', error: String(error) });
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get(':id/files')
+    @ApiEndpoint({
+        summary: 'List the SFTP input and output files of a simulation (read-only)',
+        response: {
+            status: 200,
+            type: SimulationFilesResponseDto,
+            description: 'Input and output files for the simulation',
+        },
+        errors: [
+            { status: 400, description: 'Invalid simulation id' },
+            { status: 404, description: 'Simulation not found' },
+        ],
+    })
+    async listSimulationFiles(@Param('id') id: string): Promise<SimulationFilesResponseDto> {
+        this.logger.log(`List simulation files request: ${id}`);
+
+        if (!isUUID(id)) {
+            throw new HttpException('Invalid simulation id', HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            const result = await this.cachingQueryBus.execute<SimulationFilesResult>(
+                new GetSimulationFilesQuery({ id }),
+            );
+            return SimulationFilesMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error({ msg: 'List simulation files error', entity: 'Simulations', error: String(error) });
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get(':id/files/download')
+    @ApiOperation({ summary: 'Download a single SFTP file of a simulation (read-only)' })
+    @ApiProduces('application/octet-stream')
+    @ApiResponse({ status: 200, description: 'File binary stream' })
+    @ApiResponse({ status: 400, description: 'Invalid simulation id, folder or file name' })
+    @ApiResponse({ status: 404, description: 'Simulation or file not found' })
+    async downloadSimulationFile(
+        @Param('id') id: string,
+        @Query('folder') folder: string,
+        @Query('name') name: string,
+        @Res({ passthrough: true }) res: Response,
+    ): Promise<StreamableFile> {
+        this.logger.log(`Download simulation file request: ${id} ${folder}/${name}`);
+
+        if (!isUUID(id)) {
+            throw new HttpException('Invalid simulation id', HttpStatus.BAD_REQUEST);
+        }
+        if (!SIMULATION_FOLDERS.includes(folder as SimulationFolder)) {
+            throw new HttpException('folder must be either "input" or "output"', HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            const safeName = new SftpFileNameValueObject(name).value;
+            const result = await this.cachingQueryBus.execute<SimulationFileDownloadResult>(
+                new DownloadSimulationFileQuery({ id, folder: folder as SimulationFolder, fileName: safeName }),
+            );
+
+            res.set({
+                'Content-Type': result.contentType,
+                'Content-Disposition': `attachment; filename="${result.fileName}"`,
+                'Content-Length': result.content.length.toString(),
+            });
+            return new StreamableFile(result.content);
+        } catch (error) {
+            if (error instanceof EntityError) {
+                throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+            }
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error({ msg: 'Download simulation file error', entity: 'Simulations', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

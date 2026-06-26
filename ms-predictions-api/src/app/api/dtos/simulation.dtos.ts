@@ -512,3 +512,26 @@ export class ListManualSimulationsResponseDto {
 // ─────────────────────────────────────────────────────────────
 
 export class GetManualSimulationByIdResponseDto extends ManualSimulationResponseDto {}
+
+// ─────────────────────────────────────────────────────────────
+// SimulationFiles (SFTP input/output)
+// ─────────────────────────────────────────────────────────────
+
+export class SftpFileMetaDto {
+    @ApiProperty({ description: 'File name', example: 'tagus_harmonie_Q_202606191200.json' })
+    name: string;
+
+    @ApiProperty({ description: 'File size in bytes', example: 20480 })
+    size: number;
+
+    @ApiProperty({ description: 'Last modification time (ISO 8601)', nullable: true, example: '2026-06-19T12:05:00.000Z' })
+    modifiedAt: string | null;
+}
+
+export class SimulationFilesResponseDto {
+    @ApiProperty({ description: 'Files in the simulation input folder', type: [SftpFileMetaDto] })
+    input: SftpFileMetaDto[];
+
+    @ApiProperty({ description: 'Files in the simulation output folder', type: [SftpFileMetaDto] })
+    output: SftpFileMetaDto[];
+}

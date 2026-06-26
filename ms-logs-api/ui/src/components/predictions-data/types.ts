@@ -75,3 +75,18 @@ export interface ForecastPrediction {
 export interface ForecastResponse {
     predictions: ForecastPrediction[];
 }
+
+// ── Simulation SFTP files (input/output) ──────────────────────
+
+export type SimulationFolder = 'input' | 'output';
+
+export interface SftpFileMeta {
+    name: string;
+    size: number;
+    modifiedAt: string | null;
+}
+
+export interface SimulationFilesResponse {
+    input: SftpFileMeta[];
+    output: SftpFileMeta[];
+}

@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, Res } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiProduces, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import * as express from 'express';
 
 import { ProxyService } from '@infrastructure/services/proxy.service';
@@ -29,6 +29,7 @@ import {
     ManeuverGwResponseDto,
     ListManeuversGwResponseDto,
     DeleteManeuverGwResponseDto,
+    SimulationFilesGwResponseDto,
 } from '@api/dtos/predictions-proxy.dtos';
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
@@ -269,6 +270,77 @@ export class PredictionsProxyController {
             traceId: (req as any).id,
         });
         res.status(result.status).json(result.data);
+    }
+
+    @Get('simulations/:id/files')
+    @ApiEndpoint({
+        summary: 'List the SFTP input and output files of a simulation (read-only)',
+        response: {
+            status: 200,
+            type: SimulationFilesGwResponseDto,
+            description: 'Input and output files for the simulation',
+        },
+        errors: [
+            { status: 400, description: 'Invalid simulation id' },
+            { status: 404, description: 'Simulation not found' },
+        ],
+    })
+    async listSimulationFiles(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/simulations/${id}/files`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('simulations/:id/files/download')
+    @ApiOperation({ summary: 'Download a single SFTP file of a simulation (read-only)' })
+    @ApiProduces('application/octet-stream')
+    @ApiResponse({ status: 200, description: 'File binary stream' })
+    @ApiResponse({ status: 400, description: 'Invalid simulation id, folder or file name' })
+    @ApiResponse({ status: 404, description: 'Simulation or file not found' })
+    @ApiQuery({ name: 'folder', required: true, enum: ['input', 'output'], description: 'Which simulation folder' })
+    @ApiQuery({ name: 'name', required: true, type: String, description: 'File name inside the folder' })
+    async downloadSimulationFile(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/simulations/${id}/files/download`,
+            query: req.query as Record<string, string | string[]>,
+            responseType: 'arraybuffer',
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+
+        const body = Buffer.from(result.data as ArrayBuffer);
+
+        // On error the upstream returns a JSON body (still as arraybuffer) — forward it as-is.
+        if (result.status >= 400) {
+            res.status(result.status);
+            if (result.contentType) res.setHeader('Content-Type', result.contentType);
+            res.send(body);
+            return;
+        }
+
+        const rawName = req.query.name;
+        const fileName = typeof rawName === 'string' && rawName.length > 0 ? rawName : 'download';
+        res.status(result.status);
+        res.setHeader('Content-Type', result.contentType ?? 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
+        res.send(body);
     }
 
     @Get('simulations/:simulationDate')

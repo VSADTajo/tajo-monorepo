@@ -4,7 +4,13 @@ import { Logger } from 'nestjs-pino';
 
 // Domain
 import { ISimulationRepository, PaginatedResult, SimulationFilters } from '@domain/ports/simulation-repository.port';
+import { ISimulationSftpService } from '@domain/ports/simulation-sftp.port';
 import { Simulation } from '@domain/entities/simulation.entity';
+import {
+    SimulationFilesResult,
+    SimulationFileDownloadResult,
+    SimulationFolder,
+} from '@domain/results/simulation-files.result';
 import { ApiError } from '@domain/errors/api.error';
 
 // ─────────────────────────────────────────────────────────────
@@ -184,5 +190,107 @@ export class GetAvailableDatesHandler implements IQueryHandler<GetAvailableDates
         this.logger.debug('Getting available simulation dates');
 
         return this.simulationRepository.findAvailableDates(query.dataOrigin, query.predictionTypes);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// GetSimulationFiles (SFTP input/output listing)
+// ─────────────────────────────────────────────────────────────
+
+export interface IGetSimulationFilesQuery {
+    id: string;
+}
+
+export class GetSimulationFilesQuery {
+    constructor(private readonly parameters: IGetSimulationFilesQuery) {}
+
+    get id(): string {
+        return this.parameters.id;
+    }
+}
+
+@QueryHandler(GetSimulationFilesQuery)
+export class GetSimulationFilesHandler implements IQueryHandler<GetSimulationFilesQuery, SimulationFilesResult> {
+    constructor(
+        @Inject(Logger)
+        private readonly logger: Logger,
+        private readonly simulationRepository: ISimulationRepository,
+        private readonly simulationSftpService: ISimulationSftpService,
+    ) {}
+
+    async execute(query: GetSimulationFilesQuery): Promise<SimulationFilesResult> {
+        this.logger.debug(`Listing SFTP files for simulation: ${query.id}`);
+
+        await this.assertSimulationExists(query.id);
+
+        const { input, output } = await this.simulationSftpService.listFiles(query.id);
+        return new SimulationFilesResult({ input, output });
+    }
+
+    private async assertSimulationExists(id: string): Promise<void> {
+        let simulation: Simulation | null = null;
+        try {
+            simulation = await this.simulationRepository.findById(id);
+        } catch {
+            throw new ApiError(HttpStatus.NOT_FOUND, `Simulation with id "${id}" not found`);
+        }
+        if (!simulation) {
+            throw new ApiError(HttpStatus.NOT_FOUND, `Simulation with id "${id}" not found`);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DownloadSimulationFile (single SFTP file)
+// ─────────────────────────────────────────────────────────────
+
+export interface IDownloadSimulationFileQuery {
+    id: string;
+    folder: SimulationFolder;
+    fileName: string;
+}
+
+export class DownloadSimulationFileQuery {
+    constructor(private readonly parameters: IDownloadSimulationFileQuery) {}
+
+    get id(): string {
+        return this.parameters.id;
+    }
+
+    get folder(): SimulationFolder {
+        return this.parameters.folder;
+    }
+
+    get fileName(): string {
+        return this.parameters.fileName;
+    }
+}
+
+@QueryHandler(DownloadSimulationFileQuery)
+export class DownloadSimulationFileHandler implements IQueryHandler<
+    DownloadSimulationFileQuery,
+    SimulationFileDownloadResult
+> {
+    constructor(
+        @Inject(Logger)
+        private readonly logger: Logger,
+        private readonly simulationRepository: ISimulationRepository,
+        private readonly simulationSftpService: ISimulationSftpService,
+    ) {}
+
+    async execute(query: DownloadSimulationFileQuery): Promise<SimulationFileDownloadResult> {
+        this.logger.debug(`Downloading SFTP file "${query.fileName}" (${query.folder}) for simulation: ${query.id}`);
+
+        let simulation: Simulation | null = null;
+        try {
+            simulation = await this.simulationRepository.findById(query.id);
+        } catch {
+            throw new ApiError(HttpStatus.NOT_FOUND, `Simulation with id "${query.id}" not found`);
+        }
+        if (!simulation) {
+            throw new ApiError(HttpStatus.NOT_FOUND, `Simulation with id "${query.id}" not found`);
+        }
+
+        return this.simulationSftpService.downloadFile(query.id, query.folder, query.fileName);
     }
 }
