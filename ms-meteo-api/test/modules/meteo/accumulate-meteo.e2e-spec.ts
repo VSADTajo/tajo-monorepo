@@ -179,7 +179,7 @@ describe('Accumulate Meteo (e2e)', () => {
             from: 'not-a-date',
             to: '2026-04-07T00:00:00Z',
         }).expect(HttpStatus.BAD_REQUEST);
-        expect(body.ErrorDescription).toMatch(/invalid date/i);
+        expect(body.ErrorDescription).toMatch(/ISO 8601 datetime/i);
     });
 
     it('returns 400 when from >= to', async () => {
