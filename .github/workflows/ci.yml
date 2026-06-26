@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - ms-gateway-api
+          - ms-user-api
+          - ms-authentication-api
+          - ms-sftp-api
+          - ms-logs-api
+          - ms-hydro-api
+          - ms-predictions-api
+          - ms-model-api
+          - ms-notifications-api
+          - ms-meteo-api
+          - vsad-tajo-frontend
+          - tajo-toolkit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+
+      # Resolve which scripts exist before running anything else, so missing
+      # scripts (e.g. vsad-tajo-frontend has no `test`) skip cleanly.
+      - name: Detect available scripts
+        id: scripts
+        working-directory: ${{ matrix.service }}
+        run: |
+          has() {
+            jq -e --arg s "$1" '(.scripts // {}) | has($s)' package.json > /dev/null
+          }
+          for pair in "lint:lint" "test:test" "test:e2e:test_e2e" "build:build" "check:check"; do
+            script="${pair%:*}"
+            key="${pair##*:}"
+            if has "$script"; then
+              echo "${key}=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "${key}=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.service }}
+        run: npm ci
+
+      - name: Lint
+        if: steps.scripts.outputs.lint == 'true'
+        working-directory: ${{ matrix.service }}
+        run: npm run lint
+
+      - name: Type + lint check (frontend)
+        if: steps.scripts.outputs.check == 'true' && steps.scripts.outputs.lint == 'false'
+        working-directory: ${{ matrix.service }}
+        run: npm run check
+
+      - name: Build
+        if: steps.scripts.outputs.build == 'true'
+        working-directory: ${{ matrix.service }}
+        run: npm run build
+
+      - name: Unit tests
+        if: steps.scripts.outputs.test == 'true'
+        working-directory: ${{ matrix.service }}
+        run: npm test -- --passWithNoTests
+
+      - name: E2E tests
+        if: steps.scripts.outputs.test_e2e == 'true'
+        working-directory: ${{ matrix.service }}
+        env:
+          # Testcontainers reuses the host Docker; default works on GitHub-hosted runners.
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
+        run: npm run test:e2e
