@@ -9,9 +9,11 @@ import {
     SimulationAvailableDatesResponseDto,
     BatchIngestRequestDto,
     BatchIngestResponseDto,
+    SimulationFilesResponseDto,
 } from '@api/dtos/simulation.dtos';
 import { BatchIngestCommand, BatchIngestResult } from '@application/commands/simulation.commands';
 import { DeleteSimulationResult } from '@domain/results/delete-simulation.result';
+import { SimulationFilesResult } from '@domain/results/simulation-files.result';
 import { Simulation } from '@domain/entities/simulation.entity';
 import { PaginatedResult } from '@domain/ports/simulation-repository.port';
 
@@ -131,6 +133,19 @@ export class BatchIngestMapper {
             simulationId: result.simulationId,
             processedCount: result.processedCount,
             errors: result.errors,
+        };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// SimulationFiles
+// ─────────────────────────────────────────────────────────────
+
+export class SimulationFilesMapper {
+    static toResponseDto(result: SimulationFilesResult): SimulationFilesResponseDto {
+        return {
+            input: result.input.map((file) => ({ ...file })),
+            output: result.output.map((file) => ({ ...file })),
         };
     }
 }

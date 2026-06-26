@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, LineChart, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FolderOpen, LineChart, Search } from 'lucide-react';
 import SearchableSelect from '../hydro/SearchableSelect';
 import { listStations } from '../hydro/api';
 import { listSimulations } from './api';
 import { formatSimDate } from './format';
 import SimulationSeriesModal from './SimulationSeriesModal';
+import SimulationFilesModal from './SimulationFilesModal';
 import type { DataOrigin, SimulationItem } from './types';
 
 const PAGE_SIZE = 20;
@@ -33,6 +34,7 @@ export default function PredictionsDataPanel() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [selectedSim, setSelectedSim] = useState<SimulationItem | null>(null);
+    const [filesSim, setFilesSim] = useState<SimulationItem | null>(null);
 
     // Station selector — reuse the hydro stations endpoint (gateway → ms-hydro-api).
     const { data: stationsData } = useQuery({
@@ -158,7 +160,7 @@ export default function PredictionsDataPanel() {
                                         <th className="text-left font-medium px-4 py-2.5">Origen</th>
                                         <th className="text-left font-medium px-4 py-2.5">Tipo</th>
                                         <th className="text-left font-medium px-4 py-2.5">Meteo</th>
-                                        <th className="px-4 py-2.5 w-24"></th>
+                                        <th className="px-4 py-2.5 w-48"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -182,13 +184,26 @@ export default function PredictionsDataPanel() {
                                                 <td className="px-4 py-2.5 text-slate-400">{sim.type}</td>
                                                 <td className="px-4 py-2.5 text-slate-400">{sim.modmeteo ?? '-'}</td>
                                                 <td className="px-4 py-2.5 text-right">
-                                                    {canViewSeries ? (
-                                                        <span className="text-indigo-400 hover:text-indigo-300">Ver serie</span>
-                                                    ) : (
-                                                        <span className="text-slate-600" title="Las series historicas se consultan por rango de fecha">
-                                                            serie por rango
-                                                        </span>
-                                                    )}
+                                                    <div className="flex items-center justify-end gap-3">
+                                                        {canViewSeries ? (
+                                                            <span className="text-indigo-400 hover:text-indigo-300">Ver serie</span>
+                                                        ) : (
+                                                            <span className="text-slate-600" title="Las series historicas se consultan por rango de fecha">
+                                                                serie por rango
+                                                            </span>
+                                                        )}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setFilesSim(sim);
+                                                            }}
+                                                            title="Ver archivos input/output del SFTP"
+                                                            className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300"
+                                                        >
+                                                            <FolderOpen size={13} />
+                                                            Archivos
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -233,6 +248,15 @@ export default function PredictionsDataPanel() {
                     stationName={selectedStationName}
                     simulation={selectedSim}
                     onClose={() => setSelectedSim(null)}
+                />
+            )}
+
+            {filesSim && (
+                <SimulationFilesModal
+                    stationCode={stationCode}
+                    stationName={selectedStationName}
+                    simulation={filesSim}
+                    onClose={() => setFilesSim(null)}
                 />
             )}
         </div>

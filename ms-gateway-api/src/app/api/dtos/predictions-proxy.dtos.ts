@@ -448,3 +448,18 @@ export class DeleteManeuverGwResponseDto {
     @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' }) id: string;
     @ApiProperty({ example: true }) deleted: boolean;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Simulation SFTP files (input/output)
+// ─────────────────────────────────────────────────────────────
+
+export class SftpFileMetaGwDto {
+    @ApiProperty({ example: 'tagus_harmonie_Q_202606191200.json' }) name: string;
+    @ApiProperty({ example: 20480 }) size: number;
+    @ApiProperty({ nullable: true, example: '2026-06-19T12:05:00.000Z' }) modifiedAt: string | null;
+}
+
+export class SimulationFilesGwResponseDto {
+    @ApiProperty({ type: [SftpFileMetaGwDto] }) input: SftpFileMetaGwDto[];
+    @ApiProperty({ type: [SftpFileMetaGwDto] }) output: SftpFileMetaGwDto[];
+}

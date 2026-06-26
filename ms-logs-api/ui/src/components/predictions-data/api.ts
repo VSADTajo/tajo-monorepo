@@ -4,7 +4,9 @@ import type {
     ForecastResponse,
     ListPredictionTypesResponse,
     ListSimulationsResponse,
+    SimulationFilesResponse,
     SimulationFilters,
+    SimulationFolder,
 } from './types';
 
 // All predictions data goes through the API gateway — never hit ms-predictions-api directly.
@@ -60,4 +62,33 @@ export async function getForecastSeries(
         signal,
     });
     return data as ForecastResponse;
+}
+
+// ── Simulation SFTP files (input/output) ──────────────────────
+
+export async function listSimulationFiles(
+    simulationId: string,
+    signal?: AbortSignal,
+): Promise<SimulationFilesResponse> {
+    const { data } = await gatewayClient.get(`/simulations/${simulationId}/files`, { signal });
+    return data as SimulationFilesResponse;
+}
+
+// Downloads through the gateway (Bearer token injected by the interceptor), then saves the blob locally.
+export async function downloadSimulationFile(
+    simulationId: string,
+    folder: SimulationFolder,
+    name: string,
+): Promise<void> {
+    const { data } = await gatewayClient.get(`/simulations/${simulationId}/files/download`, {
+        params: { folder, name },
+        responseType: 'blob',
+    });
+
+    const url = URL.createObjectURL(data as Blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(url);
 }

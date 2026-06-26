@@ -30,6 +30,8 @@ import {
     GetLatestSimulationHandler,
     GetHistoricalSimulationsHandler,
     GetAvailableDatesHandler,
+    GetSimulationFilesHandler,
+    DownloadSimulationFileHandler,
 } from '@application/queries/simulation.queries';
 import {
     GetHistoricalPredictionsHandler,
@@ -83,6 +85,8 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
         GetLatestSimulationHandler,
         GetHistoricalSimulationsHandler,
         GetAvailableDatesHandler,
+        GetSimulationFilesHandler,
+        DownloadSimulationFileHandler,
         GetHistoricalPredictionsHandler,
         GetRawPredictionsHandler,
         GetForecastPredictionsHandler,
