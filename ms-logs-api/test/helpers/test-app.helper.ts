@@ -1,6 +1,7 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import app from '../../src/app';
+import { AlertEngineService } from '../../src/services/alert-engine.service';
 import type { Express } from 'express';
 
 let mongoServer: MongoMemoryServer | null = null;
@@ -13,6 +14,7 @@ export async function createTestApp(): Promise<{ app: Express }> {
 }
 
 export async function closeTestApp(): Promise<void> {
+    AlertEngineService.stopAll();
     await mongoose.connection.dropDatabase();
     await mongoose.disconnect();
     if (mongoServer) {
