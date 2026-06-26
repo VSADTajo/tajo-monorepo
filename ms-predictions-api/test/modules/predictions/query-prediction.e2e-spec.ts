@@ -320,6 +320,11 @@ describe('Query Predictions (e2e)', () => {
         await seedTimeSeries({
             series: buildTimeSeriesData({ locationId: stationId, events }),
         });
+        // findForecast without an explicit simulationDate only looks at FINALIZED
+        // simulations (latest-finalized subquery). Seed runs leave them IN_PROGRESS,
+        // so we have to finalize here for the query to find anything.
+        // eslint-disable-next-line quotes, @typescript-eslint/quotes
+        await dataSource.query("UPDATE simulations SET status = 'FINALIZED'");
 
         const { body } = await getForecast({ stationId }).expect(HttpStatus.OK);
 

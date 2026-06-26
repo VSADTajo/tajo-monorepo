@@ -17,6 +17,15 @@ import { RepositoryError } from '@domain/errors/repository.error';
 import { DeleteSimulationResult } from '@domain/results/delete-simulation.result';
 import { ProcessTimeSeriesCommand } from '@application/commands/prediction.commands';
 
+// Inverse of SimulationDateValueObject (which converts ISO → 14-digit).
+// 'YYYYMMDDHHMMSS' → 'YYYY-MM-DDTHH:MM:SS.000Z'. Assumes the VO already validated the shape.
+function isoFromSimulationDate14(value: string): string {
+    return (
+        `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T` +
+        `${value.slice(8, 10)}:${value.slice(10, 12)}:${value.slice(12, 14)}.000Z`
+    );
+}
+
 // ─────────────────────────────────────────────────────────────
 // FinalizeSimulation
 // ─────────────────────────────────────────────────────────────
@@ -200,6 +209,10 @@ export class BatchIngestHandler implements ICommandHandler<BatchIngestCommand, B
 
         // 1. Validate simulation date
         const simDateVO = new SimulationDateValueObject(command.simulationDate);
+        // ISO form is needed downstream because ProcessTimeSeriesHandler calls
+        // `new Date(series.startDate)` on the prediction date columns. The 14-digit
+        // value would parse to Invalid Date and Postgres would reject the insert.
+        const simDateIso = isoFromSimulationDate14(simDateVO.value);
 
         // 2. Find or create simulation
         let simulation = await this.simulationRepository.findByDateAndEnvAndModmeteo(
@@ -234,8 +247,8 @@ export class BatchIngestHandler implements ICommandHandler<BatchIngestCommand, B
                         moduleInstanceId: command.environment || '',
                         stationName: pred.stationName,
                         units: pred.units,
-                        forecastDate: simDateVO.value,
-                        startDate: simDateVO.value,
+                        forecastDate: simDateIso,
+                        startDate: simDateIso,
                         events: pred.events.map((e) => ({
                             timestamp: e.timestamp,
                             value: e.value,
