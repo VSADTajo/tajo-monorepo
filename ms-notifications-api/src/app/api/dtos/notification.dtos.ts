@@ -125,7 +125,7 @@ export class BulkIdsRequestDto {
     @ApiProperty({ description: 'Array of notification UUIDs', example: ['uuid-1', 'uuid-2'] })
     @IsArray()
     @ArrayMaxSize(100)
-    @IsUUID('4', { each: true })
+    @IsUUID('all', { each: true })
     ids: string[];
 }
 
