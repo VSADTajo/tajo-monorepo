@@ -7,6 +7,7 @@ import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Basin } from '../../../src/app/domain/entities/basin.entity';
 import { SubBasin } from '../../../src/app/domain/entities/sub-basin.entity';
 import { Station } from '../../../src/app/domain/entities/station.entity';
+import { StationThreshold } from '../../../src/app/domain/entities/station-threshold.entity';
 import { IBasinRepository } from '../../../src/app/domain/ports/basin-repository.port';
 import { ISubBasinRepository } from '../../../src/app/domain/ports/sub-basin-repository.port';
 import { IStationRepository } from '../../../src/app/domain/ports/station-repository.port';
@@ -47,7 +48,7 @@ describe('Delete SubBasin (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [Basin, SubBasin, Station],
+            entities: [Basin, SubBasin, Station, StationThreshold],
             controllers: [BasinController, SubBasinController, StationController],
             providers: [
                 CreateBasinHandler,
