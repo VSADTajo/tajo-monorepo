@@ -7,6 +7,7 @@ import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Basin } from '../../../src/app/domain/entities/basin.entity';
 import { SubBasin } from '../../../src/app/domain/entities/sub-basin.entity';
 import { Station } from '../../../src/app/domain/entities/station.entity';
+import { StationThreshold } from '../../../src/app/domain/entities/station-threshold.entity';
 import { IBasinRepository } from '../../../src/app/domain/ports/basin-repository.port';
 import { ISubBasinRepository } from '../../../src/app/domain/ports/sub-basin-repository.port';
 import { IStationRepository } from '../../../src/app/domain/ports/station-repository.port';
@@ -48,7 +49,7 @@ describe('List Stations (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [Basin, SubBasin, Station],
+            entities: [Basin, SubBasin, Station, StationThreshold],
             controllers: [BasinController, SubBasinController, StationController],
             providers: [
                 CreateBasinHandler,
@@ -172,21 +173,21 @@ describe('List Stations (e2e)', () => {
         it('should filter stations by stationType', async () => {
             const { subBasin } = await setupBasinAndSubBasin();
 
-            await createStation(buildCreateStationDto(subBasin.id, { stationType: 'HYDROLOGICAL' })).expect(
+            await createStation(buildCreateStationDto(subBasin.id, { stationType: 'AFORO_EN_RIO' })).expect(
                 HttpStatus.CREATED,
             );
-            await createStation(buildCreateStationDto(subBasin.id, { stationType: 'METEOROLOGICAL' })).expect(
+            await createStation(buildCreateStationDto(subBasin.id, { stationType: 'EMBALSE_SAIH' })).expect(
                 HttpStatus.CREATED,
             );
-            await createStation(buildCreateStationDto(subBasin.id, { stationType: 'PLUVIOMETRIC' })).expect(
+            await createStation(buildCreateStationDto(subBasin.id, { stationType: 'PLUVIOMETRO' })).expect(
                 HttpStatus.CREATED,
             );
 
-            const { body } = await listStations({ stationType: 'METEOROLOGICAL' }).expect(HttpStatus.OK);
+            const { body } = await listStations({ stationType: 'EMBALSE_SAIH' }).expect(HttpStatus.OK);
 
             expect(body.items).toHaveLength(1);
             expect(body.total).toBe(1);
-            expect(body.items[0].stationType).toBe('METEOROLOGICAL');
+            expect(body.items[0].stationType).toBe('EMBALSE_SAIH');
         });
     });
 

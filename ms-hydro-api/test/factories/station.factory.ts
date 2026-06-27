@@ -4,7 +4,6 @@ interface CreateStationData {
     stationCode: string;
     stationType: string;
     subBasinId: string;
-    umbral?: number | null;
     latitude?: number | null;
     longitude?: number | null;
     altitude?: number | null;
@@ -19,8 +18,8 @@ export function buildCreateStationDto(
     return {
         name: `Station ${unique}`,
         subBasinName: `sub-basin-${unique}`,
-        stationCode: `EST-${unique.substring(0, 10).toUpperCase()}`,
-        stationType: 'HYDROLOGICAL',
+        stationCode: `EST-${unique.toUpperCase()}`,
+        stationType: 'AFORO_EN_RIO',
         subBasinId,
         ...overrides,
     };

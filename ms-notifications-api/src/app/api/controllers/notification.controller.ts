@@ -84,6 +84,52 @@ export class NotificationController {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // Bulk Mark as Read
+    // ─────────────────────────────────────────────────────────────
+    // NOTE: Literal routes (bulk/*) MUST be declared BEFORE parametrized
+    // routes (:id/*). NestJS/Express matches in declaration order, so a
+    // request to PATCH /notifications/bulk/read would otherwise match
+    // :id/read with id="bulk" and fail with an invalid-UUID 500.
+
+    @Patch('bulk/read')
+    @ApiEndpoint({
+        summary: 'Mark multiple notifications as read',
+        body: BulkIdsRequestDto,
+        response: { status: 200, type: BulkUpdateResponseDto, description: 'Bulk mark-as-read result' },
+        errors: [{ status: 400, description: 'Validation error' }],
+    })
+    async bulkMarkAsRead(@Body() dto: BulkIdsRequestDto): Promise<BulkUpdateResponseDto> {
+        const command = BulkOperationsMapper.toBulkReadCommand(dto);
+        try {
+            const result = await this.commandBus.execute(command);
+            return BulkOperationsMapper.toResponseDto(result);
+        } catch (error) {
+            return this.handleError(error);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Bulk Archive
+    // ─────────────────────────────────────────────────────────────
+
+    @Patch('bulk/archive')
+    @ApiEndpoint({
+        summary: 'Archive multiple notifications',
+        body: BulkIdsRequestDto,
+        response: { status: 200, type: BulkUpdateResponseDto, description: 'Bulk archive result' },
+        errors: [{ status: 400, description: 'Validation error' }],
+    })
+    async bulkArchive(@Body() dto: BulkIdsRequestDto): Promise<BulkUpdateResponseDto> {
+        const command = BulkOperationsMapper.toBulkArchiveCommand(dto);
+        try {
+            const result = await this.commandBus.execute(command);
+            return BulkOperationsMapper.toResponseDto(result);
+        } catch (error) {
+            return this.handleError(error);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // Mark as Read
     // ─────────────────────────────────────────────────────────────
 
@@ -121,48 +167,6 @@ export class NotificationController {
         try {
             const result = await this.commandBus.execute(command);
             return ArchiveNotificationMapper.toResponseDto(result);
-        } catch (error) {
-            return this.handleError(error);
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // Bulk Mark as Read
-    // ─────────────────────────────────────────────────────────────
-
-    @Patch('bulk/read')
-    @ApiEndpoint({
-        summary: 'Mark multiple notifications as read',
-        body: BulkIdsRequestDto,
-        response: { status: 200, type: BulkUpdateResponseDto, description: 'Bulk mark-as-read result' },
-        errors: [{ status: 400, description: 'Validation error' }],
-    })
-    async bulkMarkAsRead(@Body() dto: BulkIdsRequestDto): Promise<BulkUpdateResponseDto> {
-        const command = BulkOperationsMapper.toBulkReadCommand(dto);
-        try {
-            const result = await this.commandBus.execute(command);
-            return BulkOperationsMapper.toResponseDto(result);
-        } catch (error) {
-            return this.handleError(error);
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // Bulk Archive
-    // ─────────────────────────────────────────────────────────────
-
-    @Patch('bulk/archive')
-    @ApiEndpoint({
-        summary: 'Archive multiple notifications',
-        body: BulkIdsRequestDto,
-        response: { status: 200, type: BulkUpdateResponseDto, description: 'Bulk archive result' },
-        errors: [{ status: 400, description: 'Validation error' }],
-    })
-    async bulkArchive(@Body() dto: BulkIdsRequestDto): Promise<BulkUpdateResponseDto> {
-        const command = BulkOperationsMapper.toBulkArchiveCommand(dto);
-        try {
-            const result = await this.commandBus.execute(command);
-            return BulkOperationsMapper.toResponseDto(result);
         } catch (error) {
             return this.handleError(error);
         }

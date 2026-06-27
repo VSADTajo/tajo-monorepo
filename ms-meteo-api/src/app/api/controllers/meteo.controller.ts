@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Inject, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Inject, Post, Query, Res } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -156,6 +156,7 @@ export class MeteoController {
     // ─────────────────────────────────────────────────────────────
 
     @Post('accumulate')
+    @HttpCode(HttpStatus.OK)
     @ApiEndpoint({
         summary: 'Compute an accumulated layer for a specific date range',
         body: AccumulateRequestDto,

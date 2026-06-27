@@ -20,6 +20,7 @@ describe('Validate token (e2e)', () => {
     const mockUserApiClient = {
         getUserByEmail: jest.fn(),
         getUserById: jest.fn(),
+        getUserRoles: jest.fn().mockResolvedValue([]),
         registerUser: jest.fn(),
         updatePassword: jest.fn(),
     };
@@ -75,6 +76,7 @@ describe('Validate token (e2e)', () => {
                 name: 'John Doe',
                 email: 'john@example.com',
             });
+            mockUserApiClient.getUserRoles.mockResolvedValue(['admin', 'editor']);
 
             const { body } = await validateToken({ token }).expect(HttpStatus.OK);
 
@@ -90,6 +92,7 @@ describe('Validate token (e2e)', () => {
             const userId = '660e8400-e29b-41d4-a716-446655440001';
             const token = jwtService.sign({ sub: userId, roles: ['user'], type: 'access' }, { expiresIn: '1h' });
             mockUserApiClient.getUserById.mockResolvedValue(null);
+            mockUserApiClient.getUserRoles.mockResolvedValue(['user']);
 
             const { body } = await validateToken({ token }).expect(HttpStatus.OK);
 

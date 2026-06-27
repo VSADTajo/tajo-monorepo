@@ -26,6 +26,9 @@ function createMockLogger() {
         log: jest.fn(),
         warn: jest.fn(),
         error: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+        fatal: jest.fn(),
     };
 }
 

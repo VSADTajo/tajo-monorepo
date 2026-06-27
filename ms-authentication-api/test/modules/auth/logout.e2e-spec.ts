@@ -22,6 +22,7 @@ describe('Logout (e2e)', () => {
     const mockUserApiClient = {
         getUserByEmail: jest.fn(),
         getUserById: jest.fn().mockResolvedValue(null),
+        getUserRoles: jest.fn().mockResolvedValue(['admin']),
         registerUser: jest.fn(),
         updatePassword: jest.fn(),
     };

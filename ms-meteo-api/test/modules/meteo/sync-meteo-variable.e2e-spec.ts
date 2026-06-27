@@ -16,6 +16,7 @@ import { SyncMeteoHandler } from '../../../src/app/application/commands/meteo.co
 import { MeteoDiscoveryService } from '../../../src/app/application/services/meteo-discovery.service';
 import { DatasetMutex } from '../../../src/app/application/services/dataset-mutex';
 import { ImageMosaicBootstrapService } from '../../../src/app/application/services/image-mosaic-bootstrap.service';
+import { MeteoAggregationService } from '../../../src/app/application/services/meteo-aggregation.service';
 import { IFileSystem } from '../../../src/app/domain/ports/file-system.port';
 import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-query-bus.service';
 
@@ -112,6 +113,7 @@ describe('Sync Meteo Variable (e2e)', () => {
                 DatasetMutex,
                 MeteoDiscoveryService,
                 ImageMosaicBootstrapService,
+                MeteoAggregationService,
                 SyncMeteoHandler,
             ],
         });

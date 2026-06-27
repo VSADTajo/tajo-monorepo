@@ -114,7 +114,7 @@ describe('Station geographic fields - zona, comarcaName, sistemaName (e2e)', () 
         const station = repo.create({
             name: `Station ${unique}`,
             subBasinName: `sub-basin-${unique}`,
-            stationCode: `EST-${unique.substring(0, 10).toUpperCase()}`,
+            stationCode: `EST-${unique.toUpperCase()}`,
             stationType: 'AFORO_EN_RIO' as any,
             subBasinId,
             isActive: true,

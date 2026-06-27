@@ -65,6 +65,13 @@ export class AlertEngineService {
         }
     }
 
+    static stopAll(): void {
+        for (const task of AlertEngineService.scheduledTasks.values()) {
+            task.stop();
+        }
+        AlertEngineService.scheduledTasks.clear();
+    }
+
     static async evaluateRuleById(ruleId: string): Promise<void> {
         // Fetch fresh rule from DB to avoid stale data
         const rule = await AlertRule.findById(ruleId);

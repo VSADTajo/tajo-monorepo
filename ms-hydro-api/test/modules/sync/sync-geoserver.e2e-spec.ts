@@ -1,7 +1,7 @@
 import { INestApplication, HttpStatus } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
@@ -11,11 +11,13 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { Basin } from '../../../src/app/domain/entities/basin.entity';
 import { SubBasin } from '../../../src/app/domain/entities/sub-basin.entity';
 import { Station } from '../../../src/app/domain/entities/station.entity';
+import { StationThreshold } from '../../../src/app/domain/entities/station-threshold.entity';
 import { GeoPuntoSaih } from '../../../src/app/domain/entities/geo-punto-saih.entity';
 import { GeoSubcuenca } from '../../../src/app/domain/entities/geo-subcuenca.entity';
 import { IBasinRepository } from '../../../src/app/domain/ports/basin-repository.port';
 import { ISubBasinRepository } from '../../../src/app/domain/ports/sub-basin-repository.port';
 import { IStationRepository } from '../../../src/app/domain/ports/station-repository.port';
+import { IStationThresholdRepository } from '../../../src/app/domain/ports/station-threshold-repository.port';
 import { IGeoserverRepository } from '../../../src/app/domain/ports/geoserver-repository.port';
 import { ICacheService } from '../../../src/app/domain/ports/cache-service.port';
 
@@ -23,6 +25,7 @@ import { ICacheService } from '../../../src/app/domain/ports/cache-service.port'
 import { BasinRepository } from '../../../src/app/infrastructure/persistence/basin.repository';
 import { SubBasinRepository } from '../../../src/app/infrastructure/persistence/sub-basin.repository';
 import { StationRepository } from '../../../src/app/infrastructure/persistence/station.repository';
+import { StationThresholdRepository } from '../../../src/app/infrastructure/persistence/station-threshold.repository';
 import { GeoserverRepository } from '../../../src/app/infrastructure/persistence/geoserver.repository';
 import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-query-bus.service';
 
@@ -62,7 +65,6 @@ describe('Sync GeoServer (e2e)', () => {
         geoCtx = await createGeoserverTestDb();
 
         // 2. Start primary Postgres container
-        const { PostgreSqlContainer } = await import('@testcontainers/postgresql');
         pgContainer = await new PostgreSqlContainer('postgres:16-alpine').withDatabase('hydro_test').start();
 
         // 3. Build NestJS module with both DB connections
@@ -76,10 +78,10 @@ describe('Sync GeoServer (e2e)', () => {
                     username: pgContainer.getUsername(),
                     password: pgContainer.getPassword(),
                     database: pgContainer.getDatabase(),
-                    entities: [Basin, SubBasin, Station],
+                    entities: [Basin, SubBasin, Station, StationThreshold],
                     synchronize: true,
                 }),
-                TypeOrmModule.forFeature([Basin, SubBasin, Station]),
+                TypeOrmModule.forFeature([Basin, SubBasin, Station, StationThreshold]),
                 // GeoServer DB (read-only)
                 TypeOrmModule.forRoot({
                     name: 'geoserver',
@@ -106,6 +108,7 @@ describe('Sync GeoServer (e2e)', () => {
                 { provide: IBasinRepository, useClass: BasinRepository },
                 { provide: ISubBasinRepository, useClass: SubBasinRepository },
                 { provide: IStationRepository, useClass: StationRepository },
+                { provide: IStationThresholdRepository, useClass: StationThresholdRepository },
                 { provide: IGeoserverRepository, useClass: GeoserverRepository },
                 { provide: ICacheService, useValue: mockCacheService },
                 HttpExceptionFilter,
@@ -180,19 +183,31 @@ describe('Sync GeoServer (e2e)', () => {
         expect(body.errors).toEqual([]);
     });
 
-    it('should preserve existing umbral values on re-sync', async () => {
-        // First sync
+    it('should sync threshold values from GeoServer', async () => {
         await syncGeoserver().expect(HttpStatus.CREATED);
 
-        // Set umbral on a station directly via DB
-        await dataSource.query('UPDATE "stations" SET "umbral" = 5.5 WHERE "stationCode" = \'AR01\'');
+        const [threshold] = await dataSource.query(
+            `SELECT t."umbralNivel1", t."umbralCaudal1"
+             FROM "station_thresholds" t
+             JOIN "stations" s ON s.id = t."stationId"
+             WHERE s."stationCode" = 'AR01'`,
+        );
+        expect(threshold).toBeDefined();
+        expect(Number(threshold.umbralNivel1)).toBe(0.95);
+        expect(Number(threshold.umbralCaudal1)).toBe(6.06);
+    });
 
-        // Re-sync
+    it('should be idempotent for thresholds on re-sync', async () => {
+        await syncGeoserver().expect(HttpStatus.CREATED);
         await syncGeoserver().expect(HttpStatus.CREATED);
 
-        // Verify umbral preserved
-        const [station] = await dataSource.query('SELECT "umbral" FROM "stations" WHERE "stationCode" = \'AR01\'');
-        expect(station.umbral).toBe(5.5);
+        const rows = await dataSource.query(
+            `SELECT COUNT(*)::int AS count
+             FROM "station_thresholds" t
+             JOIN "stations" s ON s.id = t."stationId"
+             WHERE s."stationCode" = 'AR01'`,
+        );
+        expect(rows[0].count).toBe(1);
     });
 
     // ─────────────────────────────────────────────────────────────

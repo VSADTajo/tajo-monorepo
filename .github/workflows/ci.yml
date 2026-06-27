@@ -92,4 +92,6 @@ jobs:
         env:
           # Testcontainers reuses the host Docker; default works on GitHub-hosted runners.
           TESTCONTAINERS_RYUK_DISABLED: 'true'
-        run: npm run test:e2e
+        # --passWithNoTests mirrors the unit step: a service that declares a
+        # test:e2e script but ships no *.e2e-spec.ts files must not fail the job.
+        run: npm run test:e2e -- --passWithNoTests
