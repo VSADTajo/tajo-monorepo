@@ -1,0 +1,240 @@
+# =============================================================================
+# Base infrastructure: data stores only.
+# Start: tajo up
+# Direct: docker compose -f infra/docker-compose.base.yml up -d
+#
+# Every Postgres uses the SAME superuser/password (from .env) but a different
+# database. Volumes are named and persist across container restarts.
+# Healthchecks are required — apps in docker-compose.apps.yml wait on them.
+# =============================================================================
+
+x-postgres-base: &postgres-base
+    image: postgres:16.4-alpine
+    restart: unless-stopped
+    environment: &postgres-env
+        POSTGRES_USER: ${POSTGRES_USER:-postgres}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+    healthcheck:
+        test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 15s
+    networks:
+        - infra-network
+
+services:
+    # ──────────────────────────────────────────────────────────────────────
+    # CACHE
+    # ──────────────────────────────────────────────────────────────────────
+    infra-redis:
+        image: redis:7-alpine
+        container_name: infra-redis
+        restart: unless-stopped
+        command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+        volumes:
+            - redis-data:/data
+        ports:
+            - '6379:6379'
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        networks:
+            - infra-network
+
+    # ──────────────────────────────────────────────────────────────────────
+    # MESSAGE BROKER
+    # ──────────────────────────────────────────────────────────────────────
+    infra-rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        container_name: infra-rabbitmq
+        restart: unless-stopped
+        environment:
+            RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+            RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+        volumes:
+            - rabbitmq-data:/var/lib/rabbitmq
+        ports:
+            - '5672:5672'   # AMQP
+            - '15672:15672' # Management UI
+        healthcheck:
+            test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+            interval: 15s
+            timeout: 10s
+            retries: 5
+            start_period: 30s
+        networks:
+            - infra-network
+
+    # ──────────────────────────────────────────────────────────────────────
+    # MONGO (ms-logs-api)
+    # ──────────────────────────────────────────────────────────────────────
+    infra-mongo-logs:
+        image: mongo:7.0.28
+        container_name: infra-mongo-logs
+        restart: unless-stopped
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+            MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-localdev}
+            MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-apilogs}
+        volumes:
+            - mongo-logs-data:/data/db
+        ports:
+            - '27017:27017'
+        healthcheck:
+            test: ['CMD-SHELL', "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.adminCommand(\"ping\").ok' | grep -q 1"]
+            interval: 15s
+            timeout: 10s
+            retries: 5
+            start_period: 20s
+        networks:
+            - infra-network
+
+    # ──────────────────────────────────────────────────────────────────────
+    # POSTGRES (one DB per NestJS service)
+    # ──────────────────────────────────────────────────────────────────────
+    infra-db-user:
+        <<: *postgres-base
+        container_name: infra-db-user
+        environment:
+            <<: *postgres-env
+            POSTGRES_DB: ${DB_USER_DATABASE:-user_db}
+        volumes:
+            - db-user-data:/var/lib/postgresql/data
+            - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
+        ports:
+            - '5433:5432'
+
+    infra-db-sftp:
+        <<: *postgres-base
+        container_name: infra-db-sftp
+        # ms-sftp-api requires scram-sha-256 password encryption.
+        command: postgres -c password_encryption=scram-sha-256
+        environment:
+            <<: *postgres-env
+            POSTGRES_DB: ${DB_SFTP_DATABASE:-sftp_db}
+            POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256'
+        volumes:
+            - db-sftp-data:/var/lib/postgresql/data
+            - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
+        ports:
+            - '5435:5432'
+
+    infra-db-geoserver:
+        image: postgis/postgis:17-3.5-alpine
+        container_name: infra-db-geoserver
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-postgres}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+            POSTGRES_DB: ${DB_GEOSERVER_DATABASE:-geoserver_db}
+        volumes:
+            - db-geoserver-data:/var/lib/postgresql/data
+            - ./postgres/init-postgis.sql:/docker-entrypoint-initdb.d/00-postgis.sql:ro
+        ports:
+            - '5436:5432'
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 15s
+        networks:
+            - infra-network
+
+    infra-db-predictions:
+        <<: *postgres-base
+        container_name: infra-db-predictions
+        environment:
+            <<: *postgres-env
+            POSTGRES_DB: ${DB_PREDICTIONS_DATABASE:-predictions_db}
+        volumes:
+            - db-predictions-data:/var/lib/postgresql/data
+            - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
+        ports:
+            - '5437:5432'
+
+    infra-db-hydro:
+        <<: *postgres-base
+        container_name: infra-db-hydro
+        environment:
+            <<: *postgres-env
+            POSTGRES_DB: ${DB_HYDRO_DATABASE:-hydro_db}
+        volumes:
+            - db-hydro-data:/var/lib/postgresql/data
+            - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
+        ports:
+            - '5438:5432'
+
+    infra-db-model:
+        <<: *postgres-base
+        container_name: infra-db-model
+        environment:
+            <<: *postgres-env
+            POSTGRES_DB: ${DB_MODEL_DATABASE:-model_db}
+        volumes:
+            - db-model-data:/var/lib/postgresql/data
+            - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
+        ports:
+            - '5439:5432'
+
+    infra-db-notifications:
+        <<: *postgres-base
+        container_name: infra-db-notifications
+        environment:
+            <<: *postgres-env
+            POSTGRES_DB: ${DB_NOTIFICATIONS_DATABASE:-notifications_db}
+        volumes:
+            - db-notifications-data:/var/lib/postgresql/data
+            - ./postgres/init-extensions.sql:/docker-entrypoint-initdb.d/00-extensions.sql:ro
+        ports:
+            - '5440:5432'
+
+    infra-db-meteo:
+        # Meteo persists spatial data; reuse the PostGIS image for parity with
+        # the GeoServer DB.
+        image: postgis/postgis:17-3.5-alpine
+        container_name: infra-db-meteo
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: ${POSTGRES_USER:-postgres}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+            POSTGRES_DB: ${DB_METEO_DATABASE:-meteo_db}
+        volumes:
+            - db-meteo-data:/var/lib/postgresql/data
+            - ./postgres/init-postgis.sql:/docker-entrypoint-initdb.d/00-postgis.sql:ro
+        ports:
+            - '5441:5432'
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 15s
+        networks:
+            - infra-network
+
+# -----------------------------------------------------------------------------
+# Named volumes — persisted on the host. Survive `docker compose down`.
+# Wiped only by `docker compose down -v` or manual `docker volume rm`.
+# -----------------------------------------------------------------------------
+volumes:
+    redis-data:
+    rabbitmq-data:
+    mongo-logs-data:
+    db-user-data:
+    db-sftp-data:
+    db-geoserver-data:
+    db-predictions-data:
+    db-hydro-data:
+    db-model-data:
+    db-notifications-data:
+    db-meteo-data:
+
+networks:
+    infra-network:
+        name: infra-network
+        driver: bridge

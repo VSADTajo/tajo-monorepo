@@ -1,0 +1,117 @@
+# =============================================================================
+# Dev override — builds images locally from the monorepo sources and enables
+# hot-reload via bind mounts. Combined with base + apps by `tajo up --dev`.
+#
+# This is for running the FULL stack locally. For iterating on a single
+# service, prefer that service's own `docker-compose.yml` in its directory.
+# =============================================================================
+
+services:
+    ms-gateway-api:
+        build:
+            context: ../ms-gateway-api
+            target: dev
+        volumes:
+            - ../ms-gateway-api:/app
+            - /app/node_modules
+        command: npm run start:dev
+
+    ms-user-api:
+        build:
+            context: ../ms-user-api
+            target: dev
+        volumes:
+            - ../ms-user-api:/app
+            - /app/node_modules
+        command: sh -c "npm run migration:run && npm run start:dev"
+
+    ms-authentication-api:
+        build:
+            context: ../ms-authentication-api
+            target: dev
+        volumes:
+            - ../ms-authentication-api:/app
+            - /app/node_modules
+        command: npm run start:dev
+
+    ms-sftp-api:
+        build:
+            context: ../ms-sftp-api
+            target: dev
+        volumes:
+            - ../ms-sftp-api:/app
+            - /app/node_modules
+            - sftp-files:/data/files
+            - sftp-keys:/data/sftp
+        command: sh -c "npm run migration:run && npm run start:dev"
+
+    ms-logs-api:
+        build:
+            context: ../ms-logs-api
+            target: dev
+        volumes:
+            - ../ms-logs-api/src:/app/src
+            - ../ms-logs-api/tsconfig.json:/app/tsconfig.json
+            - ../ms-logs-api/package.json:/app/package.json
+            - logs-files-results:/app/dist/files_results
+        command: npm run start:dev
+
+    ms-logs-ui:
+        build:
+            context: ../ms-logs-api/ui
+            args:
+                VITE_API_URL: http://localhost:3004
+        # UI is built static — no hot-reload override.
+
+    ms-hydro-api:
+        build:
+            context: ../ms-hydro-api
+            target: dev
+        volumes:
+            - ../ms-hydro-api:/app
+            - /app/node_modules
+        command: sh -c "npm run migration:run && npm run start:dev"
+
+    ms-predictions-api:
+        build:
+            context: ../ms-predictions-api
+            target: dev
+        volumes:
+            - ../ms-predictions-api:/app
+            - /app/node_modules
+        command: sh -c "npm run migration:run && npm run start:dev"
+
+    ms-model-api:
+        build:
+            context: ../ms-model-api
+            target: dev
+        volumes:
+            - ../ms-model-api:/app
+            - /app/node_modules
+        command: sh -c "npm run migration:run && npm run start:dev"
+
+    ms-notifications-api:
+        build:
+            context: ../ms-notifications-api
+            target: dev
+        volumes:
+            - ../ms-notifications-api:/app
+            - /app/node_modules
+        command: sh -c "npm run migration:run && npm run start:dev"
+
+    ms-meteo-api:
+        build:
+            context: ../ms-meteo-api
+            target: dev
+        volumes:
+            - ../ms-meteo-api:/app
+            - /app/node_modules
+        command: sh -c "npm run migration:run && npm run start:dev"
+
+    vsad-tajo-frontend:
+        build:
+            context: ../vsad-tajo-frontend
+            args:
+                VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+                VITE_GEOSERVER_URL: ${VITE_GEOSERVER_URL:-http://localhost:8085/geoserver}
+        # nginx-served static build — no hot-reload override.

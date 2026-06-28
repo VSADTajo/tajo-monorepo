@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+# =============================================================================
+# tajo — unified CLI for the VSAD Tajo platform.
+#
+# Wraps `docker compose` with the right combination of files for dev/prod and
+# provides higher-level verbs (migrate, backup, restore, psql, ...).
+#
+# Usage: tajo <command> [args]
+# Run `tajo help` for the full command list.
+# =============================================================================
+
+set -euo pipefail
+
+# ─── paths ────────────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+INFRA_DIR="${REPO_ROOT}/infra"
+
+BASE_COMPOSE="${INFRA_DIR}/docker-compose.base.yml"
+APPS_COMPOSE="${INFRA_DIR}/docker-compose.apps.yml"
+DEV_COMPOSE="${INFRA_DIR}/docker-compose.dev.yml"
+PROD_COMPOSE="${INFRA_DIR}/docker-compose.prod.yml"
+ENV_FILE="${INFRA_DIR}/.env"
+
+PROJECT_NAME="tajo"
+
+# ─── colors ───────────────────────────────────────────────────────────────────
+RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; YELLOW=$'\033[0;33m'; BLUE=$'\033[0;34m'; NC=$'\033[0m'
+log()  { printf "${BLUE}==>${NC} %s\n" "$*"; }
+ok()   { printf "${GREEN}✓${NC} %s\n" "$*"; }
+warn() { printf "${YELLOW}!${NC} %s\n" "$*" >&2; }
+die()  { printf "${RED}✗${NC} %s\n" "$*" >&2; exit 1; }
+
+# ─── preflight ────────────────────────────────────────────────────────────────
+command -v docker >/dev/null || die "docker not installed"
+docker compose version >/dev/null 2>&1 || die "docker compose v2 plugin not installed"
+
+[ -f "${BASE_COMPOSE}" ] || die "missing ${BASE_COMPOSE}"
+[ -f "${APPS_COMPOSE}" ] || die "missing ${APPS_COMPOSE}"
+
+# Backend services that own a Postgres database (used by `migrate` and `psql`).
+NEST_DB_SERVICES=(ms-user-api ms-sftp-api ms-hydro-api ms-predictions-api ms-model-api ms-notifications-api ms-meteo-api)
+NEST_NO_DB_SERVICES=(ms-gateway-api ms-authentication-api)
+DATA_VOLUMES=(redis-data rabbitmq-data mongo-logs-data db-user-data db-sftp-data db-geoserver-data db-predictions-data db-hydro-data db-model-data db-notifications-data db-meteo-data sftp-files sftp-keys logs-files-results geoserver-data)
+
+# Service → container DB name (for psql shortcut).
+db_container_for() {
+    case "$1" in
+        ms-user-api)          echo "infra-db-user" ;;
+        ms-sftp-api)          echo "infra-db-sftp" ;;
+        ms-predictions-api)   echo "infra-db-predictions" ;;
+        ms-hydro-api)         echo "infra-db-hydro" ;;
+        ms-model-api)         echo "infra-db-model" ;;
+        ms-notifications-api) echo "infra-db-notifications" ;;
+        ms-meteo-api)         echo "infra-db-meteo" ;;
+        geoserver)            echo "infra-db-geoserver" ;;
+        *) return 1 ;;
+    esac
+}
+
+db_name_for() {
+    case "$1" in
+        ms-user-api)          echo "${DB_USER_DATABASE:-user_db}" ;;
+        ms-sftp-api)          echo "${DB_SFTP_DATABASE:-sftp_db}" ;;
+        ms-predictions-api)   echo "${DB_PREDICTIONS_DATABASE:-predictions_db}" ;;
+        ms-hydro-api)         echo "${DB_HYDRO_DATABASE:-hydro_db}" ;;
+        ms-model-api)         echo "${DB_MODEL_DATABASE:-model_db}" ;;
+        ms-notifications-api) echo "${DB_NOTIFICATIONS_DATABASE:-notifications_db}" ;;
+        ms-meteo-api)         echo "${DB_METEO_DATABASE:-meteo_db}" ;;
+        geoserver)            echo "${DB_GEOSERVER_DATABASE:-geoserver_db}" ;;
+        *) return 1 ;;
+    esac
+}
+
+# ─── compose wrapper ──────────────────────────────────────────────────────────
+# `MODE` is set per-command (default: prod). Affects which override is layered
+# on top of base + apps.
+MODE="${TAJO_MODE:-prod}"
+
+compose() {
+    local files=(-f "${BASE_COMPOSE}" -f "${APPS_COMPOSE}")
+    case "${MODE}" in
+        dev)  files+=(-f "${DEV_COMPOSE}") ;;
+        prod) [ -f "${PROD_COMPOSE}" ] && files+=(-f "${PROD_COMPOSE}") ;;
+    esac
+    docker compose -p "${PROJECT_NAME}" "${files[@]}" "$@"
+}
+
+ensure_env() {
+    if [ ! -f "${ENV_FILE}" ]; then
+        warn ".env not found at ${ENV_FILE}"
+        warn "copying .env.example → .env (REMEMBER TO CUSTOMIZE SECRETS)"
+        cp "${INFRA_DIR}/.env.example" "${ENV_FILE}"
+    fi
+    # shellcheck disable=SC1090
+    set -a; . "${ENV_FILE}"; set +a
+}
+
+# ─── commands ─────────────────────────────────────────────────────────────────
+cmd_up() {
+    ensure_env
+    log "starting stack (mode=${MODE})"
+    if [ "${MODE}" = "prod" ]; then
+        compose pull --ignore-pull-failures
+    fi
+    compose up -d --remove-orphans "$@"
+    ok "stack is up — run 'tajo status' to see health"
+}
+
+cmd_down() {
+    local args=("$@")
+    if [[ " ${args[*]} " =~ " -v " || " ${args[*]} " =~ " --volumes " ]]; then
+        warn "this will DELETE all data volumes (DBs, MQ state, file storage)"
+        read -r -p "type 'yes' to continue: " confirm
+        [ "${confirm}" = "yes" ] || die "aborted"
+    fi
+    compose down "${args[@]}"
+}
+
+cmd_restart() {
+    [ $# -ge 1 ] || die "usage: tajo restart <service>"
+    compose restart "$@"
+}
+
+cmd_logs() {
+    compose logs -f --tail=200 "$@"
+}
+
+cmd_status() {
+    compose ps
+}
+
+cmd_pull() {
+    ensure_env
+    compose pull "$@"
+}
+
+cmd_build() {
+    MODE="dev"
+    ensure_env
+    compose build "$@"
+}
+
+cmd_shell() {
+    [ $# -ge 1 ] || die "usage: tajo shell <service>"
+    compose exec "$1" sh
+}
+
+cmd_migrate() {
+    if [ $# -eq 0 ]; then
+        log "running migrations on every DB-backed service"
+        for svc in "${NEST_DB_SERVICES[@]}"; do
+            log " → ${svc}"
+            compose exec -T "${svc}" npm run migration:run:prod || warn "${svc}: migration failed"
+        done
+        ok "done"
+    else
+        compose exec "$1" npm run migration:run:prod
+    fi
+}
+
+cmd_psql() {
+    [ $# -ge 1 ] || die "usage: tajo psql <service>   (e.g. tajo psql ms-user-api)"
+    ensure_env
+    local container db
+    container="$(db_container_for "$1")" || die "no DB known for service '$1'"
+    db="$(db_name_for "$1")"
+    log "psql → ${container}/${db}"
+    docker exec -it "${container}" psql -U "${POSTGRES_USER:-postgres}" -d "${db}"
+}
+
+cmd_backup() {
+    ensure_env
+    local stamp
+    stamp="$(date -u +%Y%m%d-%H%M%S)"
+    local out="${REPO_ROOT}/backups/${stamp}"
+    mkdir -p "${out}"
+    log "backing up data volumes to ${out}"
+    for vol in "${DATA_VOLUMES[@]}"; do
+        local full="${PROJECT_NAME}_${vol}"
+        if docker volume inspect "${full}" >/dev/null 2>&1; then
+            log " → ${vol}"
+            docker run --rm \
+                -v "${full}:/data:ro" \
+                -v "${out}:/backup" \
+                alpine sh -c "cd /data && tar -czf /backup/${vol}.tar.gz ."
+        else
+            warn "skip ${vol} (volume not present)"
+        fi
+    done
+    ok "backup complete: ${out}"
+    echo "${out}"
+}
+
+cmd_restore() {
+    [ $# -ge 1 ] || die "usage: tajo restore <backup-dir>"
+    local src="$1"
+    [ -d "${src}" ] || die "not a directory: ${src}"
+    warn "this will OVERWRITE existing volumes"
+    read -r -p "type 'yes' to continue: " confirm
+    [ "${confirm}" = "yes" ] || die "aborted"
+
+    log "stopping stack"
+    compose down
+
+    for archive in "${src}"/*.tar.gz; do
+        [ -f "${archive}" ] || continue
+        local vol
+        vol="$(basename "${archive}" .tar.gz)"
+        local full="${PROJECT_NAME}_${vol}"
+        log " → ${vol}"
+        docker volume create "${full}" >/dev/null
+        docker run --rm \
+            -v "${full}:/data" \
+            -v "$(cd "${src}" && pwd):/backup:ro" \
+            alpine sh -c "cd /data && tar -xzf /backup/${vol}.tar.gz"
+    done
+    ok "restore complete — run 'tajo up' to start"
+}
+
+cmd_help() {
+    cat <<EOF
+tajo — unified CLI for the VSAD Tajo platform
+
+Usage:
+    tajo <command> [args]
+
+Modes:
+    Default mode is prod. Override with TAJO_MODE=dev or the --dev/--prod flag.
+
+Commands:
+    up [--dev|--prod] [services...]   Start the stack (default: prod, pulls images first)
+    down [-v]                         Stop the stack. With -v also wipes volumes.
+    restart <service>                 Restart a single service
+    logs [service]                    Tail logs (all services, or just one)
+    status                            Show container status + health
+    pull                              Pull latest images for the configured TAG
+    build [service]                   Build images locally (implies --dev)
+    shell <service>                   Open a sh inside a running service
+    migrate [service]                 Run TypeORM migrations on one service, or all DB services if none given
+    psql <service>                    Open psql against the service's database
+    backup                            Tar all data volumes to backups/<timestamp>/
+    restore <backup-dir>              Restore data volumes from a backup directory
+    help                              This message
+
+Environment overrides:
+    TAJO_MODE=dev|prod                Default for compose overrides (default: prod)
+    REGISTRY=ghcr.io/vsadtajo         GHCR namespace for prod images
+    TAG=latest                        Image tag to deploy (e.g. v1.2.3 or sha-a1b2c3d)
+
+Examples:
+    tajo up                           Pull latest GHCR images and start everything
+    tajo up --dev                     Build from source + bring up with hot-reload
+    tajo migrate ms-user-api          Run pending migrations for ms-user-api
+    tajo psql ms-predictions-api      Open psql into the predictions DB
+    TAG=v1.2.3 tajo up                Deploy a specific version
+EOF
+}
+
+# ─── arg parse ────────────────────────────────────────────────────────────────
+# Handle global --dev / --prod that may appear anywhere.
+ARGS=()
+for arg in "$@"; do
+    case "${arg}" in
+        --dev)  MODE="dev" ;;
+        --prod) MODE="prod" ;;
+        *)      ARGS+=("${arg}") ;;
+    esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+[ $# -ge 1 ] || { cmd_help; exit 0; }
+
+cmd="$1"; shift
+case "${cmd}" in
+    up)       cmd_up "$@" ;;
+    down)     cmd_down "$@" ;;
+    restart)  cmd_restart "$@" ;;
+    logs)     cmd_logs "$@" ;;
+    status|ps) cmd_status "$@" ;;
+    pull)     cmd_pull "$@" ;;
+    build)    cmd_build "$@" ;;
+    shell|sh|exec) cmd_shell "$@" ;;
+    migrate)  cmd_migrate "$@" ;;
+    psql)     cmd_psql "$@" ;;
+    backup)   cmd_backup "$@" ;;
+    restore)  cmd_restore "$@" ;;
+    help|-h|--help) cmd_help ;;
+    *) die "unknown command: ${cmd} (run 'tajo help')" ;;
+esac
