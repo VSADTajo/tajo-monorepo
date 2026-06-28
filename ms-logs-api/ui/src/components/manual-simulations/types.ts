@@ -33,8 +33,10 @@ export interface Maneuver {
     endDate: string | null; // ISO 8601
 }
 
-/** A maneuver being edited in the create form (no id yet). */
+/** A maneuver being edited in the create form (no backend id yet). */
 export interface ManeuverDraft {
+    /** Client-only stable id for React keys. Never sent to the backend. */
+    id: string;
     reservoirCode: string;
     outputFlowValue: string; // kept as string while editing; coerced to number on submit
     startDate: string; // '' or 'YYYY-MM-DDTHH:mm'

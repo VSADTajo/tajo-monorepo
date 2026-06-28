@@ -16,7 +16,8 @@ import { downloadSimulationFile, finalizeSimulation, getManualSimulationById, li
 import { formatIsoDate, formatSimDate } from '../predictions-data/format';
 import type { SftpFileMeta, SimulationFolder } from '../predictions-data/types';
 import { isTerminalStatus } from './types';
-import { statusBadgeClass } from './status';
+import { statusBadgeClass, statusDescription, statusLabel } from './status';
+import { useModalDismiss } from './useModalDismiss';
 
 interface MonitorSimulationModalProps {
     simulationId: string;
@@ -25,14 +26,6 @@ interface MonitorSimulationModalProps {
 
 const SIM_POLL_MS = 4000;
 const FILES_POLL_MS = 6000;
-
-const STATUS_LABEL: Record<string, string> = {
-    CREATED: 'Creada',
-    MODEL_PROCESSING: 'El modelo está procesando',
-    IN_PROGRESS: 'Recibiendo resultados',
-    FINALIZED: 'Finalizada',
-    MODEL_FAILED: 'El modelo falló',
-};
 
 function formatBytes(bytes: number): string {
     if (!Number.isFinite(bytes) || bytes < 0) return '-';
@@ -102,6 +95,8 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
     const [downloadingName, setDownloadingName] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
 
+    useModalDismiss(onClose);
+
     const { data: sim, isLoading, isError } = useQuery({
         queryKey: ['manual-simulation', simulationId],
         queryFn: ({ signal }) => getManualSimulationById(simulationId, signal),
@@ -141,8 +136,14 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
     const canFinalize = status === 'MODEL_PROCESSING' || status === 'IN_PROGRESS';
 
     return (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-overlay-in">
-            <div className="bg-slate-900 border border-slate-700/60 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col shadow-2xl ring-1 ring-white/5 animate-panel-in overflow-hidden">
+        <div
+            onClick={onClose}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-overlay-in"
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-slate-700/60 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col shadow-2xl ring-1 ring-white/5 animate-panel-in overflow-hidden"
+            >
                 {/* Header */}
                 <div className="flex items-start justify-between px-6 py-5 border-b border-slate-700/50 bg-gradient-to-br from-blue-600/15 via-slate-900 to-slate-900">
                     <div className="flex items-center gap-3.5">
@@ -176,10 +177,10 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                                 <div className="flex items-center gap-3">
                                     <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold ${statusBadgeClass(status)}`}>
                                         {!terminal && <Loader2 size={13} className="animate-spin" />}
-                                        {status}
+                                        {statusLabel(status)}
                                     </span>
                                     <div className="flex flex-col">
-                                        <span className="text-xs text-slate-300">{STATUS_LABEL[status] ?? status}</span>
+                                        <span className="text-xs text-slate-300">{statusDescription(status)}</span>
                                         {!terminal && <span className="text-[10px] text-amber-400/80">● actualizando en vivo</span>}
                                     </div>
                                 </div>

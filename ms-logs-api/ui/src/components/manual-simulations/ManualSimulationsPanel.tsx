@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, FlaskConical, Loader2, Plus, Radio, Trash2 } from 'lucide-react';
-import { deleteSimulation, listManualSimulations } from './api';
+import { listManualSimulations } from './api';
 import { formatIsoDate, formatSimDate } from '../predictions-data/format';
 import { isTerminalStatus, type ManualSimulationListItem } from './types';
-import { statusBadgeClass } from './status';
+import { statusBadgeClass, statusLabel } from './status';
 import CreateSimulationModal from './CreateSimulationModal';
 import MonitorSimulationModal from './MonitorSimulationModal';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 
 const PAGE_SIZE = 20;
 const LIST_POLL_MS = 8000;
@@ -14,7 +15,6 @@ const LIST_POLL_MS = 8000;
 const STATUS_OPTIONS = ['', 'CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'];
 
 export default function ManualSimulationsPanel() {
-    const queryClient = useQueryClient();
     const [statusFilter, setStatusFilter] = useState('');
     const [page, setPage] = useState(1);
     const [showCreate, setShowCreate] = useState(false);
@@ -35,17 +35,17 @@ export default function ManualSimulationsPanel() {
         },
     });
 
-    const deleteMutation = useMutation({
-        mutationFn: (id: string) => deleteSimulation(id),
-        onSuccess: () => {
-            setPendingDelete(null);
-            queryClient.invalidateQueries({ queryKey: ['manual-simulations'] });
-        },
-    });
-
     const rows = data?.data ?? [];
     const total = data?.total ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    // After a delete (or any shrink) the current page can fall out of range — snap it back
+    // so the operator never lands on an empty page while data still exists earlier.
+    // Guard on `data`: while switching pages the query is loading and data is undefined
+    // (total → 0, totalPages → 1); clamping then would wrongly kick the user back to page 1.
+    useEffect(() => {
+        if (data && page > totalPages) setPage(totalPages);
+    }, [data, page, totalPages]);
 
     return (
         <div className="h-full flex flex-col">
@@ -81,7 +81,7 @@ export default function ManualSimulationsPanel() {
                     >
                         {STATUS_OPTIONS.map((opt) => (
                             <option key={opt} value={opt}>
-                                {opt === '' ? 'Todos los estados' : opt}
+                                {opt === '' ? 'Todos los estados' : statusLabel(opt)}
                             </option>
                         ))}
                     </select>
@@ -122,7 +122,7 @@ export default function ManualSimulationsPanel() {
                                             <td className="px-4 py-2.5">
                                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] ${statusBadgeClass(sim.status)}`}>
                                                     {!isTerminalStatus(sim.status) && <Loader2 size={10} className="animate-spin" />}
-                                                    {sim.status}
+                                                    {statusLabel(sim.status)}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-2.5 text-right text-slate-300">{sim.maneuverCount}</td>
@@ -199,44 +199,7 @@ export default function ManualSimulationsPanel() {
             {monitorId && <MonitorSimulationModal simulationId={monitorId} onClose={() => setMonitorId(null)} />}
 
             {pendingDelete && (
-                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-overlay-in">
-                    <div className="bg-slate-900 border border-slate-700/60 rounded-2xl w-full max-w-md shadow-2xl ring-1 ring-white/5 animate-panel-in overflow-hidden">
-                        <div className="px-5 py-4 border-b border-slate-700/50">
-                            <h3 className="text-sm font-semibold text-slate-100">Borrar simulación</h3>
-                        </div>
-                        <div className="px-5 py-4 text-xs text-slate-300 space-y-2">
-                            <p>
-                                ¿Seguro que querés borrar la simulación del{' '}
-                                <span className="text-slate-100">{formatSimDate(pendingDelete.simulationDate)}</span>?
-                            </p>
-                            <p className="text-slate-500">
-                                Se borrarán también sus maniobras exclusivas. Esta acción no se puede deshacer.
-                            </p>
-                            {deleteMutation.isError && (
-                                <p className="text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                                    No se pudo borrar la simulación
-                                </p>
-                            )}
-                        </div>
-                        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-slate-700/50">
-                            <button
-                                onClick={() => setPendingDelete(null)}
-                                disabled={deleteMutation.isPending}
-                                className="px-4 py-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-40"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={() => deleteMutation.mutate(pendingDelete.id)}
-                                disabled={deleteMutation.isPending}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
-                            >
-                                {deleteMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                                Borrar
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ConfirmDeleteDialog simulation={pendingDelete} onClose={() => setPendingDelete(null)} />
             )}
         </div>
     );
