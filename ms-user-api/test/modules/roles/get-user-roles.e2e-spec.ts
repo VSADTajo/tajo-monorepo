@@ -10,6 +10,8 @@ import { UserRole } from '../../../src/app/domain/entities/user-role.entity';
 import { IUserRepository } from '../../../src/app/domain/ports/user-repository.port';
 import { IRoleRepository } from '../../../src/app/domain/ports/role-repository.port';
 import { IUserRoleRepository } from '../../../src/app/domain/ports/user-role-repository.port';
+import { IUserGroupRepository } from '../../../src/app/domain/ports/user-group-repository.port';
+import { IGroupRoleRepository } from '../../../src/app/domain/ports/group-role-repository.port';
 import { INotificationService } from '../../../src/app/domain/ports/notification-service.port';
 import { ICacheService } from '../../../src/app/domain/ports/cache-service.port';
 
@@ -17,6 +19,8 @@ import { ICacheService } from '../../../src/app/domain/ports/cache-service.port'
 import { UserRepository } from '../../../src/app/infrastructure/persistence/user.repository';
 import { RoleRepository } from '../../../src/app/infrastructure/persistence/role.repository';
 import { UserRoleRepository } from '../../../src/app/infrastructure/persistence/user-role.repository';
+import { UserGroupRepository } from '../../../src/app/infrastructure/persistence/user-group.repository';
+import { GroupRoleRepository } from '../../../src/app/infrastructure/persistence/group-role.repository';
 import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-query-bus.service';
 
 // Application
@@ -72,6 +76,14 @@ describe('Get User Roles (e2e)', () => {
                 {
                     provide: IUserRoleRepository,
                     useClass: UserRoleRepository,
+                },
+                {
+                    provide: IUserGroupRepository,
+                    useClass: UserGroupRepository,
+                },
+                {
+                    provide: IGroupRoleRepository,
+                    useClass: GroupRoleRepository,
                 },
                 {
                     provide: INotificationService,

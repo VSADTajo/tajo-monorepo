@@ -7,6 +7,7 @@ import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Basin } from '../../../src/app/domain/entities/basin.entity';
 import { SubBasin } from '../../../src/app/domain/entities/sub-basin.entity';
 import { Station } from '../../../src/app/domain/entities/station.entity';
+import { StationThreshold } from '../../../src/app/domain/entities/station-threshold.entity';
 import { IBasinRepository } from '../../../src/app/domain/ports/basin-repository.port';
 import { ISubBasinRepository } from '../../../src/app/domain/ports/sub-basin-repository.port';
 import { IStationRepository } from '../../../src/app/domain/ports/station-repository.port';
@@ -48,7 +49,7 @@ describe('Get SubBasin (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [Basin, SubBasin, Station],
+            entities: [Basin, SubBasin, Station, StationThreshold],
             controllers: [BasinController, SubBasinController, StationController],
             providers: [
                 CreateBasinHandler,
@@ -115,7 +116,7 @@ describe('Get SubBasin (e2e)', () => {
             expect(body.stations[0]).toHaveProperty('name');
             expect(body.stations[0]).toHaveProperty('stationCode');
             expect(body.stations[0]).toHaveProperty('stationType');
-            expect(body.stations[0]).toHaveProperty('umbral');
+            expect(body.stations[0]).toHaveProperty('threshold');
         });
 
         it('should return sub-basin with empty stations array when none exist', async () => {

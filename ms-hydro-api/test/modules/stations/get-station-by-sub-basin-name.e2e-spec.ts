@@ -7,6 +7,7 @@ import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Basin } from '../../../src/app/domain/entities/basin.entity';
 import { SubBasin } from '../../../src/app/domain/entities/sub-basin.entity';
 import { Station } from '../../../src/app/domain/entities/station.entity';
+import { StationThreshold } from '../../../src/app/domain/entities/station-threshold.entity';
 import { IBasinRepository } from '../../../src/app/domain/ports/basin-repository.port';
 import { ISubBasinRepository } from '../../../src/app/domain/ports/sub-basin-repository.port';
 import { IStationRepository } from '../../../src/app/domain/ports/station-repository.port';
@@ -48,7 +49,7 @@ describe('Get Station by SubBasinName (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [Basin, SubBasin, Station],
+            entities: [Basin, SubBasin, Station, StationThreshold],
             controllers: [BasinController, SubBasinController, StationController],
             providers: [
                 CreateBasinHandler,
@@ -106,13 +107,13 @@ describe('Get Station by SubBasinName (e2e)', () => {
     describe('GET /stations/by-sub-basin-name/:subBasinName - successful', () => {
         it('should return station by sub-basin name', async () => {
             const { subBasin } = await setupBasinAndSubBasin();
-            const stationDto = buildCreateStationDto(subBasin.id, { subBasinName: 'Arroyo de la Vega', umbral: 200.0 });
+            const stationDto = buildCreateStationDto(subBasin.id, { subBasinName: 'Arroyo de la Vega' });
             await createStation(stationDto).expect(HttpStatus.CREATED);
 
             const { body } = await getStationBySubBasinName('Arroyo de la Vega').expect(HttpStatus.OK);
 
             expect(body.subBasinName).toBe('Arroyo de la Vega');
-            expect(body.umbral).toBe(200.0);
+            expect(body.threshold).toBeNull();
         });
 
         it('should handle URL-encoded sub-basin names with spaces', async () => {

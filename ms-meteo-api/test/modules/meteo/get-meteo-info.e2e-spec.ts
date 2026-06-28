@@ -16,12 +16,14 @@ import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-q
 import { ISftpFileClient } from '../../../src/app/domain/ports/sftp-file-client.port';
 import { IMeteoIngestRunRepository } from '../../../src/app/domain/ports/meteo-ingest-run-repository.port';
 import { ICacheService } from '../../../src/app/domain/ports/cache-service.port';
+import { IGeoserverImageMosaicClient } from '../../../src/app/domain/ports/geoserver-image-mosaic-client.port';
 import { MeteoIngestRunRepository } from '../../../src/app/infrastructure/persistence/meteo-ingest-run.repository';
 import { MeteoConfigService } from '../../../src/configuration/meteo/meteo-config.service';
 
 import { createTestApp, TestContext } from '../../helpers/test-app.helper';
 import { cleanDatabase } from '../../helpers/db.helper';
 import { InMemorySftpFileClient, buildSftpTree } from '../../helpers/sftp-api.mock';
+import { InMemoryGeoserverImageMosaicClient } from '../../helpers/geoserver-rest.mock';
 import { buildInfoJsonRaw, buildRasterFilenames } from '../../factories/meteo-info-json.factory';
 
 describe('GET /meteo/info (e2e)', () => {
@@ -77,12 +79,13 @@ describe('GET /meteo/info (e2e)', () => {
             entities: [MeteoIngestRun],
             controllers: [MeteoController],
             providers: [
-                { provide: PinoLogger, useValue: { log: jest.fn(), warn: jest.fn(), error: jest.fn() } },
-                { provide: Logger, useValue: { log: jest.fn(), warn: jest.fn(), error: jest.fn() } },
+                { provide: PinoLogger, useValue: { log: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } },
+                { provide: Logger, useValue: { log: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } },
                 { provide: ConfigService, useValue: { getOrThrow: jest.fn() } },
                 { provide: MeteoConfigService, useValue: meteoConfigStub },
                 { provide: ISftpFileClient, useValue: sftpMock },
                 { provide: ICacheService, useValue: cacheMock },
+                { provide: IGeoserverImageMosaicClient, useValue: new InMemoryGeoserverImageMosaicClient() },
                 { provide: IMeteoIngestRunRepository, useClass: MeteoIngestRunRepository },
                 CachingQueryBus,
                 MeteoDiscoveryService,

@@ -66,7 +66,7 @@ describe('Auth Proxy (e2e)', () => {
             );
         });
 
-        it('should forward x-correlation-id to auth-api when present', async () => {
+        it('should set x-internal-caller and not forward client x-correlation-id on login', async () => {
             mockProxyService.forward.mockResolvedValue({
                 status: 200,
                 data: { accessToken: 'jwt', expiresIn: '15m', tokenType: 'Bearer' },
@@ -78,9 +78,11 @@ describe('Auth Proxy (e2e)', () => {
                 .send({ email: 'a@b.com', password: 'pwd' })
                 .expect(HttpStatus.OK);
 
+            // Gateway generates its own correlation id per outbound request; it never forwards
+            // the client's x-correlation-id. It only stamps x-internal-caller on the upstream call.
             expect(mockProxyService.forward).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    headers: { 'x-correlation-id': 'correlation-123' },
+                    headers: { 'x-internal-caller': 'ms-gateway-api' },
                 }),
             );
         });
@@ -112,7 +114,7 @@ describe('Auth Proxy (e2e)', () => {
             );
         });
 
-        it('should forward x-correlation-id on register when present', async () => {
+        it('should set x-internal-caller and not forward client x-correlation-id on register', async () => {
             mockProxyService.forward.mockResolvedValue({
                 status: 201,
                 data: { userId: 'uuid' },
@@ -121,12 +123,14 @@ describe('Auth Proxy (e2e)', () => {
             await request(app.getHttpServer())
                 .post('/auth/register')
                 .set('x-correlation-id', 'req-id-456')
-                .send({ name: 'Jane', email: 'j@e.com', password: 'Secret8' })
+                .send({ name: 'Jane', email: 'j@e.com', password: 'Secret88' })
                 .expect(HttpStatus.CREATED);
 
+            // Gateway generates its own correlation id per outbound request; it never forwards
+            // the client's x-correlation-id. It only stamps x-internal-caller on the upstream call.
             expect(mockProxyService.forward).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    headers: { 'x-correlation-id': 'req-id-456' },
+                    headers: { 'x-internal-caller': 'ms-gateway-api' },
                 }),
             );
         });

@@ -7,6 +7,7 @@ import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Basin } from '../../../src/app/domain/entities/basin.entity';
 import { SubBasin } from '../../../src/app/domain/entities/sub-basin.entity';
 import { Station } from '../../../src/app/domain/entities/station.entity';
+import { StationThreshold } from '../../../src/app/domain/entities/station-threshold.entity';
 import { IBasinRepository } from '../../../src/app/domain/ports/basin-repository.port';
 import { ISubBasinRepository } from '../../../src/app/domain/ports/sub-basin-repository.port';
 import { IStationRepository } from '../../../src/app/domain/ports/station-repository.port';
@@ -47,7 +48,7 @@ describe('Create Station (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [Basin, SubBasin, Station],
+            entities: [Basin, SubBasin, Station, StationThreshold],
             controllers: [BasinController, SubBasinController, StationController],
             providers: [
                 CreateBasinHandler,
@@ -100,7 +101,7 @@ describe('Create Station (e2e)', () => {
     describe('POST /stations - successful creation', () => {
         it('should create a station and return its details', async () => {
             const { subBasin } = await setupBasinAndSubBasin();
-            const dto = buildCreateStationDto(subBasin.id, { umbral: 150.5 });
+            const dto = buildCreateStationDto(subBasin.id, { stationType: 'AFORO_EN_RIO' });
 
             const { body } = await createStation(dto).expect(HttpStatus.CREATED);
 
@@ -109,9 +110,9 @@ describe('Create Station (e2e)', () => {
                 name: dto.name,
                 subBasinName: dto.subBasinName,
                 stationCode: dto.stationCode.toUpperCase(),
-                stationType: 'HYDROLOGICAL',
+                stationType: 'AFORO_EN_RIO',
                 subBasinId: subBasin.id,
-                umbral: 150.5,
+                threshold: null,
                 isActive: true,
             });
         });
@@ -122,7 +123,7 @@ describe('Create Station (e2e)', () => {
 
             const { body } = await createStation(dto).expect(HttpStatus.CREATED);
 
-            expect(body.umbral).toBeNull();
+            expect(body.threshold).toBeNull();
             expect(body.latitude).toBeNull();
             expect(body.longitude).toBeNull();
             expect(body.altitude).toBeNull();
@@ -140,7 +141,7 @@ describe('Create Station (e2e)', () => {
         it('should accept all station types', async () => {
             const { subBasin } = await setupBasinAndSubBasin();
 
-            for (const type of ['HYDROLOGICAL', 'METEOROLOGICAL', 'PLUVIOMETRIC']) {
+            for (const type of ['AFORO_EN_RIO', 'EMBALSE_SAIH', 'PLUVIOMETRO']) {
                 const dto = buildCreateStationDto(subBasin.id, { stationType: type });
                 const { body } = await createStation(dto).expect(HttpStatus.CREATED);
                 expect(body.stationType).toBe(type);
@@ -150,17 +151,6 @@ describe('Create Station (e2e)', () => {
 
     // ─── Duplicate rejection ──────────────────────────────────
     describe('POST /stations - duplicates', () => {
-        it('should reject duplicate subBasinName with 409', async () => {
-            const { subBasin } = await setupBasinAndSubBasin();
-            const dto1 = buildCreateStationDto(subBasin.id, { subBasinName: 'UniqueSubBasinName' });
-            await createStation(dto1).expect(HttpStatus.CREATED);
-
-            const dto2 = buildCreateStationDto(subBasin.id, { subBasinName: 'UniqueSubBasinName' });
-
-            const { body } = await createStation(dto2).expect(HttpStatus.CONFLICT);
-            expect(body.ErrorDescription).toContain('subBasinName');
-        });
-
         it('should reject duplicate stationCode with 409', async () => {
             const { subBasin } = await setupBasinAndSubBasin();
             const dto1 = buildCreateStationDto(subBasin.id, { stationCode: 'SAME-CODE' });

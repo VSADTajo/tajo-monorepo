@@ -81,5 +81,63 @@ export async function createGeoserverTestDb(): Promise<GeoserverTestContext> {
             (ST_SetSRID(ST_MakePoint(-3.5, 39.5), 4326), 'P01', 'PLUVIOMETRO SUR', 'P', 'PLUVIOMETRO/PLUVIONIVOMETRO', 'MADRID', 'Aranjuez', 'Madrid', 'Comunidad de Madrid')
     `);
 
+    // Create enrichment tables joined by the sync station query (kept empty — LEFT JOINs)
+    await geoDataSource.query(`
+        CREATE TABLE cht_comarcasagrarias (
+            ogc_fid SERIAL PRIMARY KEY,
+            wkb_geometry geometry(MultiPolygon, 4326),
+            ds_comarca varchar
+        )
+    `);
+
+    await geoDataSource.query(`
+        CREATE TABLE cht_sistemas10 (
+            ogc_fid SERIAL PRIMARY KEY,
+            geom geometry(MultiPolygon, 4326),
+            sistema varchar
+        )
+    `);
+
+    await geoDataSource.query(`
+        CREATE TABLE cht_zonas_expl (
+            ogc_fid SERIAL PRIMARY KEY,
+            geom geometry(MultiPolygon, 4326),
+            nombre varchar
+        )
+    `);
+
+    // Create cht_puntos_saih_umbrales table (threshold source for sync)
+    await geoDataSource.query(`
+        CREATE TABLE cht_puntos_saih_umbrales (
+            ogc_fid SERIAL PRIMARY KEY,
+            codigo varchar(254),
+            parametro varchar(20),
+            senal varchar(20),
+            umbral_nivel_1 double precision,
+            umbral_caudal_1 double precision,
+            umbral_nivel_2 double precision,
+            umbral_caudal_2 double precision,
+            umbral_nivel_3 double precision,
+            umbral_caudal_3 double precision,
+            max_nivel_muro double precision,
+            max_nivel_caseta double precision,
+            umbral_1_volumen double precision,
+            umbral_2_volumen double precision,
+            umbral_3_volumen double precision,
+            caudal_entrada varchar(20),
+            caudal_salida varchar(20),
+            capacidad double precision
+        )
+    `);
+
+    // Seed thresholds — AR01 (aforo: nivel + caudal), E_01 (embalse: volumen)
+    await geoDataSource.query(`
+        INSERT INTO cht_puntos_saih_umbrales
+            (codigo, parametro, senal, umbral_nivel_1, umbral_caudal_1, umbral_nivel_2, umbral_caudal_2, umbral_nivel_3, umbral_caudal_3, umbral_1_volumen, umbral_2_volumen, umbral_3_volumen, caudal_entrada, caudal_salida, capacidad)
+        VALUES
+            ('AR01', 'NIVEL', 'AR01LI__01', 0.95, 6.06, 1.2, 11.53, 1.4, 17.65, NULL, NULL, NULL, NULL, NULL, NULL),
+            ('E_01', 'VOLUMEN', 'E_01VE__01', NULL, NULL, NULL, NULL, NULL, NULL, 10.5, 20.5, 30.5, 'E_01QE__01', 'E_01QS__01', 50.0)
+    `);
+
     return { geoDataSource, geoContainer };
 }

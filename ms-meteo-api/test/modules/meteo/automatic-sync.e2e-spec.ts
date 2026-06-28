@@ -4,7 +4,7 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 import { SyncMeteoCommand } from '../../../src/app/application/commands/meteo.commands';
 import { TriggerSource } from '../../../src/app/domain/types/ingest-status.enum';
 import { DatasetMutex } from '../../../src/app/application/services/dataset-mutex';
-import { MeteoSyncScheduler } from '../../../src/app/infrastructure/scheduling/meteo-sync.scheduler';
+import { MeteoSyncScheduler } from '../../../src/app/application/services/meteo-sync.scheduler';
 
 describe('DatasetMutex (unit)', () => {
     it('blocks concurrent acquires for the same dataset and releases on call', () => {

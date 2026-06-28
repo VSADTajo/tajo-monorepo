@@ -7,6 +7,7 @@ import { StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Basin } from '../../../src/app/domain/entities/basin.entity';
 import { SubBasin } from '../../../src/app/domain/entities/sub-basin.entity';
 import { Station } from '../../../src/app/domain/entities/station.entity';
+import { StationThreshold } from '../../../src/app/domain/entities/station-threshold.entity';
 import { IBasinRepository } from '../../../src/app/domain/ports/basin-repository.port';
 import { ISubBasinRepository } from '../../../src/app/domain/ports/sub-basin-repository.port';
 import { IStationRepository } from '../../../src/app/domain/ports/station-repository.port';
@@ -48,7 +49,7 @@ describe('Update Station (e2e)', () => {
 
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
-            entities: [Basin, SubBasin, Station],
+            entities: [Basin, SubBasin, Station, StationThreshold],
             controllers: [BasinController, SubBasinController, StationController],
             providers: [
                 CreateBasinHandler,
@@ -125,14 +126,12 @@ describe('Update Station (e2e)', () => {
 
             const { body } = await updateStation(station.id, {
                 name: 'New Name',
-                umbral: 999.0,
                 latitude: 40.0,
                 longitude: -3.0,
                 altitude: 500.0,
             }).expect(HttpStatus.OK);
 
             expect(body.name).toBe('New Name');
-            expect(body.umbral).toBe(999.0);
             expect(body.latitude).toBe(40.0);
             expect(body.longitude).toBe(-3.0);
             expect(body.altitude).toBe(500.0);
@@ -148,19 +147,19 @@ describe('Update Station (e2e)', () => {
         });
 
         it('should update stationType', async () => {
-            const { station } = await setupStationWithData({ stationType: 'HYDROLOGICAL' });
+            const { station } = await setupStationWithData({ stationType: 'AFORO_EN_RIO' });
 
-            const { body } = await updateStation(station.id, { stationType: 'METEOROLOGICAL' }).expect(HttpStatus.OK);
+            const { body } = await updateStation(station.id, { stationType: 'EMBALSE_SAIH' }).expect(HttpStatus.OK);
 
-            expect(body.stationType).toBe('METEOROLOGICAL');
+            expect(body.stationType).toBe('EMBALSE_SAIH');
         });
 
-        it('should set umbral to null', async () => {
-            const { station } = await setupStationWithData({ umbral: 100.0 });
+        it('should set altitude to null', async () => {
+            const { station } = await setupStationWithData({ altitude: 100.0 });
 
-            const { body } = await updateStation(station.id, { umbral: null }).expect(HttpStatus.OK);
+            const { body } = await updateStation(station.id, { altitude: null }).expect(HttpStatus.OK);
 
-            expect(body.umbral).toBeNull();
+            expect(body.altitude).toBeNull();
         });
     });
 
@@ -173,17 +172,6 @@ describe('Update Station (e2e)', () => {
 
     // ─── Conflict ─────────────────────────────────────────────
     describe('PUT /stations/:id - conflicts', () => {
-        it('should reject duplicate subBasinName with 409', async () => {
-            const { subBasin } = await setupStationWithData({ subBasinName: 'Unique Name A' });
-            const stationDto2 = buildCreateStationDto(subBasin.id, { subBasinName: 'Unique Name B' });
-            const { body: station2 } = await createStation(stationDto2).expect(HttpStatus.CREATED);
-
-            const { body } = await updateStation(station2.id, { subBasinName: 'Unique Name A' }).expect(
-                HttpStatus.CONFLICT,
-            );
-            expect(body.ErrorDescription).toContain('subBasinName');
-        });
-
         it('should reject duplicate stationCode with 409', async () => {
             const { subBasin } = await setupStationWithData({ stationCode: 'CODE-A' });
             const stationDto2 = buildCreateStationDto(subBasin.id, { stationCode: 'CODE-B' });
