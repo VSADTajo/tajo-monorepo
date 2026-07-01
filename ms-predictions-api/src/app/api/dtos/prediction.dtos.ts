@@ -168,6 +168,24 @@ export class ForecastPredictionsQueryDto {
     @Type(() => Number)
     @IsNumber()
     percentile?: number;
+
+    @ApiProperty({
+        description: 'Inclusive lower bound of the result date window (ISO 8601, UTC)',
+        example: '2026-03-01T00:00:00Z',
+        required: false,
+    })
+    @IsOptional()
+    @IsISO8601({ strict: true })
+    startDate?: string;
+
+    @ApiProperty({
+        description: 'Inclusive upper bound of the result date window (ISO 8601, UTC)',
+        example: '2026-03-31T23:59:59Z',
+        required: false,
+    })
+    @IsOptional()
+    @IsISO8601({ strict: true })
+    endDate?: string;
 }
 
 export class ForecastPredictionsResponseDto {

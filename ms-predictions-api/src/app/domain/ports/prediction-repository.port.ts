@@ -20,6 +20,8 @@ export interface ForecastFilters {
     simulationDate?: string;
     predictionType?: string;
     percentile?: number; // undefined = IS NULL
+    startDate?: string; // inclusive lower bound of the result date window (ISO 8601)
+    endDate?: string; // inclusive upper bound of the result date window (ISO 8601)
 }
 
 export interface MaxAndLatestValueItem {

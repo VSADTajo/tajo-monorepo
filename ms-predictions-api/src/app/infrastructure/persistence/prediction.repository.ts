@@ -182,6 +182,19 @@ export class PredictionRepository implements IPredictionRepository {
                 qb.andWhere('prediction.percentile IS NULL');
             }
 
+            // 5. Filter the result timeline by date window (inclusive). Predictions
+            // with no result point inside the window are excluded from the response.
+            // NOTE: result.date is `timestamp without time zone`; the driver stores/reads
+            // Date objects through the session timezone. Bind Date objects (not raw ISO
+            // strings) so the comparison uses the same timezone conversion as the stored
+            // values — passing a bare ISO string with a 'Z' offset yields wrong matches.
+            if (filters.startDate) {
+                qb.andWhere('result.date >= :startDate', { startDate: new Date(filters.startDate) });
+            }
+            if (filters.endDate) {
+                qb.andWhere('result.date <= :endDate', { endDate: new Date(filters.endDate) });
+            }
+
             qb.orderBy('prediction.stationId', 'ASC');
 
             return await qb.getMany();

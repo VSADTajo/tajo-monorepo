@@ -101,6 +101,8 @@ export class ForecastPredictionsMapper {
                 simulationDate: dto.simulationDate,
                 predictionType: dto.predictionType,
                 percentile: dto.percentile,
+                startDate: dto.startDate,
+                endDate: dto.endDate,
             },
         });
     }

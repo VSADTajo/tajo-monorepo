@@ -347,4 +347,50 @@ describe('Query Predictions (e2e)', () => {
 
         expect(body.predictions).toHaveLength(0);
     });
+
+    it('should filter forecast result points by the startDate/endDate window (inclusive)', async () => {
+        const stationId = 'a0000000-0000-0000-0000-00000000000a';
+        // buildTimeSeriesEvents seeds hourly points from 2026-03-10T00:00:00Z.
+        const events = buildTimeSeriesEvents(5); // 00:00, 01:00, 02:00, 03:00, 04:00
+        await seedTimeSeries({
+            series: buildTimeSeriesData({ locationId: stationId, events }),
+        });
+        // eslint-disable-next-line quotes, @typescript-eslint/quotes
+        await dataSource.query("UPDATE simulations SET status = 'FINALIZED'");
+
+        const { body } = await getForecast({
+            stationId,
+            startDate: '2026-03-10T01:00:00Z',
+            endDate: '2026-03-10T03:00:00Z',
+        }).expect(HttpStatus.OK);
+
+        expect(body.predictions).toHaveLength(1);
+        // Only the 01:00, 02:00 and 03:00 points fall inside the window.
+        expect(body.predictions[0].results).toHaveLength(3);
+        const dates = body.predictions[0].results.map((r: { date: string }) => r.date);
+        expect(dates).toEqual(['2026-03-10T01:00:00.000Z', '2026-03-10T02:00:00.000Z', '2026-03-10T03:00:00.000Z']);
+    });
+
+    it('should exclude predictions with no result points inside the date window', async () => {
+        const stationId = 'b0000000-0000-0000-0000-00000000000b';
+        await seedTimeSeries({
+            series: buildTimeSeriesData({ locationId: stationId, events: buildTimeSeriesEvents(3) }),
+        });
+        // eslint-disable-next-line quotes, @typescript-eslint/quotes
+        await dataSource.query("UPDATE simulations SET status = 'FINALIZED'");
+
+        const { body } = await getForecast({
+            stationId,
+            startDate: '2026-01-01T00:00:00Z',
+            endDate: '2026-01-02T00:00:00Z',
+        }).expect(HttpStatus.OK);
+
+        expect(body.predictions).toHaveLength(0);
+    });
+
+    it('should reject a forecast request with a malformed startDate', async () => {
+        await getForecast({ stationId: 'c0000000-0000-0000-0000-00000000000c', startDate: 'not-a-date' }).expect(
+            HttpStatus.BAD_REQUEST,
+        );
+    });
 });

@@ -599,6 +599,20 @@ export class PredictionsProxyController {
         description: 'Filter by percentile (omit for IS NULL)',
         example: 75,
     })
+    @ApiQuery({
+        name: 'startDate',
+        required: false,
+        type: String,
+        description: 'Inclusive lower bound of the result date window (ISO 8601, UTC)',
+        example: '2026-03-01T00:00:00Z',
+    })
+    @ApiQuery({
+        name: 'endDate',
+        required: false,
+        type: String,
+        description: 'Inclusive upper bound of the result date window (ISO 8601, UTC)',
+        example: '2026-03-31T23:59:59Z',
+    })
     async getForecastPredictions(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
         const result = await this.proxyService.forward({
             method: 'GET',
