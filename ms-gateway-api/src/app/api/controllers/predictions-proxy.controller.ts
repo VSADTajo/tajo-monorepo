@@ -37,6 +37,7 @@ const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
 // Only these query params are forwarded downstream to /predictions/forecast.
 // Everything else is dropped at the gateway (defense-in-depth against param
 // pollution / unexpected params reaching the internal service).
+// startDate/endDate bound the returned forecast timeline inclusively.
 const FORECAST_ALLOWED_QUERY_PARAMS = [
     'stationId',
     'simulationDate',
