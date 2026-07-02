@@ -2,6 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsISO8601, IsNotEmpty, IsOptional, IsString, IsNumber, IsArray } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
+import { IsAfterOrEqual } from '@common/validators/is-after-or-equal.validator';
+
 // ─────────────────────────────────────────────────────────────
 // HistoricalPredictions — deduplicated observed timeline
 // ─────────────────────────────────────────────────────────────
@@ -179,12 +181,13 @@ export class ForecastPredictionsQueryDto {
     startDate?: string;
 
     @ApiProperty({
-        description: 'Inclusive upper bound of the result date window (ISO 8601, UTC)',
+        description: 'Inclusive upper bound of the result date window (ISO 8601, UTC). Must be >= startDate.',
         example: '2026-03-31T23:59:59Z',
         required: false,
     })
     @IsOptional()
     @IsISO8601({ strict: true })
+    @IsAfterOrEqual('startDate')
     endDate?: string;
 }
 
