@@ -34,6 +34,28 @@ import {
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
 
+// Only these query params are forwarded downstream to /predictions/forecast.
+// Everything else is dropped at the gateway (defense-in-depth against param
+// pollution / unexpected params reaching the internal service).
+const FORECAST_ALLOWED_QUERY_PARAMS = [
+    'stationId',
+    'simulationDate',
+    'predictionType',
+    'percentile',
+    'startDate',
+    'endDate',
+] as const;
+
+function pickAllowedQuery(
+    query: Record<string, unknown>,
+    allowed: readonly string[],
+): Record<string, string | string[]> {
+    return Object.fromEntries(Object.entries(query).filter(([key]) => allowed.includes(key))) as Record<
+        string,
+        string | string[]
+    >;
+}
+
 @ApiTags('Predictions')
 @ApiBearerAuth('JWTAuthorization')
 @Controller()
@@ -618,7 +640,7 @@ export class PredictionsProxyController {
             method: 'GET',
             baseUrl: this.servicesConfig.predictionsApiUrl,
             path: '/predictions/forecast',
-            query: req.query as Record<string, string | string[]>,
+            query: pickAllowedQuery(req.query, FORECAST_ALLOWED_QUERY_PARAMS),
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,
