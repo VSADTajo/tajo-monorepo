@@ -124,6 +124,9 @@ export class PredictionController {
     async getForecast(@Query() dto: ForecastPredictionsQueryDto): Promise<ForecastPredictionsResponseDto> {
         this.logger.log(`Get forecast predictions request: ${JSON.stringify(dto)}`);
         try {
+            if (dto.startDate && dto.endDate && new Date(dto.endDate).getTime() < new Date(dto.startDate).getTime()) {
+                throw new ApiError(HttpStatus.BAD_REQUEST, 'endDate must be greater than or equal to startDate');
+            }
             const query = ForecastPredictionsMapper.toQuery(dto);
             const result = await this.cachingQueryBus.execute<LegacyPredictionsResult>(query);
             return ForecastPredictionsMapper.toResponseDto(result);

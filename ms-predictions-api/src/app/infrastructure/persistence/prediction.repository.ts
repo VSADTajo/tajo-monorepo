@@ -196,6 +196,9 @@ export class PredictionRepository implements IPredictionRepository {
             }
 
             qb.orderBy('prediction.stationId', 'ASC');
+            // Guarantee a deterministic, chronologically ordered result timeline
+            // for consumers (charts) and for stable assertions in tests.
+            qb.addOrderBy('result.date', 'ASC');
 
             return await qb.getMany();
         } catch (error) {

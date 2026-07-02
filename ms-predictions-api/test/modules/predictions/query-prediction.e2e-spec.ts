@@ -393,4 +393,41 @@ describe('Query Predictions (e2e)', () => {
             HttpStatus.BAD_REQUEST,
         );
     });
+
+    it('should reject a forecast request with a malformed endDate', async () => {
+        await getForecast({ stationId: 'c0000000-0000-0000-0000-00000000000c', endDate: 'not-a-date' }).expect(
+            HttpStatus.BAD_REQUEST,
+        );
+    });
+
+    it('should apply an endDate-only bound (open lower bound)', async () => {
+        const stationId = 'e0000000-0000-0000-0000-00000000000e';
+        const events = buildTimeSeriesEvents(5); // 00:00, 01:00, 02:00, 03:00, 04:00
+        await seedTimeSeries({
+            series: buildTimeSeriesData({ locationId: stationId, events }),
+        });
+        // eslint-disable-next-line quotes, @typescript-eslint/quotes
+        await dataSource.query("UPDATE simulations SET status = 'FINALIZED'");
+
+        const { body } = await getForecast({
+            stationId,
+            endDate: '2026-03-10T02:00:00Z',
+        }).expect(HttpStatus.OK);
+
+        // Only 00:00, 01:00 and 02:00 fall at or below the upper bound.
+        expect(body.predictions).toHaveLength(1);
+        expect(body.predictions[0].results.map((r: { date: string }) => r.date)).toEqual([
+            '2026-03-10T00:00:00.000Z',
+            '2026-03-10T01:00:00.000Z',
+            '2026-03-10T02:00:00.000Z',
+        ]);
+    });
+
+    it('should reject a forecast request where endDate is before startDate', async () => {
+        await getForecast({
+            stationId: 'c0000000-0000-0000-0000-00000000000c',
+            startDate: '2026-03-31T00:00:00Z',
+            endDate: '2026-03-01T00:00:00Z',
+        }).expect(HttpStatus.BAD_REQUEST);
+    });
 });
