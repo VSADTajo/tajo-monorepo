@@ -1,0 +1,72 @@
+{
+  "data_sources": {
+    "v.obs": {
+      "origin": {
+        "type": "memory",
+        "file_pattern": "",
+        "api_argument": ""
+      },
+      "format": "json",
+      "timezone": "UTC"
+    },
+    "q.in.for": {
+      "harmonie": {
+        "origin": {
+          "type": "memory",
+          "file_pattern": "",
+          "api_argument": ""
+        },
+        "format": "json",
+        "timezone": "UTC"
+      },
+      "eps": {
+        "origin": {
+          "type": "memory",
+          "file_pattern": "",
+          "api_argument": ""
+        },
+        "format": "json",
+        "timezone": "UTC"
+      }
+    },
+    "q.out.for": {
+      "origin": {
+        "type": "memory",
+        "file_pattern": "",
+        "api_argument": ""
+      },
+      "format": "json",
+      "timezone": "UTC"
+    }
+  },
+  "reservoirs": {
+    "E_08": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_09": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    }
+  }
+}

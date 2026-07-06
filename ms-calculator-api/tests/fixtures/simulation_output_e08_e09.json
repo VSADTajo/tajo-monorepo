@@ -1,0 +1,339 @@
+{
+  "simulationId": "test-sim-e08-e09-001",
+  "providerName": "manual-simulation",
+  "providerType": "manual",
+  "providerConfigId": "test-config-001",
+  "outputFolder": "/test/output",
+  "seriesCount": 8,
+  "eventsCount": 24,
+  "timeSeries": [
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_08",
+        "parameterId": "I.mk11.forecast",
+        "parameterName": "Q entrada harmonie",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "10.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "20.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "30.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_08",
+        "parameterId": "I.mk11.EPS10forecast",
+        "parameterName": "Q entrada EPS10",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "8.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "16.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "24.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_08",
+        "parameterId": "I.mk11.EPS25forecast",
+        "parameterName": "Q entrada EPS25",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "9.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "18.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "27.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_08",
+        "parameterId": "I.mk11.EPSforecast",
+        "parameterName": "Q entrada EPS50",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "10.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "20.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "30.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_08",
+        "parameterId": "I.mk11.EPS75forecast",
+        "parameterName": "Q entrada EPS75",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "11.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "22.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "33.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_08",
+        "parameterId": "I.mk11.EPS90forecast",
+        "parameterName": "Q entrada EPS90",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "12.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "24.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "36.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_08",
+        "parameterId": "Q.salida.forecast",
+        "parameterName": "Q salida",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "5.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "5.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "5.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_08",
+        "parameterId": "VICT01.Validado",
+        "parameterName": "Volumen observado",
+        "units": "hm3",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2023-12-31", "time": "23:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2023-12-31", "time": "23:00:00", "value": "100.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "00:00:00", "value": "101.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_09",
+        "parameterId": "I.mk11.forecast",
+        "parameterName": "Q entrada harmonie",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "15.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "25.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "35.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_09",
+        "parameterId": "I.mk11.EPS10forecast",
+        "parameterName": "Q entrada EPS10",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "12.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "22.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "32.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_09",
+        "parameterId": "I.mk11.EPS25forecast",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "13.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "23.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "33.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_09",
+        "parameterId": "I.mk11.EPSforecast",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "14.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "24.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "34.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_09",
+        "parameterId": "I.mk11.EPS75forecast",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "15.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "25.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "35.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_09",
+        "parameterId": "I.mk11.EPS90forecast",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "16.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "26.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "36.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_09",
+        "parameterId": "Q.salida.forecast",
+        "parameterName": "Q salida",
+        "units": "m3/s",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "02:00:00" },
+        "forecastDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2024-01-01", "time": "00:00:00", "value": "7.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "01:00:00", "value": "7.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "02:00:00", "value": "7.0", "flag": "2" }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "locationId": "E_09",
+        "parameterId": "VICT01.Validado",
+        "parameterName": "Volumen observado",
+        "units": "hm3",
+        "timeStep": { "unit": "second", "multiplier": "3600" },
+        "startDate": { "date": "2023-12-31", "time": "23:00:00" },
+        "endDate": { "date": "2024-01-01", "time": "00:00:00" },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "sourceTimezone": "UTC"
+      },
+      "events": [
+        { "date": "2023-12-31", "time": "23:00:00", "value": "200.0", "flag": "2" },
+        { "date": "2024-01-01", "time": "00:00:00", "value": "202.0", "flag": "2" }
+      ]
+    }
+  ]
+}

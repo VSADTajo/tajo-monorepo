@@ -1,0 +1,645 @@
+{
+  "simulationId": "test-sim-e08-e09-001",
+  "providerName": "volume-calculator",
+  "seriesCount": 12,
+  "eventsCount": 36,
+  "computedAt": "2024-01-01T12:00:00+00:00",
+  "timeSeries": [
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_08",
+        "parameterId": "v.balance.q.in.for.harmonie",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "101",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "101.054",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "101.144",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_09",
+        "parameterId": "v.balance.q.in.for.harmonie",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "202",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "202.0648",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "202.1656",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_08",
+        "parameterId": "v.balance.q.in.for.eps.10",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "101",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "101.0396",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "101.108",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_08",
+        "parameterId": "v.balance.q.in.for.eps.25",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "101",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "101.0468",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "101.126",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_08",
+        "parameterId": "v.balance.q.in.for.eps.50",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "101",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "101.054",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "101.144",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_08",
+        "parameterId": "v.balance.q.in.for.eps.75",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "101",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "101.0612",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "101.162",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_08",
+        "parameterId": "v.balance.q.in.for.eps.90",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_08",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "101",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "101.0684",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "101.18",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_09",
+        "parameterId": "v.balance.q.in.for.eps.10",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "202",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "202.054",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "202.144",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_09",
+        "parameterId": "v.balance.q.in.for.eps.25",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "202",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "202.0576",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "202.1512",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_09",
+        "parameterId": "v.balance.q.in.for.eps.50",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "202",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "202.0612",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "202.1584",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_09",
+        "parameterId": "v.balance.q.in.for.eps.75",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "202",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "202.0648",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "202.1656",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "instantaneous",
+        "moduleInstanceId": "volume_calculator",
+        "locationId": "E_09",
+        "parameterId": "v.balance.q.in.for.eps.90",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2024-01-01",
+          "time": "02:00:00"
+        },
+        "forecastDate": {
+          "date": "2024-01-01",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "E_09",
+        "units": "hm3",
+        "creationDate": "2024-01-01",
+        "creationTime": "12:00:00",
+        "approvedDate": {
+          "date": "2024-01-01",
+          "time": "12:00:00"
+        }
+      },
+      "events": [
+        {
+          "date": "2024-01-01",
+          "time": "00:00:00",
+          "value": "202",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "01:00:00",
+          "value": "202.0684",
+          "flag": "2"
+        },
+        {
+          "date": "2024-01-01",
+          "time": "02:00:00",
+          "value": "202.1728",
+          "flag": "2"
+        }
+      ]
+    }
+  ]
+}
