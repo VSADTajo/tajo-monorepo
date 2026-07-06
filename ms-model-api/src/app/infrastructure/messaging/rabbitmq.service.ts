@@ -3,7 +3,7 @@ import { Logger } from 'nestjs-pino';
 import * as amqplib from 'amqplib';
 import { TraceContext, X_TRACE_ID_HEADER } from 'tajo-toolkit';
 
-import { IMessageBroker, MessageHandler } from '@domain/ports/message-broker.port';
+import { AmqpHeaders, IMessageBroker, MessageHandler } from '@domain/ports/message-broker.port';
 import { ProviderError } from '@domain/errors/provider.error';
 import { RabbitmqConfigService } from '@config/rabbitmq/rabbitmq-config.service';
 
@@ -114,7 +114,7 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
         this.logger.debug(`Message published to queue: ${queue}`);
     }
 
-    async publishToTopic<T>(exchange: string, routingKey: string, message: T): Promise<void> {
+    async publishToTopic<T>(exchange: string, routingKey: string, message: T, headers?: AmqpHeaders): Promise<void> {
         if (!this.rabbitmqConfig.enabled) {
             this.logger.warn({
                 msg: 'RabbitMQ is disabled — message discarded',
@@ -129,11 +129,16 @@ export class RabbitmqService implements IMessageBroker, OnModuleInit, OnModuleDe
         await this.assertTopicExchange(channel, exchange);
 
         const traceId = this.traceContext.traceId;
+        const baseHeaders: Record<string, string | number | boolean> = {};
+        if (traceId) baseHeaders[X_TRACE_ID_HEADER] = traceId;
+        if (headers) Object.assign(baseHeaders, headers);
+        const finalHeaders = Object.keys(baseHeaders).length > 0 ? baseHeaders : undefined;
+
         const envelope = { pattern: routingKey, data: message };
         const buffer = Buffer.from(JSON.stringify(envelope));
         channel.publish(exchange, routingKey, buffer, {
             persistent: true,
-            headers: traceId ? { [X_TRACE_ID_HEADER]: traceId } : undefined,
+            headers: finalHeaders,
         });
 
         this.logger.debug(`Message published to exchange: ${exchange} [${routingKey}]`);

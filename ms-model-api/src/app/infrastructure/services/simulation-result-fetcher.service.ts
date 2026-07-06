@@ -3,8 +3,11 @@ import { Logger } from 'nestjs-pino';
 import axios from 'axios';
 
 import { NormalizedTimeSeriesResult, TimeSeriesEventResult } from '@domain/results/normalized-timeseries.result';
+import { WiskiTimeSeriesResult } from '@domain/results/wiski-timeseries.result';
 import { ProviderError } from '@domain/errors/provider.error';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
+import { AppConfigService } from '@config/app/app-config.service';
+import { parseWiskiCsv } from '@infrastructure/services/wiski-csv-parser';
 
 export interface SimulationFetchResult {
     timeSeries: NormalizedTimeSeriesResult[];
@@ -17,6 +20,7 @@ export class SimulationResultFetcherService {
         @Inject(Logger)
         private readonly logger: Logger,
         private readonly sftpApiConfigService: SftpApiConfigService,
+        private readonly appConfigService?: AppConfigService,
     ) {}
 
     /**
@@ -130,6 +134,54 @@ export class SimulationResultFetcherService {
         }
 
         return { timeSeries, processedFileName: file.name };
+    }
+
+    /**
+     * Fetches and parses the WISKI CSV from SFTP, returning parsed v.obs series.
+     * Returns null and logs a warning on any failure. Never throws.
+     */
+    async fetchVobsSeries(simulationId: string): Promise<WiskiTimeSeriesResult[] | null> {
+        const path = this.appConfigService?.vobsCsvSftpPath ?? '';
+        if (!path) {
+            this.logger.warn({
+                msg: 'VOBS_CSV_SFTP_PATH not configured — skipping v.obs enrichment',
+                entity: 'SimulationResultFetcher',
+                simulationId,
+            });
+            return null;
+        }
+
+        try {
+            const baseUrl = this.sftpApiConfigService.baseUrl;
+            const timeout = this.appConfigService?.vobsCsvFetchTimeoutMs ?? 30_000;
+            const response = await axios.get(`${baseUrl}/files/download`, {
+                params: { path },
+                responseType: 'arraybuffer',
+                timeout,
+                headers: { 'x-internal-caller': 'ms-model-api' },
+            });
+            const csvText = this.decodeCsvBuffer(response.data as Buffer);
+            const timezone = this.appConfigService?.vobsCsvTimezone ?? 'UTC';
+            return parseWiskiCsv(csvText, { sourceTimezone: timezone });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.warn({
+                msg: 'Failed to fetch or parse WISKI CSV — publishing without v.obs enrichment',
+                entity: 'SimulationResultFetcher',
+                simulationId,
+                path,
+                error: message,
+            });
+            return null;
+        }
+    }
+
+    private decodeCsvBuffer(buffer: Buffer): string {
+        try {
+            return buffer.toString('utf-8');
+        } catch {
+            return buffer.toString('latin1');
+        }
     }
 
     private mapResponseToNormalized(data: any): NormalizedTimeSeriesResult[] {
