@@ -17,12 +17,20 @@ export class CreateManeuverRequestDto {
     @Min(0)
     outputFlowValue: number;
 
-    @ApiProperty({ description: 'Optional maneuver start date (ISO 8601)', required: false, example: '2026-06-20T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Optional maneuver start date (ISO 8601)',
+        required: false,
+        example: '2026-06-20T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     startDate?: string;
 
-    @ApiProperty({ description: 'Optional maneuver end date (ISO 8601)', required: false, example: '2026-06-21T00:00:00.000Z' })
+    @ApiProperty({
+        description: 'Optional maneuver end date (ISO 8601)',
+        required: false,
+        example: '2026-06-21T00:00:00.000Z',
+    })
     @IsOptional()
     @IsDateString()
     endDate?: string;

@@ -6,11 +6,7 @@ import FormData from 'form-data';
 import { ISimulationSftpService } from '@domain/ports/simulation-sftp.port';
 import { ProviderError } from '@domain/errors/provider.error';
 import { ApiError } from '@domain/errors/api.error';
-import {
-    SftpFileMeta,
-    SimulationFileDownloadResult,
-    SimulationFolder,
-} from '@domain/results/simulation-files.result';
+import { SftpFileMeta, SimulationFileDownloadResult, SimulationFolder } from '@domain/results/simulation-files.result';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
 
 const INTERNAL_CALLER_HEADER = { 'x-internal-caller': 'ms-predictions-api' };

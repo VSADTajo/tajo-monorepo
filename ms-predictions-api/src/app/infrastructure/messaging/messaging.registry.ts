@@ -5,6 +5,7 @@
 export const Queues = {
     PREDICTIONS_TIMESERIES_PROCESSING: 'predictions-timeseries-processing',
     PREDICTIONS_SIMULATION_STATUS_UPDATES: 'predictions-simulation-status-updates',
+    PREDICTIONS_SIMULATION_MANUAL_BALANCE: 'predictions-simulation-manual-balance',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ export const Topics = {
         routingKeys: {
             MANUAL_DISPATCHED: 'simulation.manual.dispatched',
             STATUS_UPDATED: 'simulation.status.updated',
+            MANUAL_BALANCE_COMPUTED: 'simulation.manual.balance.computed',
         },
     },
     NOTIFICATIONS: {
@@ -56,5 +58,10 @@ export const TopicSubscriptions: TopicSubscription[] = [
         queue: Queues.PREDICTIONS_SIMULATION_STATUS_UPDATES,
         exchange: Topics.SIMULATION_EVENTS.exchange,
         routingKey: Topics.SIMULATION_EVENTS.routingKeys.STATUS_UPDATED,
+    },
+    {
+        queue: Queues.PREDICTIONS_SIMULATION_MANUAL_BALANCE,
+        exchange: Topics.SIMULATION_EVENTS.exchange,
+        routingKey: Topics.SIMULATION_EVENTS.routingKeys.MANUAL_BALANCE_COMPUTED,
     },
 ];

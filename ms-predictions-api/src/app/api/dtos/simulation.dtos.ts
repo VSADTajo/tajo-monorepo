@@ -524,7 +524,11 @@ export class SftpFileMetaDto {
     @ApiProperty({ description: 'File size in bytes', example: 20480 })
     size: number;
 
-    @ApiProperty({ description: 'Last modification time (ISO 8601)', nullable: true, example: '2026-06-19T12:05:00.000Z' })
+    @ApiProperty({
+        description: 'Last modification time (ISO 8601)',
+        nullable: true,
+        example: '2026-06-19T12:05:00.000Z',
+    })
     modifiedAt: string | null;
 }
 
