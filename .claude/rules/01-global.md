@@ -23,6 +23,7 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
 | ms-model-api | 3008 | NestJS 11 | `ms-model-api/` | Model execution & management |
 | ms-notifications-api | 3009 | NestJS 11 | `ms-notifications-api/` | Notification dispatch |
 | ms-meteo-api | 3010 | NestJS 11 | `ms-meteo-api/` | Meteo ingest → GeoServer (uses GDAL CLI) |
+| ms-calculator-api | 3011 | Python 3.12 + FastAPI | `ms-calculator-api/` | Volume-balance calculator (event-driven, stateless) |
 
 ## Frontends & UIs
 

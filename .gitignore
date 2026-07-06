@@ -10,3 +10,4 @@ tmp/
 .idea/
 .vscode/
 .claude/settings.local.json
+tajo-volume_calculator/
