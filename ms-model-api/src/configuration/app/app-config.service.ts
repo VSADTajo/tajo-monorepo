@@ -42,4 +42,20 @@ export class AppConfigService {
     public get xApiKey(): string {
         return this.configService.getOrThrow('app.xApiKey', { infer: true });
     }
+
+    public get useCalculatorPipeline(): boolean {
+        return this.configService.getOrThrow('app.useCalculatorPipeline', { infer: true });
+    }
+
+    public get vobsCsvSftpPath(): string {
+        return this.configService.getOrThrow('app.vobsCsvSftpPath', { infer: true });
+    }
+
+    public get vobsCsvTimezone(): string {
+        return this.configService.getOrThrow('app.vobsCsvTimezone', { infer: true });
+    }
+
+    public get vobsCsvFetchTimeoutMs(): number {
+        return this.configService.getOrThrow('app.vobsCsvFetchTimeoutMs', { infer: true });
+    }
 }

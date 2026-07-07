@@ -55,9 +55,25 @@ async function bootstrap() {
             },
         });
 
+        app.connectMicroservice<MicroserviceOptions>({
+            transport: Transport.RMQ,
+            options: {
+                urls: [rabbitmqConfig.url],
+                queue: Queues.PREDICTIONS_SIMULATION_MANUAL_BALANCE,
+                queueOptions: {
+                    durable: true,
+                    arguments: {
+                        'x-dead-letter-exchange': '',
+                    },
+                },
+                prefetchCount: rabbitmqConfig.prefetch,
+                noAck: false,
+            },
+        });
+
         await app.startAllMicroservices();
         logger.log(
-            `RabbitMQ consumers listening on: ${Queues.PREDICTIONS_TIMESERIES_PROCESSING}, ${Queues.PREDICTIONS_SIMULATION_STATUS_UPDATES}`,
+            `RabbitMQ consumers listening on: ${Queues.PREDICTIONS_TIMESERIES_PROCESSING}, ${Queues.PREDICTIONS_SIMULATION_STATUS_UPDATES}, ${Queues.PREDICTIONS_SIMULATION_MANUAL_BALANCE}`,
         );
     } else {
         logger.log('RabbitMQ is disabled (RABBITMQ_ENABLED=false) — skipping microservice setup');

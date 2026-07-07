@@ -31,6 +31,7 @@ jobs:
             ms-model-api
             ms-notifications-api
             ms-meteo-api
+            ms-calculator-api
             vsad-tajo-frontend
             tajo-toolkit
           )

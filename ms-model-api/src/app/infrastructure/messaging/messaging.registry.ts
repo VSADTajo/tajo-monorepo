@@ -21,6 +21,7 @@ export const Topics = {
         exchange: 'simulation-events',
         routingKeys: {
             MANUAL_DISPATCHED: 'simulation.manual.dispatched',
+            MANUAL_OUTPUT_FETCHED: 'simulation.manual.output.fetched',
             STATUS_UPDATED: 'simulation.status.updated',
         },
     },

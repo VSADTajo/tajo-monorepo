@@ -22,4 +22,8 @@ export type AppConfig = {
     logLevel: string;
     logsApiUrl: string;
     xApiKey: string;
+    useCalculatorPipeline: boolean;
+    vobsCsvSftpPath: string;
+    vobsCsvTimezone: string;
+    vobsCsvFetchTimeoutMs: number;
 };

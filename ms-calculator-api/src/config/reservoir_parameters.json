@@ -1,0 +1,604 @@
+{
+  "data_sources": {
+    "v.obs": {
+      "origin": {
+        "type": "file_pattern",
+        "file_pattern": "input_data/Tagus_FlowCast.csv",
+        "api_argument": ""
+      },
+      "format": "wiski_csv",
+      "timezone": "CET"
+    },
+    "q.in.for": {
+      "harmonie": {
+        "origin": {
+          "type": "file_pattern",
+          "file_pattern": "input_data/tagus_harmonie_Q_*.json",
+          "api_argument": ""
+        },
+        "format": "json",
+        "timezone": "UTC"
+      },
+      "eps": {
+        "origin": {
+          "type": "file_pattern",
+          "file_pattern": "input_data/tagus_eps_Q_*.json",
+          "api_argument": ""
+        },
+        "format": "json",
+        "timezone": "UTC"
+      }
+    },
+    "q.out.for": {
+      "origin": {
+        "type": "file_pattern",
+        "file_pattern": "input_data/q_*.json",
+        "api_argument": ""
+      },
+      "format": "json",
+      "timezone": "UTC"
+    }
+  },
+  "reservoirs": {
+    "E_01": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_02": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_07": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_08": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_09": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_11": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_12": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_13": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_14": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_15": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_16": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_17": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_18": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_19": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_20": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_21": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_23": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_24": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_25": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_26": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_27": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_28": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_30": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_31": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_32": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_33": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_34": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_36": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_37": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_39": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_40": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_41": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_42": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_43": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_44": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_45": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_46": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_47": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_48": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    },
+    "E_50": {
+      "v.obs": "VICT01.Validado",
+      "q.in.for": {
+        "harmonie": "I.mk11.forecast",
+        "eps": {
+          "10": "I.mk11.EPS10forecast",
+          "25": "I.mk11.EPS25forecast",
+          "50": "I.mk11.EPSforecast",
+          "75": "I.mk11.EPS75forecast",
+          "90": "I.mk11.EPS90forecast"
+        }
+      },
+      "q.out.for": "Q.salida.forecast"
+    }
+  }
+}

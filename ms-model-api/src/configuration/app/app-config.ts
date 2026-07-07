@@ -38,6 +38,23 @@ class EnvVariablesValidator {
     @IsOptional()
     @IsString()
     X_API_KEY: string;
+
+    @IsOptional()
+    @IsString()
+    USE_CALCULATOR_PIPELINE: string;
+
+    @IsOptional()
+    @IsString()
+    VOBS_CSV_SFTP_PATH: string;
+
+    @IsOptional()
+    @IsString()
+    VOBS_CSV_TIMEZONE: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    VOBS_CSV_FETCH_TIMEOUT_MS: number;
 }
 
 export default registerAs<AppConfig>('app', () => {
@@ -52,5 +69,9 @@ export default registerAs<AppConfig>('app', () => {
         apiPrefix: process.env.API_PREFIX || 'api',
         logsApiUrl: process.env.LOGS_API_URL || '',
         xApiKey: process.env.X_API_KEY || '',
+        useCalculatorPipeline: process.env.USE_CALCULATOR_PIPELINE === 'true',
+        vobsCsvSftpPath: process.env.VOBS_CSV_SFTP_PATH || '',
+        vobsCsvTimezone: process.env.VOBS_CSV_TIMEZONE || 'Europe/Madrid',
+        vobsCsvFetchTimeoutMs: Number(process.env.VOBS_CSV_FETCH_TIMEOUT_MS) || 30_000,
     };
 });

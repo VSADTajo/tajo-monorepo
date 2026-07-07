@@ -59,6 +59,7 @@ import { ManeuverController } from '@api/controllers/maneuver.controller';
 // Consumers
 import { TimeSeriesIngestedConsumer } from '@application/consumers/timeseries-ingested.consumer';
 import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulation-status-updated.consumer';
+import { SimulationManualBalanceComputedConsumer } from '@application/consumers/simulation-manual-balance-computed.consumer';
 
 @Module({
     imports: [CqrsModule, InfrastructureModule],
@@ -69,6 +70,7 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
         ManeuverController,
         TimeSeriesIngestedConsumer,
         SimulationStatusUpdatedConsumer,
+        SimulationManualBalanceComputedConsumer,
     ],
     providers: [
         ProcessTimeSeriesHandler,

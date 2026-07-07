@@ -1,0 +1,102 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'ms-calculator-api'
+        CONTAINER_PORT = '3011'
+        DEPLOY_HOST = '65.21.97.113'
+        DEPLOY_USER = 'root'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    python3 -m venv .venv
+                    .venv/bin/pip install -e ".[dev]" -q
+                '''
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                sh '''
+                    .venv/bin/ruff check src tests
+                    .venv/bin/ruff format --check src tests
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh '.venv/bin/pytest -v --junitxml=junit.xml --ignore=tests/integration/test_amqp_consumer_publisher.py'
+            }
+            post {
+                always {
+                    junit 'junit.xml'
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Python service — no compile step required'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh """
+                    DOCKER_BUILDKIT=1 docker build \\
+                        --target prod \\
+                        -t ${IMAGE_NAME}:\${BUILD_NUMBER} \\
+                        -t ${IMAGE_NAME}:latest \\
+                        .
+                """
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'hetzner-ssh-key',
+                    keyFileVariable: 'SSH_KEY'
+                )]) {
+                    sh """
+                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \\
+                            "docker stop ${IMAGE_NAME} || true && \\
+                             docker rm ${IMAGE_NAME} || true && \\
+                             docker run -d \\
+                               --name ${IMAGE_NAME} \\
+                               --restart unless-stopped \\
+                               --network infra-network \\
+                               -p ${CONTAINER_PORT}:${CONTAINER_PORT} \\
+                               -e NODE_ENV=production \\
+                               -e RABBITMQ_HOST=infra-rabbitmq \\
+                               -e RABBITMQ_PORT=5672 \\
+                               -e RABBITMQ_USER=guest \\
+                               -e RABBITMQ_PASSWORD=guest \\
+                               -e APP_PORT=${CONTAINER_PORT} \\
+                               -e APP_LOG_LEVEL=info \\
+                               ${IMAGE_NAME}:latest"
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}

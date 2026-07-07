@@ -126,9 +126,7 @@ describe('Simulation SFTP Files (e2e)', () => {
         it('should list input and output files for an existing simulation', async () => {
             const id = await createSimulation();
 
-            const { body } = await request(app.getHttpServer())
-                .get(`/simulations/${id}/files`)
-                .expect(HttpStatus.OK);
+            const { body } = await request(app.getHttpServer()).get(`/simulations/${id}/files`).expect(HttpStatus.OK);
 
             expect(body.input).toHaveLength(1);
             expect(body.output).toHaveLength(1);
