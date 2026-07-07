@@ -40,6 +40,7 @@ import { RedisConfigModule } from '@config/redis/redis-config.module';
 import { RabbitmqConfigModule } from '@config/rabbitmq/rabbitmq-config.module';
 import { FewsApiConfigModule } from '@config/fews-api/fews-api-config.module';
 import { SftpApiConfigModule } from '@config/sftp-api/sftp-api-config.module';
+import { AppConfigModule } from '@config/app/app-config.module';
 
 // Entities
 import { ProviderConfig } from '@domain/entities/provider-config.entity';
@@ -55,6 +56,7 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         RabbitmqConfigModule,
         FewsApiConfigModule,
         SftpApiConfigModule,
+        AppConfigModule,
         TypeOrmModule.forFeature([ProviderConfig, IngestionRun, SimulationRun]),
     ],
     controllers: [],
