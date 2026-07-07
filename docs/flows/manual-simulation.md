@@ -8,6 +8,181 @@ El flujo de simulaciones manuales integra un nuevo microservicio (`ms-calculator
 
 El path automático de proveedores (`ingestion.commands.ts` de `ms-model-api` → `TimeSeriesIngestedConsumer` de `ms-predictions-api`) **NO se ve afectado** por este cambio.
 
+## Diagramas
+
+### Componentes
+
+```mermaid
+graph TB
+  subgraph client["Cliente"]
+    UI[vsad-tajo-frontend<br/>Backoffice]
+  end
+
+  subgraph tajo["Monorepo VSAD Tajo"]
+    GW[ms-gateway-api<br/>:3000]
+    PRED[ms-predictions-api<br/>:3007]
+    MODEL[ms-model-api<br/>:3008]
+    SFTP[ms-sftp-api<br/>:3003]
+    CALC[ms-calculator-api<br/>:3011<br/>Python FastAPI]
+    LOGS[ms-logs-api<br/>:3004]
+  end
+
+  subgraph infra["Infra compartida"]
+    RMQ[(RabbitMQ<br/>infra-rabbitmq<br/>exchange: simulation-events)]
+    PGP[(Postgres<br/>infra-db-predictions)]
+    PGM[(Postgres<br/>infra-db-model)]
+    MONGO[(MongoDB<br/>infra-mongo-logs)]
+  end
+
+  subgraph external["Externo"]
+    PROV[Proveedor<br/>del modelo]
+    SFTPSRV[SFTP Server<br/>tajo/SIMULATIONS/]
+  end
+
+  UI -->|HTTPS| GW
+  GW -->|HTTP| PRED
+
+  PRED -->|POST files| SFTP
+  SFTP -->|read/write| SFTPSRV
+  PROV -->|deposits output JSON| SFTPSRV
+  PROV -.->|deposits v.obs CSV| SFTPSRV
+
+  PRED -.->|publish simulation.manual.dispatched| RMQ
+  RMQ -->|consume| MODEL
+  MODEL -->|list/download| SFTP
+  MODEL -.->|publish simulation.manual.output.fetched<br/>with headers.x-simulation-id| RMQ
+  RMQ -->|consume queue<br/>calculator-simulation-manual-output| CALC
+  CALC -.->|publish simulation.manual.balance.computed<br/>or .failed| RMQ
+  RMQ -->|consume queue<br/>predictions-simulation-manual-balance| PRED
+
+  PRED --> PGP
+  MODEL --> PGM
+  PRED -.->|structured logs| LOGS
+  MODEL -.->|structured logs| LOGS
+  CALC -.->|structured logs| LOGS
+  LOGS --> MONGO
+
+  classDef newSvc fill:#e6f7ff,stroke:#0066cc,stroke-width:2px
+  classDef existingSvc fill:#f5f5f5,stroke:#666
+  classDef infraSvc fill:#fff7e6,stroke:#d48806
+  classDef externalSvc fill:#fff1f0,stroke:#cf1322,stroke-dasharray:3 3
+
+  class CALC newSvc
+  class GW,PRED,MODEL,SFTP,LOGS,UI existingSvc
+  class RMQ,PGP,PGM,MONGO infraSvc
+  class PROV,SFTPSRV externalSvc
+```
+
+### Flujo de datos
+
+```mermaid
+flowchart LR
+  A[POST /simulations/manual<br/>backoffice] --> B[Simulation CREATED<br/>ms-predictions-api]
+  B --> C[Upload 2 JSON files<br/>tajo/SIMULATIONS/id/input/]
+  C --> D[Publish<br/>simulation.manual.dispatched]
+  D --> E[SimulationRun WAITING_RESULT<br/>ms-model-api]
+  E --> F{Poll SFTP<br/>output folder<br/>every 5min}
+  F -->|empty| F
+  F -->|files found| G[Fetch + parse<br/>provider output]
+  G --> H{USE_CALCULATOR_PIPELINE?}
+  H -->|OFF legacy| L1[Publish<br/>timeseries.ingested]
+  H -->|ON| I[Fetch WISKI CSV<br/>with v.obs series]
+  I --> J[Transform to<br/>timeSeries with header nested]
+  J --> K[Publish<br/>simulation.manual.output.fetched]
+  K --> M[Run reservoir pipeline<br/>harmonie plus 5 EPS<br/>ms-calculator-api]
+  M --> N{Success?}
+  N -->|yes| O[Publish<br/>simulation.manual.balance.computed]
+  N -->|error| P[Publish<br/>simulation.manual.balance.failed]
+  O --> Q[Consumer processes<br/>each timeSeries<br/>ms-predictions-api]
+  L1 --> Q
+  Q --> R[ProcessTimeSeriesCommand<br/>persist Predictions]
+  R --> S{All series done?}
+  S -->|no| Q
+  S -->|yes| T[Simulation FINALIZED<br/>invalidate cache]
+  P -.->|DLQ / alert| U[On-call]
+
+  style H fill:#fff7e6,stroke:#d48806
+  style M fill:#e6f7ff,stroke:#0066cc
+  style O fill:#f6ffed,stroke:#52c41a
+  style P fill:#fff1f0,stroke:#cf1322
+  style T fill:#f6ffed,stroke:#52c41a
+```
+
+### Secuencia end-to-end (con flag ON)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Backoffice user
+  participant P as ms-predictions-api
+  participant S as ms-sftp-api
+  participant SR as SFTP Server
+  participant M as ms-model-api
+  participant Prov as Proveedor externo
+  participant R as RabbitMQ<br/>(simulation-events)
+  participant C as ms-calculator-api
+  participant DB as infra-db-predictions
+  participant L as ms-logs-api
+
+  U->>P: POST /simulations/manual
+  P->>P: Simulation CREATED
+  P->>S: POST /files/upload (2 JSONs)
+  S->>SR: write tajo/SIMULATIONS/{id}/input/
+  P->>P: transition to MODEL_PROCESSING
+  P->>R: publish simulation.manual.dispatched
+  P-->>L: log { event: publisher.published }
+
+  R->>M: deliver simulation.manual.dispatched
+  M->>M: create SimulationRun (WAITING_RESULT)
+  M-->>L: log { event: simulation_run.created, simulationId }
+
+  Note over M,Prov: (async, days later)
+  Prov->>SR: deposit output JSON files
+
+  loop every SIMULATION_POLL_INTERVAL_MINUTES
+    M->>S: GET /files (list output folder)
+    S->>SR: list files
+    S-->>M: file list
+    alt files present
+      M->>S: GET /files/download (output JSON)
+      S-->>M: JSON payload
+      M->>S: GET /files/download (WISKI CSV v.obs)
+      S-->>M: CSV bytes (utf-8 / latin-1)
+      M->>M: parse WISKI CSV to timeSeries with header
+      M->>M: transform NormalizedTimeSeriesResult to header/events shape
+      M->>R: publish simulation.manual.output.fetched<br/>headers: { x-simulation-id }
+      M->>M: SimulationRun COMPLETED
+      M-->>L: log { event: publisher.published, simulationId }
+    end
+  end
+
+  R->>C: deliver simulation.manual.output.fetched
+  C-->>L: log { event: consumer.message.received, simulation_id }
+  C->>C: bind_contextvars(simulation_id)
+  C->>C: run_reservoir_pipeline (harmonie)
+  C->>C: run_reservoir_pipeline (eps 10..90)
+  C->>C: merge harmonie + eps balance series
+  alt success
+    C->>R: publish simulation.manual.balance.computed
+    C-->>L: log { event: pipeline.completed }
+  else invalid_payload / config_error / computation_error
+    C->>R: publish simulation.manual.balance.failed
+    C-->>L: log { event: pipeline.failed, errorType }
+  end
+  C->>C: clear_contextvars
+
+  R->>P: deliver simulation.manual.balance.computed
+  P-->>L: log { event: consumer.message.received }
+  loop for each timeSeries with parameterId v.balance.*
+    P->>P: ProcessTimeSeriesCommand
+    P->>DB: INSERT prediction (v.balance.q.in.for.harmonie / .eps.NN)
+  end
+  P->>P: simulation.finalize()
+  P->>DB: UPDATE simulation status = FINALIZED
+  P->>P: invalidate cache patterns (simulations:*, manual-simulation:*)
+  P-->>L: log { event: simulation.finalized }
+```
+
 ## Diagrama end-to-end
 
 ```
