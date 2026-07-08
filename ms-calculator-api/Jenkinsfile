@@ -15,42 +15,40 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Docker Build (dev)') {
             steps {
-                sh '''
-                    python3 -m venv .venv
-                    .venv/bin/pip install -e ".[dev]" -q
-                '''
+                sh """
+                    DOCKER_BUILDKIT=1 docker build \\
+                        --target dev \\
+                        -t ${IMAGE_NAME}-ci:\${BUILD_NUMBER} \\
+                        .
+                """
             }
         }
 
         stage('Lint') {
             steps {
-                sh '''
-                    .venv/bin/ruff check src tests
-                    .venv/bin/ruff format --check src tests
-                '''
+                sh "docker run --rm ${IMAGE_NAME}-ci:\${BUILD_NUMBER} ruff check src tests"
             }
         }
 
         stage('Test') {
             steps {
-                sh '.venv/bin/pytest -v --junitxml=junit.xml --ignore=tests/integration/test_amqp_consumer_publisher.py'
+                sh """
+                    docker run --rm \\
+                        -v \${WORKSPACE}:/junit \\
+                        ${IMAGE_NAME}-ci:\${BUILD_NUMBER} \\
+                        pytest -v --junitxml=/junit/junit.xml --ignore=tests/integration/test_amqp_consumer_publisher.py
+                """
             }
             post {
                 always {
-                    junit 'junit.xml'
+                    junit allowEmptyResults: true, testResults: 'junit.xml'
                 }
             }
         }
 
-        stage('Build') {
-            steps {
-                echo 'Python service — no compile step required'
-            }
-        }
-
-        stage('Docker Build') {
+        stage('Docker Build (prod)') {
             steps {
                 sh """
                     DOCKER_BUILDKIT=1 docker build \\
@@ -85,6 +83,7 @@ pipeline {
                                -e RABBITMQ_PORT=5672 \\
                                -e RABBITMQ_USER=guest \\
                                -e RABBITMQ_PASSWORD=guest \\
+                               -e RABBITMQ_VHOST=/ \\
                                -e APP_PORT=${CONTAINER_PORT} \\
                                -e APP_LOG_LEVEL=info \\
                                ${IMAGE_NAME}:latest"
@@ -96,7 +95,7 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            deleteDir()
         }
     }
 }
