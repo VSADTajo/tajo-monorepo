@@ -62,7 +62,14 @@ class AmqpBalanceEventPublisher:
     ) -> None:
         import aio_pika
 
-        body = json.dumps(payload_dict, ensure_ascii=False).encode("utf-8")
+        # NestJS @nestjs/microservices AMQP transport expects the body envelope
+        # `{ pattern, data }` — see ms-model-api rabbitmq.service.ts. Consumers
+        # decorated with @EventPattern(routingKey) match against the `pattern`
+        # field, and receive `data` as the @Payload(). Publishing a raw dict
+        # would be nack'd as "unsupported event / Pattern: undefined" by every
+        # NestJS-based downstream consumer (e.g. ms-predictions-api).
+        envelope = {"pattern": routing_key, "data": payload_dict}
+        body = json.dumps(envelope, ensure_ascii=False).encode("utf-8")
         exchange = await self._get_exchange()
 
         message = aio_pika.Message(
