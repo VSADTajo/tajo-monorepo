@@ -19,6 +19,12 @@ from src.infrastructure.logging.logs_api_transport import (
 
 _SERVICE_NAME = "ms-calculator-api"
 
+# Third-party loggers that flood stdout when set to INFO. httpx emits an INFO
+# line per request — since the log shipper itself does an HTTP POST for every
+# app log, leaving httpx at INFO creates a feedback loop that swamps the
+# collector with useless "HTTP/1.1 201" lines.
+_NOISY_LOGGERS = ("httpx", "httpcore", "aio_pika", "aiormq")
+
 
 def configure_logging(
     level: str = "info",
@@ -93,6 +99,12 @@ def configure_logging(
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
     root_logger.setLevel(log_level)
+
+    # Silence third-party libraries that emit per-request INFO logs. Their WARN
+    # and ERROR still surface (real problems are visible), we just drop the
+    # noisy per-call chatter.
+    for noisy in _NOISY_LOGGERS:
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 def get_logger(name: str = _SERVICE_NAME) -> structlog.stdlib.BoundLogger:
