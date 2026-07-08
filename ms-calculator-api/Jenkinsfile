@@ -82,6 +82,7 @@ pipeline {
                         -e APP_PORT=${CONTAINER_PORT} \\
                         -e APP_LOG_LEVEL=info \\
                         -e LOGS_API_URL=http://ms-logs-api:3004 \\
+                        -e X_API_KEY="\${X_API_KEY}" \\
                         ${IMAGE_NAME}:latest
                 """
             }
