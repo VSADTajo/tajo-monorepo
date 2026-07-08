@@ -46,6 +46,7 @@ RUN pip install --no-cache-dir \
         pandas \
         pytz \
         gunicorn \
+        httpx \
     && apt-get purge -y --auto-remove build-essential
 COPY --chown=app:app src ./src
 COPY --chown=app:app entrypoint.sh ./
