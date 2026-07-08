@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # Health check
     HEALTH_AMQP_TIMEOUT_MS: int = 1000
 
+    # ms-logs-api shipper — empty URL disables shipping (stdout-only mode)
+    LOGS_API_URL: str = ""
+    X_API_KEY: str = ""
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

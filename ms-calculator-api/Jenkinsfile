@@ -81,6 +81,7 @@ pipeline {
                         -e RABBITMQ_VHOST=/ \\
                         -e APP_PORT=${CONTAINER_PORT} \\
                         -e APP_LOG_LEVEL=info \\
+                        -e LOGS_API_URL=http://ms-logs-api:3004 \\
                         ${IMAGE_NAME}:latest
                 """
             }
