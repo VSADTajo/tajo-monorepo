@@ -18,7 +18,6 @@ from typing import Any
 
 import httpx
 
-
 _SKIP_LEVELS = {"debug", "notset", "trace"}
 
 # Structlog / stdlib metadata keys the collector already represents as top-level

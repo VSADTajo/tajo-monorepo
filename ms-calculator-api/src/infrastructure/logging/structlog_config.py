@@ -17,7 +17,6 @@ from src.infrastructure.logging.logs_api_transport import (
     make_logs_api_processor,
 )
 
-
 _SERVICE_NAME = "ms-calculator-api"
 
 
