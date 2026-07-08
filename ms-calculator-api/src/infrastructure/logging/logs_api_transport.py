@@ -12,6 +12,7 @@ keeps running and errors are written to stderr for observability.
 from __future__ import annotations
 
 import atexit
+import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -32,7 +33,19 @@ _RESERVED_META_KEYS = {
     "message",
     "exception",
     "stack_info",
+    # stdlib LogRecord injected by structlog.stdlib.ProcessorFormatter.wrap_for_formatter
+    "_record",
+    "_from_structlog",
 }
+
+
+def _sanitize_meta_value(value: Any) -> Any:
+    """Ensure a single meta value is JSON-serializable, falling back to str()."""
+    try:
+        json.dumps(value)
+        return value
+    except (TypeError, ValueError):
+        return str(value)
 
 
 def build_collector_payload(
@@ -74,7 +87,7 @@ def build_collector_payload(
         correlation_id = str(correlation_id)
 
     meta = {
-        key: value
+        key: _sanitize_meta_value(value)
         for key, value in event_dict.items()
         if key not in _RESERVED_META_KEYS and key != "skip_shipping"
     }

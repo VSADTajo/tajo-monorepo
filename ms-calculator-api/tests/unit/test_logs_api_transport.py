@@ -131,6 +131,60 @@ class TestBuildCollectorPayload:
         assert payload is not None
         assert payload["message"] == "boom"
 
+    def test_strips_stdlib_logrecord_from_meta(self):
+        """structlog.stdlib.ProcessorFormatter.wrap_for_formatter injects a
+        LogRecord under `_record` which is NOT JSON-serializable. It must be
+        dropped so httpx.post doesn't crash."""
+        import json as _json
+        import logging as _logging
+
+        rec = _logging.LogRecord(
+            name="foo",
+            level=_logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="m",
+            args=None,
+            exc_info=None,
+        )
+        payload = build_collector_payload(
+            {
+                "level": "info",
+                "event": "e",
+                "_record": rec,
+                "_from_structlog": True,
+                "simulation_id": "abc-123",
+            },
+            SERVICE,
+        )
+        assert payload is not None
+        assert "_record" not in payload["meta"]
+        assert "_from_structlog" not in payload["meta"]
+        # end-to-end: json.dumps must not raise
+        _json.dumps(payload)
+
+    def test_non_json_meta_values_coerce_to_string(self):
+        """Any non-serializable value in meta falls back to str()."""
+        import json as _json
+
+        class _NotSerializable:
+            def __repr__(self) -> str:
+                return "<NotSerializable>"
+
+        payload = build_collector_payload(
+            {
+                "level": "info",
+                "event": "e",
+                "weird": _NotSerializable(),
+                "normal": 42,
+            },
+            SERVICE,
+        )
+        assert payload is not None
+        assert payload["meta"]["weird"] == "<NotSerializable>"
+        assert payload["meta"]["normal"] == 42
+        _json.dumps(payload)
+
 
 class _FakeHttpxClient:
     def __init__(self, raise_on_post: Exception | None = None) -> None:
