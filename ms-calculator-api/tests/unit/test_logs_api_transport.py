@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -13,7 +12,6 @@ from src.infrastructure.logging.logs_api_transport import (
     build_collector_payload,
     make_logs_api_processor,
 )
-
 
 SERVICE = "ms-calculator-api"
 
