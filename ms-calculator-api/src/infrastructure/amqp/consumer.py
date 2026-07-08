@@ -63,6 +63,17 @@ class SimulationOutputConsumer:
         try:
             body_bytes: bytes = message.body
             raw = json.loads(body_bytes.decode("utf-8"))
+            # NestJS @nestjs/microservices AMQP transport wraps events as
+            # `{ pattern, data }`. ms-model-api publishes to this queue via
+            # that transport, so unwrap the envelope before validating.
+            # Backwards-compatible: raw dicts without envelope go through.
+            if (
+                isinstance(raw, dict)
+                and "data" in raw
+                and "pattern" in raw
+                and isinstance(raw["data"], dict)
+            ):
+                raw = raw["data"]
             simulation_id = raw.get("simulationId", "unknown")
 
             logger.info(
