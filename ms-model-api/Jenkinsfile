@@ -109,6 +109,7 @@ pipeline {
                             -e RABBITMQ_PREFETCH=10 \
                             -e RABBITMQ_ENABLED=true \
                             -e SFTP_API_BASE_URL=http://ms-sftp-api:3003 \
+                            -e USE_CALCULATOR_PIPELINE=true \
                             ${APP_NAME}:${IMAGE_TAG}
                     """
                 }
