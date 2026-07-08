@@ -24,7 +24,11 @@ _consumer_task: Any = None
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     settings = get_settings()
-    configure_logging(level=settings.APP_LOG_LEVEL)
+    configure_logging(
+        level=settings.APP_LOG_LEVEL,
+        logs_api_url=settings.LOGS_API_URL,
+        logs_api_key=settings.X_API_KEY,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
