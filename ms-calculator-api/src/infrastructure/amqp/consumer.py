@@ -89,6 +89,20 @@ class SimulationOutputConsumer:
                 import structlog as _structlog
 
                 _structlog.contextvars.bind_contextvars(simulation_id=simulation_id)
+                # Emit a structured error log with the pydantic error detail so
+                # the runbook can diagnose payload shape issues from ms-logs-api.
+                # Limit to first 10 errors to avoid flooding on batch failures.
+                try:
+                    error_details = exc.errors()[:10]
+                except Exception:
+                    error_details = str(exc)[:2000]
+                logger.error(
+                    "consumer.validation_failed",
+                    message="Payload validation failed",
+                    simulation_id=simulation_id,
+                    error_count=len(exc.errors()) if hasattr(exc, "errors") else 0,
+                    errors=error_details,
+                )
                 try:
                     await svc.publish_failed_from_raw(
                         simulation_id=simulation_id,
