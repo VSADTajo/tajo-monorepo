@@ -21,9 +21,9 @@ interface CalculatorTimeSeriesEntry {
         stationName?: string;
         units?: string;
         timeStep?: { unit: string; multiplier: number };
-        forecastDate?: string | null;
-        startDate?: string | null;
-        endDate?: string | null;
+        forecastDate?: { date: string; time: string } | null;
+        startDate?: { date: string; time: string } | null;
+        endDate?: { date: string; time: string } | null;
         sourceTimezone?: string;
         missVal?: string;
         lat?: number;
@@ -204,9 +204,9 @@ export class SimulationRunPollerService implements OnModuleInit {
                 stationName: series.stationName,
                 units: series.units,
                 timeStep: series.timeStep,
-                forecastDate: series.forecastDate,
-                startDate: series.startDate,
-                endDate: series.endDate,
+                forecastDate: this.isoToDateTimeDict(series.forecastDate),
+                startDate: this.isoToDateTimeDict(series.startDate),
+                endDate: this.isoToDateTimeDict(series.endDate),
                 sourceTimezone: 'UTC',
                 missVal: MISS_VAL,
                 lat: series.lat,
@@ -234,9 +234,9 @@ export class SimulationRunPollerService implements OnModuleInit {
                 stationName: series.header.stationName,
                 units: series.header.units,
                 timeStep: series.header.timeStep,
-                forecastDate: series.header.forecastDate ?? null,
-                startDate: series.header.startDate ?? null,
-                endDate: series.header.endDate ?? null,
+                forecastDate: this.isoToDateTimeDict(series.header.forecastDate),
+                startDate: this.isoToDateTimeDict(series.header.startDate),
+                endDate: this.isoToDateTimeDict(series.header.endDate),
                 sourceTimezone: series.header.sourceTimezone,
                 missVal: MISS_VAL,
                 lat: series.header.lat,
@@ -253,5 +253,17 @@ export class SimulationRunPollerService implements OnModuleInit {
         }));
 
         return [...fromNormalized, ...fromWiski];
+    }
+
+    /**
+     * Split an ISO-8601 timestamp into a `{ date, time }` dict expected by the
+     * calculator's pydantic schema (SimulationOutputPayload.timeSeries[].header.startDate).
+     * The upstream calculator rejects plain ISO strings with a validation error.
+     */
+    private isoToDateTimeDict(iso: string | null | undefined): { date: string; time: string } | null {
+        if (!iso) return null;
+        const [datePart, timePartRaw] = iso.split('T');
+        const timePart = (timePartRaw ?? '').replace(/Z$/, '');
+        return { date: datePart ?? '', time: timePart };
     }
 }
