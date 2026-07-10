@@ -30,6 +30,7 @@ import {
     ListManeuversGwResponseDto,
     DeleteManeuverGwResponseDto,
     SimulationFilesGwResponseDto,
+    GetSimulationResultsGwResponseDto,
 } from '@api/dtos/predictions-proxy.dtos';
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
@@ -288,6 +289,99 @@ export class PredictionsProxyController {
             method: 'GET',
             baseUrl: this.servicesConfig.predictionsApiUrl,
             path: `/simulations/manual/${id}`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('simulations/manual/:id/results')
+    @ApiEndpoint({
+        summary: 'Get predictions and time-series results of a manual simulation',
+        description: [
+            'Returns the manual simulation identity together with every prediction the model produced for it,',
+            'each with its ordered time-series entries. Consumed by the frontend to render the outcome of a manual run.',
+            'Returns an empty predictions array while the simulation is still processing or if the model failed.',
+        ].join(' '),
+        response: {
+            status: 200,
+            type: GetSimulationResultsGwResponseDto,
+            description: [
+                'Predictions and their time-series results for the manual simulation.',
+                'Predictions are ordered by (stationId, predictionTypeId); each results[] is ordered by date ASC.',
+            ].join(' '),
+        },
+        errors: [
+            { status: 400, description: 'Invalid simulation id (not a UUID)' },
+            { status: 404, description: 'Manual simulation not found, soft-deleted, or not of type MANUAL' },
+        ],
+    })
+    @ApiResponse({
+        status: 200,
+        description: 'Example response with two predictions for the same station',
+        schema: {
+            example: {
+                simulation: {
+                    id: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c',
+                    simulationDate: '20260619120000',
+                    status: 'FINALIZED',
+                    type: 'MANUAL',
+                    dataOrigin: 'FORECAST',
+                    createdAt: '2026-06-19T12:00:00.000Z',
+                    updatedAt: '2026-06-19T13:45:12.000Z',
+                },
+                predictions: [
+                    {
+                        id: '3f9d1e2b-6c47-4a8b-9c1d-2e3f4a5b6c7d',
+                        stationId: 'AR35',
+                        stationName: 'Embalse de Arévalo',
+                        predictionTypeId: 'a1b2c3d4-e5f6-7890-abcd-ef0123456789',
+                        predictionTypeName: 'Q.NAM.forecast',
+                        predictionTypeUnit: 'm3/s',
+                        percentile: null,
+                        predictionProvider: 'aemet',
+                        predictedBy: 'harmonie-2026-06-19',
+                        predictionDate: '2026-06-19T00:00:00.000Z',
+                        predictionStartDate: '2026-06-19T00:00:00.000Z',
+                        predictionEndDate: '2026-06-22T00:00:00.000Z',
+                        results: [
+                            { date: '2026-06-19T00:00:00.000Z', value: 123.4, flag: 0 },
+                            { date: '2026-06-19T01:00:00.000Z', value: 121.9, flag: 0 },
+                            { date: '2026-06-19T02:00:00.000Z', value: 118.6, flag: 0 },
+                        ],
+                    },
+                    {
+                        id: '4a2c9d3e-7b58-4f5a-9d0c-1e2f3a4b5c6d',
+                        stationId: 'AR35',
+                        stationName: 'Embalse de Arévalo',
+                        predictionTypeId: 'b2c3d4e5-f6a7-8901-bcde-f01234567890',
+                        predictionTypeName: 'P.ens.forecast',
+                        predictionTypeUnit: 'mm',
+                        percentile: 50,
+                        predictionProvider: 'aemet',
+                        predictedBy: 'ensemble-2026-06-19',
+                        predictionDate: '2026-06-19T00:00:00.000Z',
+                        predictionStartDate: '2026-06-19T00:00:00.000Z',
+                        predictionEndDate: '2026-06-22T00:00:00.000Z',
+                        results: [
+                            { date: '2026-06-19T00:00:00.000Z', value: 0.2, flag: 0 },
+                            { date: '2026-06-19T01:00:00.000Z', value: 0.0, flag: 0 },
+                        ],
+                    },
+                ],
+            },
+        },
+    })
+    async getManualSimulationResults(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: `/simulations/manual/${id}/results`,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,

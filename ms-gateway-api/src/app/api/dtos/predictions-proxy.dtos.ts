@@ -463,3 +463,153 @@ export class SimulationFilesGwResponseDto {
     @ApiProperty({ type: [SftpFileMetaGwDto] }) input: SftpFileMetaGwDto[];
     @ApiProperty({ type: [SftpFileMetaGwDto] }) output: SftpFileMetaGwDto[];
 }
+
+// ─────────────────────────────────────────────────────────────
+// Simulation Results (predictions + time-series for a manual simulation)
+// Consumed by the frontend to render the outcome of a manual run.
+// ─────────────────────────────────────────────────────────────
+
+export class PredictionResultPointGwDto {
+    @ApiProperty({
+        example: '2026-06-19T00:00:00.000Z',
+        description: 'ISO 8601 timestamp of the sample (UTC).',
+    })
+    date: Date;
+
+    @ApiProperty({
+        example: 123.4,
+        description: 'Predicted value at that timestamp, in the prediction type unit.',
+    })
+    value: number;
+
+    @ApiProperty({
+        example: 0,
+        description: 'Quality flag. 0 = normal, non-zero = provider-specific status (e.g. missing/derived).',
+    })
+    flag: number;
+}
+
+export class SimulationResultsPredictionGwDto {
+    @ApiProperty({ example: '3f9d1e2b-6c47-4a8b-9c1d-2e3f4a5b6c7d' })
+    id: string;
+
+    @ApiProperty({ example: 'AR35', description: 'SAIH station identifier.' })
+    stationId: string;
+
+    @ApiProperty({
+        nullable: true,
+        example: 'Embalse de Arévalo',
+        description: 'Station display name if the provider supplied one.',
+    })
+    stationName: string | null;
+
+    @ApiProperty({ example: 'a1b2c3d4-e5f6-7890-abcd-ef0123456789' })
+    predictionTypeId: string;
+
+    @ApiProperty({
+        nullable: true,
+        example: 'Q.NAM.forecast',
+        description: 'Prediction type name (e.g. Q.NAM.forecast, P.ens.forecast).',
+    })
+    predictionTypeName: string | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: 'm3/s',
+        description: 'Unit of the values in the results timeline.',
+    })
+    predictionTypeUnit: string | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: 50,
+        description: 'Percentile of the ensemble prediction (0-100) or null for deterministic runs.',
+    })
+    percentile: number | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: 'aemet',
+        description: 'Provider that generated the prediction.',
+    })
+    predictionProvider: string | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: 'harmonie-2026-06-19',
+        description: 'External module/instance id, when available.',
+    })
+    predictedBy: string | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: '2026-06-19T00:00:00.000Z',
+        description: 'Reference date the prediction refers to (usually equal to predictionStartDate).',
+    })
+    predictionDate: Date | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: '2026-06-19T00:00:00.000Z',
+        description: 'Inclusive lower bound of the prediction time window.',
+    })
+    predictionStartDate: Date | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: '2026-06-22T00:00:00.000Z',
+        description: 'Inclusive upper bound of the prediction time window.',
+    })
+    predictionEndDate: Date | null;
+
+    @ApiProperty({
+        type: [PredictionResultPointGwDto],
+        description: 'Time-series entries for this prediction, ordered ascending by date.',
+    })
+    results: PredictionResultPointGwDto[];
+}
+
+export class SimulationResultsIdentityGwDto {
+    @ApiProperty({ example: '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c' })
+    id: string;
+
+    @ApiProperty({
+        example: '20260619120000',
+        description: 'Auto-generated YYYYMMDDHHMMSS captured when the simulation was submitted.',
+    })
+    simulationDate: string;
+
+    @ApiProperty({
+        example: 'FINALIZED',
+        enum: ['CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'],
+        description: 'Current lifecycle status. Only FINALIZED sims are guaranteed to carry a full results set.',
+    })
+    status: string;
+
+    @ApiProperty({ example: 'MANUAL' })
+    type: string;
+
+    @ApiProperty({ nullable: true, example: 'FORECAST', enum: ['HISTORICAL', 'FORECAST', null] })
+    dataOrigin: string | null;
+
+    @ApiProperty({ example: '2026-06-19T12:00:00.000Z' })
+    createdAt: Date;
+
+    @ApiProperty({ example: '2026-06-19T12:00:00.000Z' })
+    updatedAt: Date;
+}
+
+export class GetSimulationResultsGwResponseDto {
+    @ApiProperty({
+        type: SimulationResultsIdentityGwDto,
+        description: 'Identity and lifecycle metadata of the manual simulation.',
+    })
+    simulation: SimulationResultsIdentityGwDto;
+
+    @ApiProperty({
+        type: [SimulationResultsPredictionGwDto],
+        description:
+            'Predictions produced by the model, ordered ascending by (stationId, predictionTypeId). Empty while the simulation is still processing or if it failed.',
+    })
+    predictions: SimulationResultsPredictionGwDto[];
+}
