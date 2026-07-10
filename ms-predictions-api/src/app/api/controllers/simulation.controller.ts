@@ -41,6 +41,7 @@ import {
     ListManualSimulationsResponseDto,
     GetManualSimulationByIdResponseDto,
     SimulationFilesResponseDto,
+    GetSimulationResultsResponseDto,
 } from '@api/dtos/simulation.dtos';
 
 // Mappers
@@ -59,6 +60,7 @@ import {
     CreateManualSimulationMapper,
     ListManualSimulationsMapper,
     GetManualSimulationByIdMapper,
+    GetSimulationResultsMapper,
 } from '@application/mappers/manual-simulation.mappers';
 
 // Queries
@@ -80,6 +82,7 @@ import { Simulation } from '@domain/entities/simulation.entity';
 import { PaginatedResult } from '@domain/ports/simulation-repository.port';
 import { ManualSimulationResult } from '@domain/results/manual-simulation.result';
 import { PaginatedManualSimulationResult } from '@domain/results/manual-simulation.result';
+import { SimulationResultsResult } from '@domain/results/simulation-results.result';
 import {
     SimulationFilesResult,
     SimulationFileDownloadResult,
@@ -315,6 +318,36 @@ export class SimulationController {
                 throw new HttpException(error.message, error.statusCode);
             }
             this.logger.error({ msg: 'Get manual simulation error', entity: 'Simulations', error: String(error) });
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get('manual/:id/results')
+    @ApiEndpoint({
+        summary: 'Get the predictions and time-series results of a manual simulation',
+        response: {
+            status: 200,
+            type: GetSimulationResultsResponseDto,
+            description: 'Predictions and their time-series results for the simulation',
+        },
+        errors: [
+            { status: 400, description: 'Invalid simulation id' },
+            { status: 404, description: 'Manual simulation not found' },
+        ],
+    })
+    async getManualResults(@Param('id') id: string): Promise<GetSimulationResultsResponseDto> {
+        this.logger.log(`Get simulation results request: ${id}`);
+        if (!isUUID(id)) {
+            throw new HttpException('Invalid simulation id', HttpStatus.BAD_REQUEST);
+        }
+        try {
+            const query = GetSimulationResultsMapper.toQuery(id);
+            const result = await this.cachingQueryBus.execute<SimulationResultsResult>(query);
+            return GetSimulationResultsMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof EntityError) throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+            if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);
+            this.logger.error({ msg: 'Get simulation results error', entity: 'Simulations', error: String(error) });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

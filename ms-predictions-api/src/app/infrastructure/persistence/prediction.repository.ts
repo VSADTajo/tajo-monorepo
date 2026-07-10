@@ -377,6 +377,28 @@ export class PredictionRepository implements IPredictionRepository {
         }
     }
 
+    async findWithResultsBySimulationId(simulationId: string): Promise<Prediction[]> {
+        try {
+            const qb = this.predictionRepository.createQueryBuilder('prediction');
+            qb.innerJoin('prediction.simulation', 'simulation');
+            qb.leftJoinAndSelect('prediction.predictionType', 'predictionType');
+            qb.leftJoinAndSelect('prediction.results', 'result');
+            qb.where('prediction.simulationId = :id', { id: simulationId });
+            qb.orderBy('prediction.stationId', 'ASC');
+            qb.addOrderBy('prediction.predictionTypeId', 'ASC');
+            qb.addOrderBy('result.date', 'ASC');
+            return await qb.getMany();
+        } catch (error) {
+            this.logger.error({
+                event: 'repo.prediction.findWithResultsBySimulationId.error',
+                msg: 'Error finding predictions with results by simulation id',
+                entity: 'Predictions',
+                error: String(error),
+            });
+            throw new RepositoryError('Error finding predictions with results by simulation id', error);
+        }
+    }
+
     async findByUniqueConstraint(
         simulationId: string,
         stationId: string,

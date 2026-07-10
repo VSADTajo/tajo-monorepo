@@ -19,6 +19,7 @@ import {
 import {
     GetManualSimulationByIdQuery,
     ListManualSimulationsQuery,
+    GetSimulationResultsQuery,
 } from '@app/application/queries/manual-simulation.queries';
 
 export interface CacheEntryConfig {
@@ -64,6 +65,7 @@ export const ManualSimulationCacheKeys = {
     // v4: list now accepts stationCode/sortBy/sortOrder; bumping the version segment
     // forces any entry cached under the older v3 shape to be ignored.
     list: (params: string) => `manual-simulation:list:v4:${params}`,
+    results: (id: string) => `manual-simulation:results:${id}`,
     pattern: () => 'manual-simulation:*',
 };
 
@@ -195,4 +197,11 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         },
     ],
     [GetManeuverByIdQuery.name, { ttl: 300, key: (q: GetManeuverByIdQuery) => ManeuverCacheKeys.byId(q.id) }],
+    [
+        GetSimulationResultsQuery.name,
+        {
+            ttl: 60,
+            key: (q: GetSimulationResultsQuery) => ManualSimulationCacheKeys.results(q.id),
+        },
+    ],
 ]);
