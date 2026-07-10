@@ -47,6 +47,15 @@ export interface StationPredictionTypeItem {
     id: string;
     name: string;
     unit: string;
+    /** ISO-8601 timestamp of the most recent ingested result (FINALIZED sims), or null if the type never entered for this station. */
+    lastEntered: string | null;
+}
+
+export interface TypeCoverageCell {
+    stationId: string;
+    predictionTypeId: string;
+    /** ISO-8601 timestamp of the most recent ingested result for this station/type pair. */
+    lastEntered: string;
 }
 
 export abstract class IPredictionRepository {
@@ -61,7 +70,16 @@ export abstract class IPredictionRepository {
         stationId: string,
         predictionTypes?: string[],
     ): Promise<SimulationDateSummaryItem[]>;
-    abstract findTypesWithDataByStation(stationId: string): Promise<StationPredictionTypeItem[]>;
+    /**
+     * Coverage of ALL catalog prediction types for a station: every type is returned,
+     * with lastEntered = null when the station never received data for it (FINALIZED sims only).
+     */
+    abstract findTypeCoverageByStation(stationId: string): Promise<StationPredictionTypeItem[]>;
+    /**
+     * One cell per (station, type) pair that has data (FINALIZED sims only), with the most
+     * recent ingestion timestamp. Used to build the full stations × types coverage matrix.
+     */
+    abstract findTypeCoverageMatrix(): Promise<TypeCoverageCell[]>;
     abstract findByUniqueConstraint(
         simulationId: string,
         stationId: string,

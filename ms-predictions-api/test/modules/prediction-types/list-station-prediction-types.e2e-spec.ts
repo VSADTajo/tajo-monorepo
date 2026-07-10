@@ -33,6 +33,7 @@ import {
 import { PredictionTypeController } from '../../../src/app/api/controllers/prediction-type.controller';
 
 import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-query-bus.service';
+import { CoverageReportService } from '../../../src/app/infrastructure/services/coverage-report.service';
 
 import { createTestApp, TestContext } from '../../helpers/test-app.helper';
 import { cleanDatabase } from '../../helpers/db.helper';
@@ -75,6 +76,7 @@ describe('List Station Prediction Types (e2e)', () => {
                 { provide: IStationThresholdService, useValue: mockStationThresholdService },
                 { provide: ICacheService, useValue: mockCacheService },
                 { provide: IMessageBroker, useValue: mockMessageBroker },
+                CoverageReportService,
                 CachingQueryBus,
             ],
         });
@@ -124,34 +126,49 @@ describe('List Station Prediction Types (e2e)', () => {
     // Tests
     // ─────────────────────────────────────────────────────────────
 
-    it('should return only the types that have data for the station', async () => {
+    // Convenience: find a coverage row by type name.
+    function typeRow(
+        body: { types: Array<{ name: string; hasData: boolean; lastEntered: string | null }> },
+        name: string,
+    ) {
+        return body.types.find((t) => t.name === name);
+    }
+
+    it('should return the whole catalog, flagging which types have data for the station', async () => {
         const stationId = 'STATION-A';
         await seedFinalizedType(stationId, 'Discharge_forecast', '2026-03-10');
         await seedFinalizedType(stationId, 'P.ens.forecast', '2026-03-11');
-        // A different station — must not leak into STATION-A results
+        // A different station seeds another catalog type — it must appear as "never" for STATION-A
         await seedFinalizedType('STATION-OTHER', 'WaterLevel_forecast', '2026-03-12');
 
         const { body } = await getByStation(stationId).expect(HttpStatus.OK);
 
         expect(body.stationCode).toBe(stationId);
-        const names = body.predictionTypes.map((pt: { name: string }) => pt.name);
-        expect(names).toHaveLength(2);
-        expect(names).toContain('Discharge_forecast');
-        expect(names).toContain('P.ens.forecast');
-        expect(names).not.toContain('WaterLevel_forecast');
-        for (const pt of body.predictionTypes) {
-            expect(pt.id).toBeDefined();
-            expect(pt.unit).toBeDefined();
-        }
+        // Catalog now has 3 types; all are returned regardless of station data.
+        expect(body.total).toBe(3);
+        expect(body.types).toHaveLength(3);
+        expect(body.withData).toBe(2);
+
+        const discharge = typeRow(body, 'Discharge_forecast');
+        const pens = typeRow(body, 'P.ens.forecast');
+        const level = typeRow(body, 'WaterLevel_forecast');
+
+        expect(discharge?.hasData).toBe(true);
+        expect(discharge?.lastEntered).not.toBeNull();
+        expect(pens?.hasData).toBe(true);
+        expect(pens?.lastEntered).not.toBeNull();
+        // Only seeded for another station → present but never entered here.
+        expect(level?.hasData).toBe(false);
+        expect(level?.lastEntered).toBeNull();
     });
 
-    it('should exclude types from non-finalized and soft-deleted simulations', async () => {
+    it('should mark types from non-finalized and soft-deleted simulations as never entered', async () => {
         const stationId = 'STATION-B';
 
-        // Finalized → must appear
+        // Finalized → hasData
         await seedFinalizedType(stationId, 'Discharge_forecast', '2026-04-01');
 
-        // Not finalized (left in its seeded status) → must NOT appear
+        // Not finalized (left in its seeded status) → hasData false
         const inProgress = await commandBus.execute(
             new ProcessTimeSeriesCommand(
                 buildProcessTimeSeriesCommand({
@@ -168,17 +185,19 @@ describe('List Station Prediction Types (e2e)', () => {
         );
         expect(inProgress.simulationId).toBeDefined();
 
-        // Finalized then soft-deleted → must NOT appear
+        // Finalized then soft-deleted → hasData false
         const deleted = await seedFinalizedType(stationId, 'WaterLevel_forecast', '2026-04-03');
         await dataSource.query('UPDATE simulations SET "deletedAt" = now() WHERE id = $1', [deleted.simulationId]);
 
         const { body } = await getByStation(stationId).expect(HttpStatus.OK);
 
-        const names = body.predictionTypes.map((pt: { name: string }) => pt.name);
-        expect(names).toEqual(['Discharge_forecast']);
+        expect(body.withData).toBe(1);
+        expect(typeRow(body, 'Discharge_forecast')?.hasData).toBe(true);
+        expect(typeRow(body, 'P.ens.forecast')?.hasData).toBe(false);
+        expect(typeRow(body, 'WaterLevel_forecast')?.hasData).toBe(false);
     });
 
-    it('should exclude types that have a prediction but no results', async () => {
+    it('should mark types that have a prediction but no results as never entered', async () => {
         const stationId = 'STATION-C';
         await seedFinalizedType(stationId, 'Discharge_forecast', '2026-05-01');
         await seedFinalizedType(stationId, 'P.ens.forecast', '2026-05-02');
@@ -196,14 +215,18 @@ describe('List Station Prediction Types (e2e)', () => {
 
         const { body } = await getByStation(stationId).expect(HttpStatus.OK);
 
-        const names = body.predictionTypes.map((pt: { name: string }) => pt.name);
-        expect(names).toEqual(['Discharge_forecast']);
+        expect(body.withData).toBe(1);
+        expect(typeRow(body, 'Discharge_forecast')?.hasData).toBe(true);
+        expect(typeRow(body, 'P.ens.forecast')?.hasData).toBe(false);
+        expect(typeRow(body, 'P.ens.forecast')?.lastEntered).toBeNull();
     });
 
-    it('should return an empty list for a station with no data', async () => {
+    it('should return an empty catalog coverage when no types exist yet', async () => {
         const { body } = await getByStation('UNKNOWN-STATION').expect(HttpStatus.OK);
 
         expect(body.stationCode).toBe('UNKNOWN-STATION');
-        expect(body.predictionTypes).toHaveLength(0);
+        expect(body.total).toBe(0);
+        expect(body.withData).toBe(0);
+        expect(body.types).toHaveLength(0);
     });
 });

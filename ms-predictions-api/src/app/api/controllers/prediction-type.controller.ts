@@ -1,6 +1,18 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Inject, Param, Post } from '@nestjs/common';
+import {
+    Body,
+    Controller,
+    Get,
+    HttpException,
+    HttpStatus,
+    Inject,
+    Param,
+    Post,
+    Res,
+    StreamableFile,
+} from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { Logger } from 'nestjs-pino';
 import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service';
 
@@ -10,6 +22,7 @@ import {
     CreatePredictionTypeResponseDto,
     ListPredictionTypesResponseDto,
     StationPredictionTypesResponseDto,
+    CoverageMatrixResponseDto,
 } from '@api/dtos/prediction-type.dtos';
 
 // Mappers
@@ -17,17 +30,26 @@ import {
     ListPredictionTypesMapper,
     CreatePredictionTypeMapper,
     ListStationPredictionTypesMapper,
+    CoverageMatrixMapper,
 } from '@application/mappers/prediction-type.mappers';
+
+// Queries
+import { GetTypeCoverageMatrixQuery } from '@application/queries/prediction-type.queries';
 
 // Results
 import { ListPredictionTypesResult } from '@domain/results/prediction-type.result';
 import { PredictionTypeResult } from '@domain/results/prediction-type.result';
-import { StationPredictionTypesResult } from '@domain/results/prediction-type.result';
+import { StationTypeCoverageResult, CoverageMatrixResult } from '@domain/results/prediction-type.result';
+
+// Services
+import { CoverageReportService } from '@infrastructure/services/coverage-report.service';
 
 // Errors
 import { EntityError } from '@domain/errors/entity.error';
 import { ApiError } from '@domain/errors/api.error';
 import { ApiEndpoint } from '@swagger/api-endpoint.decorator';
+
+const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 @ApiTags('PredictionTypes')
 @Controller('prediction-types')
@@ -36,6 +58,7 @@ export class PredictionTypeController {
         @Inject(Logger) private readonly logger: Logger,
         private readonly cachingQueryBus: CachingQueryBus,
         private readonly commandBus: CommandBus,
+        private readonly coverageReportService: CoverageReportService,
     ) {}
 
     @Get()
@@ -58,26 +81,102 @@ export class PredictionTypeController {
         }
     }
 
+    @Get('coverage')
+    @ApiEndpoint({
+        summary: 'Coverage matrix of all stations × all prediction types (last ingestion per cell)',
+        response: {
+            status: 200,
+            type: CoverageMatrixResponseDto,
+            description: 'Every station with, per catalog type, the last ingested result or null (never)',
+        },
+    })
+    async getCoverageMatrix(): Promise<CoverageMatrixResponseDto> {
+        this.logger.log('Get prediction type coverage matrix');
+        try {
+            const result = await this.cachingQueryBus.execute<CoverageMatrixResult>(new GetTypeCoverageMatrixQuery());
+            return CoverageMatrixMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error(`Error building coverage matrix: ${error}`);
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get('coverage/report.xlsx')
+    @ApiOperation({ summary: 'Download the full stations × types coverage matrix as an Excel file' })
+    @ApiProduces(XLSX_CONTENT_TYPE)
+    @ApiResponse({ status: 200, description: 'Excel workbook (binary stream)' })
+    async downloadCoverageMatrixReport(@Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+        this.logger.log('Download coverage matrix report (xlsx)');
+        try {
+            const result = await this.cachingQueryBus.execute<CoverageMatrixResult>(new GetTypeCoverageMatrixQuery());
+            const buffer = await this.coverageReportService.buildMatrixWorkbook(result);
+            res.set({
+                'Content-Type': XLSX_CONTENT_TYPE,
+                'Content-Disposition': 'attachment; filename="cobertura-todas-las-estaciones.xlsx"',
+                'Content-Length': buffer.length.toString(),
+            });
+            return new StreamableFile(buffer);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error(`Error building coverage matrix report: ${error}`);
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @Get('by-station/:stationCode')
     @ApiEndpoint({
-        summary: 'List prediction types that have data for a station',
+        summary: 'Coverage of ALL catalog prediction types for a station (with data / never + last ingestion)',
         response: {
             status: 200,
             type: StationPredictionTypesResponseDto,
-            description: 'Prediction types with data (results) for the given station code',
+            description: 'Every catalog type with its coverage status for the given station code',
         },
     })
     async listByStation(@Param('stationCode') stationCode: string): Promise<StationPredictionTypesResponseDto> {
-        this.logger.log(`List prediction types with data for station: ${stationCode}`);
+        this.logger.log(`Get prediction type coverage for station: ${stationCode}`);
         try {
             const query = ListStationPredictionTypesMapper.toQuery(stationCode);
-            const result = await this.cachingQueryBus.execute<StationPredictionTypesResult>(query);
+            const result = await this.cachingQueryBus.execute<StationTypeCoverageResult>(query);
             return ListStationPredictionTypesMapper.toResponseDto(result);
         } catch (error) {
             if (error instanceof ApiError) {
                 throw new HttpException(error.message, error.statusCode);
             }
-            this.logger.error(`Error listing prediction types by station: ${error}`);
+            this.logger.error(`Error listing prediction type coverage by station: ${error}`);
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get('by-station/:stationCode/report.xlsx')
+    @ApiOperation({ summary: 'Download the prediction type coverage of a station as an Excel file' })
+    @ApiProduces(XLSX_CONTENT_TYPE)
+    @ApiResponse({ status: 200, description: 'Excel workbook (binary stream)' })
+    async downloadStationReport(
+        @Param('stationCode') stationCode: string,
+        @Res({ passthrough: true }) res: Response,
+    ): Promise<StreamableFile> {
+        this.logger.log(`Download station coverage report (xlsx): ${stationCode}`);
+        try {
+            const query = ListStationPredictionTypesMapper.toQuery(stationCode);
+            const result = await this.cachingQueryBus.execute<StationTypeCoverageResult>(query);
+            const buffer = await this.coverageReportService.buildStationWorkbook(result);
+            const safeCode = stationCode.replace(/[^a-zA-Z0-9._-]/g, '_');
+            res.set({
+                'Content-Type': XLSX_CONTENT_TYPE,
+                'Content-Disposition': `attachment; filename="cobertura-${safeCode}.xlsx"`,
+                'Content-Length': buffer.length.toString(),
+            });
+            return new StreamableFile(buffer);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error(`Error building station coverage report: ${error}`);
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

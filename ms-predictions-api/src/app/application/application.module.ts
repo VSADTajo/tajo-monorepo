@@ -43,6 +43,7 @@ import {
 import {
     ListPredictionTypesHandler,
     ListStationPredictionTypesHandler,
+    GetTypeCoverageMatrixHandler,
 } from '@application/queries/prediction-type.queries';
 import {
     GetManualSimulationByIdHandler,
@@ -101,6 +102,7 @@ import { SimulationManualBalanceComputedConsumer } from '@application/consumers/
         BatchIngestHandler,
         ListPredictionTypesHandler,
         ListStationPredictionTypesHandler,
+        GetTypeCoverageMatrixHandler,
         CreatePredictionTypeHandler,
         PurgeOldSimulationsHandler,
         CleanupScheduler,

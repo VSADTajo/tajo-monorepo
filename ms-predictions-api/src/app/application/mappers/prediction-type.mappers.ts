@@ -3,6 +3,7 @@ import {
     CreatePredictionTypeResponseDto,
     ListPredictionTypesResponseDto,
     StationPredictionTypesResponseDto,
+    CoverageMatrixResponseDto,
 } from '@api/dtos/prediction-type.dtos';
 import { CreatePredictionTypeCommand } from '@application/commands/prediction-type.commands';
 import {
@@ -12,7 +13,8 @@ import {
 import {
     ListPredictionTypesResult,
     PredictionTypeResult,
-    StationPredictionTypesResult,
+    StationTypeCoverageResult,
+    CoverageMatrixResult,
 } from '@domain/results/prediction-type.result';
 
 // ─────────────────────────────────────────────────────────────
@@ -44,13 +46,36 @@ export class ListStationPredictionTypesMapper {
         return new ListStationPredictionTypesQuery(stationCode);
     }
 
-    static toResponseDto(result: StationPredictionTypesResult): StationPredictionTypesResponseDto {
+    static toResponseDto(result: StationTypeCoverageResult): StationPredictionTypesResponseDto {
         return {
             stationCode: result.stationCode,
-            predictionTypes: result.predictionTypes.map((pt) => ({
-                id: pt.id,
-                name: pt.name,
-                unit: pt.unit,
+            total: result.total,
+            withData: result.withData,
+            types: result.types.map((t) => ({
+                id: t.id,
+                name: t.name,
+                unit: t.unit,
+                hasData: t.lastEntered !== null,
+                lastEntered: t.lastEntered,
+            })),
+        };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// TypeCoverageMatrix
+// ─────────────────────────────────────────────────────────────
+
+export class CoverageMatrixMapper {
+    static toResponseDto(result: CoverageMatrixResult): CoverageMatrixResponseDto {
+        return {
+            generatedAt: result.generatedAt,
+            types: result.types.map((t) => ({ id: t.id, name: t.name, unit: t.unit })),
+            stations: result.stations.map((s) => ({
+                stationCode: s.stationCode,
+                stationName: s.stationName,
+                cells: s.cells,
+                withData: s.withData,
             })),
         };
     }

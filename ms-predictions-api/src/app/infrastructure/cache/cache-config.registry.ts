@@ -15,6 +15,7 @@ import {
 import {
     ListPredictionTypesQuery,
     ListStationPredictionTypesQuery,
+    GetTypeCoverageMatrixQuery,
 } from '@app/application/queries/prediction-type.queries';
 import {
     GetManualSimulationByIdQuery,
@@ -47,7 +48,10 @@ export const SimulationCacheKeys = {
 
 export const PredictionTypeCacheKeys = {
     list: () => 'prediction-types:list',
-    byStation: (stationCode: string) => `prediction-types:by-station:${stationCode}`,
+    // v2: response shape changed to full-catalog coverage (all types + lastEntered).
+    // Bumping the version segment ignores any entry cached under the old shape.
+    byStation: (stationCode: string) => `prediction-types:by-station:v2:${stationCode}`,
+    coverageMatrix: () => 'prediction-types:coverage-matrix',
     pattern: () => 'prediction-types:*',
 };
 
@@ -136,6 +140,7 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         ListStationPredictionTypesQuery.name,
         { ttl: 300, key: (q: ListStationPredictionTypesQuery) => PredictionTypeCacheKeys.byStation(q.stationCode) },
     ],
+    [GetTypeCoverageMatrixQuery.name, { ttl: 300, key: () => PredictionTypeCacheKeys.coverageMatrix() }],
     [
         GetHistoricalPredictionsQuery.name,
         {

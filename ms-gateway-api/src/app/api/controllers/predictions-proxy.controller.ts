@@ -18,6 +18,7 @@ import {
     ForecastPredictionsResponseDto,
     ListPredictionTypesResponseDto,
     StationPredictionTypesResponseDto,
+    CoverageMatrixResponseDto,
     CreatePredictionTypeResponseDto,
     DeleteSimulationGwResponseDto,
     CreateManualSimulationRequestDto,
@@ -66,6 +67,42 @@ export class PredictionsProxyController {
         private readonly proxyService: ProxyService,
         private readonly servicesConfig: ServicesConfigService,
     ) {}
+
+    // Forward a downstream binary (xlsx) response, preserving error bodies as-is.
+    private async forwardXlsx(
+        req: express.Request,
+        res: express.Response,
+        path: string,
+        fileName: string,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path,
+            responseType: 'arraybuffer',
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+
+        const body = Buffer.from(result.data as ArrayBuffer);
+
+        // On error the upstream returns a JSON body (still as arraybuffer) — forward it as-is.
+        if (result.status >= 400) {
+            res.status(result.status);
+            if (result.contentType) res.setHeader('Content-Type', result.contentType);
+            res.send(body);
+            return;
+        }
+
+        res.status(result.status);
+        res.setHeader(
+            'Content-Type',
+            result.contentType ?? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
+        res.send(body);
+    }
 
     // ─────────────────────────────────────────────────────────────
     // Simulations
@@ -764,13 +801,50 @@ export class PredictionsProxyController {
         res.status(result.status).json(result.data);
     }
 
+    @Get('prediction-types/coverage')
+    @ApiEndpoint({
+        summary: 'Coverage matrix of all stations × all prediction types (last ingestion per cell)',
+        response: {
+            status: 200,
+            type: CoverageMatrixResponseDto,
+            description: 'Every station with, per catalog type, the last ingested result or null (never)',
+        },
+    })
+    async getPredictionTypeCoverage(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: '/prediction-types/coverage',
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('prediction-types/coverage/report.xlsx')
+    @ApiOperation({ summary: 'Download the full stations × types coverage matrix as an Excel file' })
+    @ApiProduces('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    @ApiResponse({ status: 200, description: 'Excel workbook (binary stream)' })
+    async downloadPredictionTypeCoverageReport(
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        await this.forwardXlsx(
+            req,
+            res,
+            '/prediction-types/coverage/report.xlsx',
+            'cobertura-todas-las-estaciones.xlsx',
+        );
+    }
+
     @Get('prediction-types/by-station/:stationCode')
     @ApiEndpoint({
-        summary: 'List prediction types that have data for a station',
+        summary: 'Coverage of ALL catalog prediction types for a station (with data / never + last ingestion)',
         response: {
             status: 200,
             type: StationPredictionTypesResponseDto,
-            description: 'Prediction types with data (results) for the given station code',
+            description: 'Every catalog type with its coverage status for the given station code',
         },
     })
     async listPredictionTypesByStation(
@@ -787,6 +861,24 @@ export class PredictionsProxyController {
             traceId: (req as any).id,
         });
         res.status(result.status).json(result.data);
+    }
+
+    @Get('prediction-types/by-station/:stationCode/report.xlsx')
+    @ApiOperation({ summary: 'Download the prediction type coverage of a station as an Excel file' })
+    @ApiProduces('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    @ApiResponse({ status: 200, description: 'Excel workbook (binary stream)' })
+    async downloadStationCoverageReport(
+        @Param('stationCode') stationCode: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const safeCode = stationCode.replace(/[^a-zA-Z0-9._-]/g, '_');
+        await this.forwardXlsx(
+            req,
+            res,
+            `/prediction-types/by-station/${stationCode}/report.xlsx`,
+            `cobertura-${safeCode}.xlsx`,
+        );
     }
 
     @Post('prediction-types')

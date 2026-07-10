@@ -11,6 +11,7 @@ import {
     MaxAndLatestValueItem,
     SimulationDateSummaryItem,
     StationPredictionTypeItem,
+    TypeCoverageCell,
 } from '@domain/ports/prediction-repository.port';
 import { Prediction } from '@domain/entities/prediction.entity';
 import { IHistoricalTimelinePoint } from '@domain/results/historical-predictions.result';
@@ -348,32 +349,71 @@ export class PredictionRepository implements IPredictionRepository {
         }
     }
 
-    async findTypesWithDataByStation(stationId: string): Promise<StationPredictionTypeItem[]> {
+    async findTypeCoverageByStation(stationId: string): Promise<StationPredictionTypeItem[]> {
         try {
-            const rows: Array<{ id: string; name: string; unit: string }> =
+            // Start from the FULL prediction_types catalog and LEFT JOIN towards the station's
+            // ingested results. Types the station never received come back with lastEntered = NULL.
+            // Only FINALIZED, non-deleted simulations count as "data" (same semantics as the panel).
+            const rows: Array<{ id: string; name: string; unit: string; lastEntered: Date | null }> =
                 await this.predictionRepository.manager.query(
                     `
-                    SELECT DISTINCT pt.id AS "id", pt.name AS "name", pt.unit AS "unit"
+                    SELECT pt.id AS "id", pt.name AS "name", pt.unit AS "unit",
+                           MAX(pr."createdAt") AS "lastEntered"
                     FROM prediction_types pt
-                    INNER JOIN predictions p        ON p."predictionTypeId" = pt.id
-                    INNER JOIN prediction_results pr ON pr."predictionId"     = p.id
-                    INNER JOIN simulations s         ON s.id                  = p."simulationId"
-                    WHERE p."stationId" = $1
-                      AND s.status      = 'FINALIZED'
-                      AND s."deletedAt" IS NULL
+                    LEFT JOIN predictions p ON p."predictionTypeId" = pt.id AND p."stationId" = $1
+                    LEFT JOIN simulations s ON s.id = p."simulationId"
+                        AND s.status = 'FINALIZED' AND s."deletedAt" IS NULL
+                    LEFT JOIN prediction_results pr ON pr."predictionId" = p.id AND s.id IS NOT NULL
+                    GROUP BY pt.id, pt.name, pt.unit
                     ORDER BY pt.name ASC
                     `,
                     [stationId],
                 );
 
-            return rows.map((r) => ({ id: r.id, name: r.name, unit: r.unit }));
+            return rows.map((r) => ({
+                id: r.id,
+                name: r.name,
+                unit: r.unit,
+                lastEntered: r.lastEntered ? new Date(r.lastEntered).toISOString() : null,
+            }));
         } catch (error) {
             this.logger.error({
-                msg: 'Error finding prediction types with data by station',
+                msg: 'Error finding prediction type coverage by station',
                 entity: 'Predictions',
                 error: String(error),
             });
-            throw new RepositoryError('Error finding prediction types with data by station', error);
+            throw new RepositoryError('Error finding prediction type coverage by station', error);
+        }
+    }
+
+    async findTypeCoverageMatrix(): Promise<TypeCoverageCell[]> {
+        try {
+            const rows: Array<{ stationId: string; predictionTypeId: string; lastEntered: Date }> =
+                await this.predictionRepository.manager.query(
+                    `
+                    SELECT p."stationId" AS "stationId",
+                           p."predictionTypeId" AS "predictionTypeId",
+                           MAX(pr."createdAt") AS "lastEntered"
+                    FROM predictions p
+                    INNER JOIN simulations s ON s.id = p."simulationId"
+                    INNER JOIN prediction_results pr ON pr."predictionId" = p.id
+                    WHERE s.status = 'FINALIZED' AND s."deletedAt" IS NULL
+                    GROUP BY p."stationId", p."predictionTypeId"
+                    `,
+                );
+
+            return rows.map((r) => ({
+                stationId: r.stationId,
+                predictionTypeId: r.predictionTypeId,
+                lastEntered: new Date(r.lastEntered).toISOString(),
+            }));
+        } catch (error) {
+            this.logger.error({
+                msg: 'Error building prediction type coverage matrix',
+                entity: 'Predictions',
+                error: String(error),
+            });
+            throw new RepositoryError('Error building prediction type coverage matrix', error);
         }
     }
 

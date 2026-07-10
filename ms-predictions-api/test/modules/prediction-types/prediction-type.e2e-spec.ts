@@ -13,6 +13,7 @@ import { CreatePredictionTypeHandler } from '../../../src/app/application/comman
 import { PredictionTypeController } from '../../../src/app/api/controllers/prediction-type.controller';
 
 import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-query-bus.service';
+import { CoverageReportService } from '../../../src/app/infrastructure/services/coverage-report.service';
 
 import { createTestApp, TestContext } from '../../helpers/test-app.helper';
 import { cleanDatabase } from '../../helpers/db.helper';
@@ -39,6 +40,7 @@ describe('PredictionTypes (e2e)', () => {
                 CreatePredictionTypeHandler,
                 { provide: IPredictionTypeRepository, useClass: PredictionTypeRepository },
                 { provide: ICacheService, useValue: mockCacheService },
+                CoverageReportService,
                 CachingQueryBus,
             ],
         });

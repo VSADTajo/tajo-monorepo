@@ -16,6 +16,7 @@ import { ISimulationRepository } from '@domain/ports/simulation-repository.port'
 import { IPredictionRepository } from '@domain/ports/prediction-repository.port';
 import { IPredictionResultRepository } from '@domain/ports/prediction-result-repository.port';
 import { IStationThresholdService } from '@domain/ports/station-threshold-service.port';
+import { IStationCatalogService } from '@domain/ports/station-catalog-service.port';
 import { IManeuverRepository } from '@domain/ports/maneuver-repository.port';
 import { ISimulationSftpService } from '@domain/ports/simulation-sftp.port';
 
@@ -30,6 +31,8 @@ import { TransactionManagerService } from '@infrastructure/services/transaction-
 import { RedisCacheService } from '@infrastructure/services/redis-cache.service';
 import { RabbitmqService } from '@infrastructure/messaging/rabbitmq.service';
 import { StationThresholdService } from '@infrastructure/services/station-threshold.service';
+import { StationCatalogService } from '@infrastructure/services/station-catalog.service';
+import { CoverageReportService } from '@infrastructure/services/coverage-report.service';
 import { SimulationSftpService } from '@infrastructure/services/simulation-sftp.service';
 
 // Cache
@@ -98,6 +101,11 @@ import { Maneuver } from '@domain/entities/maneuver.entity';
             useClass: StationThresholdService,
         },
         {
+            provide: IStationCatalogService,
+            useClass: StationCatalogService,
+        },
+        CoverageReportService,
+        {
             provide: IManeuverRepository,
             useClass: ManeuverRepository,
         },
@@ -117,6 +125,8 @@ import { Maneuver } from '@domain/entities/maneuver.entity';
         ICacheService,
         IMessageBroker,
         IStationThresholdService,
+        IStationCatalogService,
+        CoverageReportService,
         IManeuverRepository,
         ISimulationSftpService,
         CachingQueryBus,
