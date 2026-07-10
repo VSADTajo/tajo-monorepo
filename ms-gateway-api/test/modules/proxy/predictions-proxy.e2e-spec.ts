@@ -38,7 +38,9 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
 
     // Helper functions (NOT async — return the supertest chain so .expect() composes)
     function postManual(body: unknown) {
-        return request(app.getHttpServer()).post('/simulations/manual').send(body as object);
+        return request(app.getHttpServer())
+            .post('/simulations/manual')
+            .send(body as object);
     }
 
     function buildValidManualBody(overrides: Record<string, unknown> = {}) {
@@ -131,7 +133,9 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
 
     describe('POST /maneuvers — standalone maneuver validation', () => {
         function postManeuver(body: unknown) {
-            return request(app.getHttpServer()).post('/maneuvers').send(body as object);
+            return request(app.getHttpServer())
+                .post('/maneuvers')
+                .send(body as object);
         }
 
         it('should accept a valid maneuver and forward it', async () => {
@@ -225,6 +229,108 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
 
             expect(mockProxyService.forward).toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'GET', path: '/simulations' }),
+            );
+        });
+    });
+
+    describe('GET /simulations/manual/:id/results — proxies to predictions-api results endpoint', () => {
+        const SIM_ID = '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c';
+
+        it('should forward the request and return the results payload', async () => {
+            const upstreamPayload = {
+                simulation: {
+                    id: SIM_ID,
+                    simulationDate: '20260619120000',
+                    status: 'FINALIZED',
+                    type: 'MANUAL',
+                    dataOrigin: 'FORECAST',
+                    createdAt: '2026-06-19T12:00:00.000Z',
+                    updatedAt: '2026-06-19T13:45:12.000Z',
+                },
+                predictions: [
+                    {
+                        id: '3f9d1e2b-6c47-4a8b-9c1d-2e3f4a5b6c7d',
+                        stationId: 'AR35',
+                        stationName: 'Embalse de Arévalo',
+                        predictionTypeId: 'a1b2c3d4-e5f6-7890-abcd-ef0123456789',
+                        predictionTypeName: 'Q.NAM.forecast',
+                        predictionTypeUnit: 'm3/s',
+                        percentile: null,
+                        predictionProvider: 'aemet',
+                        predictedBy: 'harmonie-2026-06-19',
+                        predictionDate: '2026-06-19T00:00:00.000Z',
+                        predictionStartDate: '2026-06-19T00:00:00.000Z',
+                        predictionEndDate: '2026-06-22T00:00:00.000Z',
+                        results: [
+                            { date: '2026-06-19T00:00:00.000Z', value: 123.4, flag: 0 },
+                            { date: '2026-06-19T01:00:00.000Z', value: 121.9, flag: 0 },
+                        ],
+                    },
+                ],
+            };
+            mockProxyService.forward.mockResolvedValue({ status: 200, data: upstreamPayload });
+
+            const { body } = await request(app.getHttpServer())
+                .get(`/simulations/manual/${SIM_ID}/results`)
+                .expect(HttpStatus.OK);
+
+            expect(body).toEqual(upstreamPayload);
+            expect(mockProxyService.forward).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'GET',
+                    baseUrl: 'http://predictions-api:3007',
+                    path: `/simulations/manual/${SIM_ID}/results`,
+                }),
+            );
+        });
+
+        it('should forward an empty predictions payload while the simulation is still processing', async () => {
+            mockProxyService.forward.mockResolvedValue({
+                status: 200,
+                data: {
+                    simulation: {
+                        id: SIM_ID,
+                        simulationDate: '20260619120000',
+                        status: 'MODEL_PROCESSING',
+                        type: 'MANUAL',
+                        dataOrigin: 'FORECAST',
+                        createdAt: '2026-06-19T12:00:00.000Z',
+                        updatedAt: '2026-06-19T12:00:05.000Z',
+                    },
+                    predictions: [],
+                },
+            });
+
+            const { body } = await request(app.getHttpServer())
+                .get(`/simulations/manual/${SIM_ID}/results`)
+                .expect(HttpStatus.OK);
+
+            expect(body.simulation.status).toBe('MODEL_PROCESSING');
+            expect(body.predictions).toEqual([]);
+        });
+
+        it('should propagate a 404 from predictions-api', async () => {
+            mockProxyService.forward.mockResolvedValue({
+                status: 404,
+                data: { StatusCode: 404, ErrorDescription: 'Manual simulation not found' },
+            });
+
+            await request(app.getHttpServer())
+                .get(`/simulations/manual/${SIM_ID}/results`)
+                .expect(HttpStatus.NOT_FOUND);
+        });
+
+        it('should propagate a 400 for an invalid UUID', async () => {
+            mockProxyService.forward.mockResolvedValue({
+                status: 400,
+                data: { StatusCode: 400, ErrorDescription: 'Invalid simulation id' },
+            });
+
+            await request(app.getHttpServer())
+                .get('/simulations/manual/not-a-uuid/results')
+                .expect(HttpStatus.BAD_REQUEST);
+            expect(mockProxyService.forward).toHaveBeenCalledWith(
+                expect.objectContaining({ path: '/simulations/manual/not-a-uuid/results' }),
             );
         });
     });
