@@ -539,3 +539,118 @@ export class SimulationFilesResponseDto {
     @ApiProperty({ description: 'Files in the simulation output folder', type: [SftpFileMetaDto] })
     output: SftpFileMetaDto[];
 }
+
+// ─────────────────────────────────────────────────────────────
+// GetSimulationResults
+// ─────────────────────────────────────────────────────────────
+
+export class PredictionResultItemDto {
+    @ApiProperty({ description: 'Time-series entry timestamp (ISO 8601)', example: '2026-07-10T00:00:00.000Z' })
+    date: Date;
+
+    @ApiProperty({ description: 'Numeric value at this timestamp', example: 123.4 })
+    value: number;
+
+    @ApiProperty({ description: 'Quality flag (0 = reliable)', example: 0 })
+    flag: number;
+}
+
+export class PredictionWithResultsDto {
+    @ApiProperty({ description: 'Prediction unique identifier' })
+    id: string;
+
+    @ApiProperty({ description: 'Station code', example: 'AR71' })
+    stationId: string;
+
+    @ApiProperty({ description: 'Station name', nullable: true, example: 'Embalse del Tranco' })
+    stationName: string | null;
+
+    @ApiProperty({ description: 'Prediction type identifier (UUID)' })
+    predictionTypeId: string;
+
+    @ApiProperty({ description: 'Prediction type name', nullable: true, example: 'Q.NAM.forecast' })
+    predictionTypeName: string | null;
+
+    @ApiProperty({ description: 'Prediction type unit', nullable: true, example: 'm3/s' })
+    predictionTypeUnit: string | null;
+
+    @ApiProperty({ description: 'Ensemble percentile (null when not applicable)', nullable: true, example: 50 })
+    percentile: number | null;
+
+    @ApiProperty({ description: 'Prediction provider', nullable: true, example: 'aemet' })
+    predictionProvider: string | null;
+
+    @ApiProperty({ description: 'Model instance that produced this prediction', nullable: true, example: 'mod-1' })
+    predictedBy: string | null;
+
+    @ApiProperty({
+        description: 'Reference forecast date (ISO 8601)',
+        nullable: true,
+        example: '2026-07-10T00:00:00.000Z',
+    })
+    predictionDate: Date | null;
+
+    @ApiProperty({
+        description: 'Start of the prediction time window (ISO 8601)',
+        nullable: true,
+        example: '2026-07-10T00:00:00.000Z',
+    })
+    predictionStartDate: Date | null;
+
+    @ApiProperty({
+        description: 'End of the prediction time window (ISO 8601)',
+        nullable: true,
+        example: '2026-07-13T00:00:00.000Z',
+    })
+    predictionEndDate: Date | null;
+
+    @ApiProperty({
+        description: 'Ordered time-series entries (date ASC)',
+        type: [PredictionResultItemDto],
+    })
+    results: PredictionResultItemDto[];
+}
+
+export class SimulationIdentityDto {
+    @ApiProperty({ description: 'Simulation unique identifier' })
+    id: string;
+
+    @ApiProperty({ description: 'Simulation date in YYYYMMDDHHMMSS format', example: '20260710120000' })
+    simulationDate: string;
+
+    @ApiProperty({
+        description: 'Current simulation status',
+        enum: ['CREATED', 'MODEL_PROCESSING', 'IN_PROGRESS', 'FINALIZED', 'MODEL_FAILED'],
+        example: 'FINALIZED',
+    })
+    status: string;
+
+    @ApiProperty({ description: 'Simulation type', example: 'MANUAL' })
+    type: string;
+
+    @ApiProperty({
+        description: 'Data origin used for the run',
+        nullable: true,
+        enum: ['HISTORICAL', 'FORECAST'],
+        example: 'FORECAST',
+    })
+    dataOrigin: string | null;
+
+    @ApiProperty({ description: 'Creation timestamp' })
+    createdAt: Date | undefined;
+
+    @ApiProperty({ description: 'Last update timestamp' })
+    updatedAt: Date | undefined;
+}
+
+export class GetSimulationResultsResponseDto {
+    @ApiProperty({ description: 'Simulation identity and current status', type: SimulationIdentityDto })
+    simulation: SimulationIdentityDto;
+
+    @ApiProperty({
+        description:
+            'Predictions ordered by (stationId ASC, predictionTypeId ASC), each with its time-series results ordered by date ASC',
+        type: [PredictionWithResultsDto],
+    })
+    predictions: PredictionWithResultsDto[];
+}

@@ -15,7 +15,11 @@ import { IPredictionResultRepository } from '@domain/ports/prediction-result-rep
 import { IStationThresholdService } from '@domain/ports/station-threshold-service.port';
 import { ICacheService } from '@domain/ports/cache-service.port';
 import { IMessageBroker } from '@domain/ports/message-broker.port';
-import { SimulationCacheKeys, PredictionCacheKeys } from '@infrastructure/cache/cache-config.registry';
+import {
+    SimulationCacheKeys,
+    PredictionCacheKeys,
+    ManualSimulationCacheKeys,
+} from '@infrastructure/cache/cache-config.registry';
 import { Topics } from '@infrastructure/messaging/messaging.registry';
 
 // ─────────────────────────────────────────────────────────────
@@ -259,6 +263,7 @@ export class ProcessTimeSeriesHandler implements ICommandHandler<ProcessTimeSeri
         // 9. Invalidate caches
         await this.cacheService.delByPattern(SimulationCacheKeys.pattern());
         await this.cacheService.delByPattern(PredictionCacheKeys.pattern());
+        await this.cacheService.delByPattern(ManualSimulationCacheKeys.pattern());
 
         this.logger.log({
             msg: 'Time series processed',

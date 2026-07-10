@@ -5,12 +5,14 @@ import { Logger } from 'nestjs-pino';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
 import type { SimulationSortBy, SortOrder } from '@domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '@domain/ports/maneuver-repository.port';
+import { IPredictionRepository } from '@domain/ports/prediction-repository.port';
 import { SimulationType, SimulationStatus } from '@domain/entities/simulation.entity';
 import {
     ManualSimulationResult,
     ManualSimulationListItem,
     PaginatedManualSimulationResult,
 } from '@domain/results/manual-simulation.result';
+import { SimulationResultsResult } from '@domain/results/simulation-results.result';
 import { ApiError } from '@domain/errors/api.error';
 
 // ─────────────────────────────────────────────────────────────
@@ -143,5 +145,54 @@ export class ListManualSimulationsHandler implements IQueryHandler<
             page: paginatedSimulations.page,
             limit: paginatedSimulations.limit,
         });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// GetSimulationResults
+// ─────────────────────────────────────────────────────────────
+
+export interface IGetSimulationResultsQuery {
+    id: string;
+}
+
+export class GetSimulationResultsQuery {
+    constructor(private readonly parameters: IGetSimulationResultsQuery) {}
+
+    get id(): string {
+        return this.parameters.id;
+    }
+}
+
+@QueryHandler(GetSimulationResultsQuery)
+export class GetSimulationResultsHandler implements IQueryHandler<GetSimulationResultsQuery, SimulationResultsResult> {
+    constructor(
+        @Inject(Logger) private readonly logger: Logger,
+        private readonly simulationRepository: ISimulationRepository,
+        private readonly predictionRepository: IPredictionRepository,
+    ) {}
+
+    async execute(query: GetSimulationResultsQuery): Promise<SimulationResultsResult> {
+        let simulation;
+        try {
+            simulation = await this.simulationRepository.findById(query.id);
+        } catch {
+            throw new ApiError(HttpStatus.NOT_FOUND, `Manual simulation with id "${query.id}" not found`);
+        }
+
+        if (!simulation || simulation.type !== SimulationType.MANUAL) {
+            throw new ApiError(HttpStatus.NOT_FOUND, `Manual simulation with id "${query.id}" not found`);
+        }
+
+        const predictions = await this.predictionRepository.findWithResultsBySimulationId(query.id);
+
+        this.logger.debug({
+            event: 'query.simulation-results.executed',
+            simulationId: query.id,
+            predictionsCount: predictions.length,
+            totalResults: predictions.reduce((sum, p) => sum + (p.results?.length ?? 0), 0),
+        });
+
+        return new SimulationResultsResult({ simulation, predictions });
     }
 }

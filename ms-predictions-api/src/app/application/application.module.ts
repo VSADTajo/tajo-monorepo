@@ -47,6 +47,7 @@ import {
 import {
     GetManualSimulationByIdHandler,
     ListManualSimulationsHandler,
+    GetSimulationResultsHandler,
 } from '@application/queries/manual-simulation.queries';
 import { ListManeuversHandler, GetManeuverByIdHandler } from '@application/queries/maneuver.queries';
 
@@ -96,6 +97,7 @@ import { SimulationManualBalanceComputedConsumer } from '@application/consumers/
         GetSimulationDatesByStationHandler,
         GetManualSimulationByIdHandler,
         ListManualSimulationsHandler,
+        GetSimulationResultsHandler,
         BatchIngestHandler,
         ListPredictionTypesHandler,
         ListStationPredictionTypesHandler,

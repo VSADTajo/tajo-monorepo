@@ -6,13 +6,16 @@ import {
     ListManualSimulationsResponseDto,
     ManualSimulationListItemDto,
     GetManualSimulationByIdResponseDto,
+    GetSimulationResultsResponseDto,
 } from '@api/dtos/simulation.dtos';
 import { CreateManualSimulationCommand } from '@application/commands/manual-simulation.commands';
 import {
     GetManualSimulationByIdQuery,
     ListManualSimulationsQuery,
+    GetSimulationResultsQuery,
 } from '@application/queries/manual-simulation.queries';
 import { ManualSimulationResult } from '@domain/results/manual-simulation.result';
+import { SimulationResultsResult } from '@domain/results/simulation-results.result';
 import { Maneuver } from '@domain/entities/maneuver.entity';
 import { PaginatedManualSimulationResult } from '@domain/results/manual-simulation.result';
 
@@ -148,6 +151,49 @@ export class ListManualSimulationsMapper {
             total: result.total,
             page: result.page,
             limit: result.limit,
+        };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// GetSimulationResults
+// ─────────────────────────────────────────────────────────────
+
+export class GetSimulationResultsMapper {
+    static toQuery(id: string): GetSimulationResultsQuery {
+        return new GetSimulationResultsQuery({ id });
+    }
+
+    static toResponseDto(result: SimulationResultsResult): GetSimulationResultsResponseDto {
+        return {
+            simulation: {
+                id: result.simulation.id,
+                simulationDate: result.simulation.simulationDate,
+                status: result.simulation.status,
+                type: result.simulation.type,
+                dataOrigin: result.simulation.dataOrigin ?? null,
+                createdAt: result.simulation.createdAt,
+                updatedAt: result.simulation.updatedAt,
+            },
+            predictions: result.predictions.map((p) => ({
+                id: p.id,
+                stationId: p.stationId,
+                stationName: p.stationName ?? null,
+                predictionTypeId: p.predictionTypeId,
+                predictionTypeName: p.predictionType?.name ?? null,
+                predictionTypeUnit: p.predictionType?.unit ?? null,
+                percentile: p.percentile !== null && p.percentile !== undefined ? Number(p.percentile) : null,
+                predictionProvider: p.predictionProvider ?? null,
+                predictedBy: p.predictedBy ?? null,
+                predictionDate: p.predictionDate ?? null,
+                predictionStartDate: p.predictionStartDate ?? null,
+                predictionEndDate: p.predictionEndDate ?? null,
+                results: (p.results ?? []).map((r) => ({
+                    date: r.date,
+                    value: typeof r.value === 'string' ? Number(r.value) : r.value,
+                    flag: r.flag,
+                })),
+            })),
         };
     }
 }
