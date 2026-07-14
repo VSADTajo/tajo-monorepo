@@ -1,0 +1,79 @@
+// =============================================================================
+// REFERENCE Jenkinsfile — Jenkins → GHCR → deploy (our server + client).
+//
+// Copy this into each service repo, set APP_NAME, and it replaces the old
+// "docker build + docker run" deploy with: build → push to GHCR → redeploy
+// (image-swap, verbatim config, auto-rollback) on our server and any client.
+//
+// Prereqs on the Jenkins host (see docs/jenkins-ghcr-deploy.md):
+//   - credential id 'ghcr' (write:packages)          ← already configured
+//   - /opt/cutover/publish-and-deploy.sh + redeploy.sh ← already positioned
+//   - (optional) CLIENT_HOSTS = space-separated user@host of client servers
+//
+// ⚠️ The 'Publish & Deploy' stage only runs on `main` and performs a REAL
+//    deploy. Do NOT adopt this on the live services until the controlled first
+//    cutover is done (notifications baseline + fresh images) — see
+//    docs/cutover-runbook.md.
+// =============================================================================
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME     = 'ms-example-api'      // ← set per service
+        REGISTRY     = 'ghcr.io/vsadtajo'
+        CLIENT_HOSTS = ''                    // e.g. 'root@client-host' (optional)
+        DEPLOY_DIR   = '/opt/cutover'        // where the deploy scripts live on the VM
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                }
+            }
+        }
+
+        stage('Install') { steps { sh 'npm ci' } }
+        stage('Lint')    { steps { sh 'npm run lint' } }
+        stage('Test') {
+            steps { sh 'npm run test' }
+            post { always { junit allowEmptyResults: true, testResults: 'junit.xml' } }
+        }
+        stage('Build') { steps { sh 'npm run build' } }
+
+        stage('Docker Build') {
+            steps {
+                sh "DOCKER_BUILDKIT=1 docker build --target prod -t ${APP_NAME}:${GIT_COMMIT_SHORT} ."
+            }
+        }
+
+        stage('Publish & Deploy') {
+            when { branch 'main' }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'ghcr',
+                                  usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
+                    sh """
+                        SERVICE=${APP_NAME} \\
+                        LOCAL_IMAGE=${APP_NAME}:${GIT_COMMIT_SHORT} \\
+                        REGISTRY=${REGISTRY} \\
+                        TAG=main-${GIT_COMMIT_SHORT} \\
+                        CLIENT_HOSTS='${CLIENT_HOSTS}' \\
+                        bash ${DEPLOY_DIR}/publish-and-deploy.sh
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always { deleteDir() }
+    }
+}
