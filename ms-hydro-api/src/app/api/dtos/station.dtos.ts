@@ -289,6 +289,20 @@ export class CreateStationResponseDto {
     sistemaName: string | null;
 
     @ApiProperty({
+        description: 'AEMET meteoalert zone code (cod_z) from cht_meteoalerta',
+        example: '670502',
+        nullable: true,
+    })
+    meteoalertaZonaCode: string | null;
+
+    @ApiProperty({
+        description: 'AEMET meteoalert zone name (nom_z) from cht_meteoalerta',
+        example: 'Sistema Central de Ávila',
+        nullable: true,
+    })
+    meteoalertaZonaNombre: string | null;
+
+    @ApiProperty({
         description: 'Station description',
         example: 'Estación de monitoreo en el tramo alto del Río Negro',
         nullable: true,
@@ -520,6 +534,15 @@ export class ListStationsRequestDto {
     @IsOptional()
     @IsString()
     sistemaName?: string;
+
+    @ApiProperty({
+        description: 'Filter by AEMET meteoalert zone code (cod_z / geocode, exact match)',
+        example: '670502',
+        required: false,
+    })
+    @IsOptional()
+    @IsString()
+    meteoalertaZonaCode?: string;
 
     @ApiProperty({ description: 'Filter by station code', example: 'R504', required: false })
     @IsOptional()

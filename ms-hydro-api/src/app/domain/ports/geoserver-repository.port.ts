@@ -15,6 +15,8 @@ export interface GeoserverStationData {
     sistemaName: string | null;
     zonaExplOgcFid: number | null;
     zonaExplNombre: string | null;
+    meteoalertaZonaCode: string | null;
+    meteoalertaZonaNombre: string | null;
 }
 
 export interface GeoserverSubcuencaData {

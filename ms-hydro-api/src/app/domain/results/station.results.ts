@@ -24,6 +24,8 @@ export class CreateStationResult {
     readonly zonaExplNombre: string | null;
     readonly comarcaName: string | null;
     readonly sistemaName: string | null;
+    readonly meteoalertaZonaCode: string | null;
+    readonly meteoalertaZonaNombre: string | null;
     readonly description: string | null;
     readonly isActive: boolean;
     readonly createdAt: Date;
@@ -49,6 +51,8 @@ export class CreateStationResult {
         zonaExplNombre: string | null;
         comarcaName: string | null;
         sistemaName: string | null;
+        meteoalertaZonaCode: string | null;
+        meteoalertaZonaNombre: string | null;
         description: string | null;
         isActive: boolean;
         createdAt: Date;
@@ -73,6 +77,8 @@ export class CreateStationResult {
         this.zonaExplNombre = params.zonaExplNombre;
         this.comarcaName = params.comarcaName;
         this.sistemaName = params.sistemaName;
+        this.meteoalertaZonaCode = params.meteoalertaZonaCode;
+        this.meteoalertaZonaNombre = params.meteoalertaZonaNombre;
         this.description = params.description;
         this.isActive = params.isActive;
         this.createdAt = params.createdAt;

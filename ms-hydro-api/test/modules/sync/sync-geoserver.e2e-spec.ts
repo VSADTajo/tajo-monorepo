@@ -261,4 +261,21 @@ describe('Sync GeoServer (e2e)', () => {
         const codes = body.items.map((b: { code: string }) => b.code).sort();
         expect(codes).toEqual(['CABECERA', 'MADRID']);
     });
+
+    it('should populate meteoalerta zone fields from the cht_meteoalerta spatial join', async () => {
+        await syncGeoserver().expect(HttpStatus.CREATED);
+
+        const { body } = await listStations().expect(HttpStatus.OK);
+        const byCode: Record<string, { meteoalertaZonaCode: string | null; meteoalertaZonaNombre: string | null }> =
+            Object.fromEntries(body.items.map((s: { stationCode: string }) => [s.stationCode, s]));
+
+        // AR01 (-2.5, 40.5) + E_01 (-2.3, 40.7) fall inside zone 670502
+        expect(byCode['AR01'].meteoalertaZonaCode).toBe('670502');
+        expect(byCode['AR01'].meteoalertaZonaNombre).toBe('Sistema Central de Ávila');
+        expect(byCode['E_01'].meteoalertaZonaCode).toBe('670502');
+
+        // P01 (-3.5, 39.5) falls inside zone 673701
+        expect(byCode['P01'].meteoalertaZonaCode).toBe('673701');
+        expect(byCode['P01'].meteoalertaZonaNombre).toBe('Meseta de Salamanca');
+    });
 });

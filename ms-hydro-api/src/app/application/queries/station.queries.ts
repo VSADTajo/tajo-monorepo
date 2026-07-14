@@ -119,6 +119,8 @@ export class GetStationByIdHandler implements IQueryHandler<GetStationByIdQuery,
             zonaExplNombre: station.zonaExplNombre,
             comarcaName: station.comarcaName,
             sistemaName: station.sistemaName,
+            meteoalertaZonaCode: station.meteoalertaZonaCode,
+            meteoalertaZonaNombre: station.meteoalertaZonaNombre,
             description: station.description,
             isActive: station.isActive,
             createdAt: station.createdAt!,
@@ -182,6 +184,8 @@ export class GetStationBySubBasinNameHandler implements IQueryHandler<
             zonaExplNombre: station.zonaExplNombre,
             comarcaName: station.comarcaName,
             sistemaName: station.sistemaName,
+            meteoalertaZonaCode: station.meteoalertaZonaCode,
+            meteoalertaZonaNombre: station.meteoalertaZonaNombre,
             description: station.description,
             isActive: station.isActive,
             createdAt: station.createdAt!,
@@ -254,6 +258,7 @@ export interface IListStationsQuery {
     subBasinName?: string;
     comarcaName?: string;
     sistemaName?: string;
+    meteoalertaZonaCode?: string;
     stationCode?: string;
 }
 
@@ -293,6 +298,9 @@ export class ListStationsQuery {
     get sistemaName(): string | undefined {
         return this.parameters.sistemaName;
     }
+    get meteoalertaZonaCode(): string | undefined {
+        return this.parameters.meteoalertaZonaCode;
+    }
     get stationCode(): string | undefined {
         return this.parameters.stationCode;
     }
@@ -321,6 +329,7 @@ export class ListStationsHandler implements IQueryHandler<ListStationsQuery, Lis
             subBasinName: query.subBasinName,
             comarcaName: query.comarcaName,
             sistemaName: query.sistemaName,
+            meteoalertaZonaCode: query.meteoalertaZonaCode,
             stationCode: query.stationCode,
         });
 
@@ -347,6 +356,8 @@ export class ListStationsHandler implements IQueryHandler<ListStationsQuery, Lis
                         zonaExplNombre: station.zonaExplNombre,
                         comarcaName: station.comarcaName,
                         sistemaName: station.sistemaName,
+                        meteoalertaZonaCode: station.meteoalertaZonaCode,
+                        meteoalertaZonaNombre: station.meteoalertaZonaNombre,
                         description: station.description,
                         isActive: station.isActive,
                         createdAt: station.createdAt!,
@@ -410,6 +421,8 @@ export class GetStationByCodeHandler implements IQueryHandler<GetStationByCodeQu
             zonaExplNombre: station.zonaExplNombre,
             comarcaName: station.comarcaName,
             sistemaName: station.sistemaName,
+            meteoalertaZonaCode: station.meteoalertaZonaCode,
+            meteoalertaZonaNombre: station.meteoalertaZonaNombre,
             description: station.description,
             isActive: station.isActive,
             createdAt: station.createdAt!,

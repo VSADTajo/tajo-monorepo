@@ -55,6 +55,7 @@ export class StationRepository implements IStationRepository {
         subBasinName?: string;
         comarcaName?: string;
         sistemaName?: string;
+        meteoalertaZonaCode?: string;
         stationCode?: string;
     }): Promise<{ items: Station[]; total: number }> {
         try {
@@ -89,6 +90,11 @@ export class StationRepository implements IStationRepository {
             }
             if (options.sistemaName !== undefined) {
                 qb.andWhere('station.sistemaName ILIKE :sistemaName', { sistemaName: `%${options.sistemaName}%` });
+            }
+            if (options.meteoalertaZonaCode !== undefined) {
+                qb.andWhere('station.meteoalertaZonaCode = :meteoalertaZonaCode', {
+                    meteoalertaZonaCode: options.meteoalertaZonaCode,
+                });
             }
             if (options.stationCode !== undefined) {
                 qb.andWhere('station.stationCode ILIKE :stationCode', { stationCode: `%${options.stationCode}%` });

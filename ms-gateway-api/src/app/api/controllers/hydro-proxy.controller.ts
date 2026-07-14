@@ -372,6 +372,13 @@ export class HydroProxyController {
         example: 'MADRID',
     })
     @ApiQuery({
+        name: 'meteoalertaZonaCode',
+        required: false,
+        type: String,
+        description: 'Filter by AEMET meteoalert zone code (cod_z / geocode, exact match)',
+        example: '670502',
+    })
+    @ApiQuery({
         name: 'stationCode',
         required: false,
         type: String,

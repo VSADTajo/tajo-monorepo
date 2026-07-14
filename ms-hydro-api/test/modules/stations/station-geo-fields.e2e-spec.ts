@@ -176,4 +176,60 @@ describe('Station geographic fields - zona, comarcaName, sistemaName (e2e)', () 
             expect(body.items.every((s: { sistemaName: string }) => s.sistemaName !== undefined)).toBe(true);
         });
     });
+
+    // ─── meteoalerta zone: exposure + filter ───────────────────
+    describe('meteoalerta zone (meteoalertaZonaCode / meteoalertaZonaNombre)', () => {
+        it('should return meteoalerta fields as null when not set', async () => {
+            const { subBasin } = await setupBasinAndSubBasin();
+            const station = await insertStationDirectly(subBasin.id);
+
+            const { body } = await getStation(station.id).expect(HttpStatus.OK);
+
+            expect(body).toHaveProperty('meteoalertaZonaCode', null);
+            expect(body).toHaveProperty('meteoalertaZonaNombre', null);
+        });
+
+        it('should return meteoalerta fields when populated', async () => {
+            const { subBasin } = await setupBasinAndSubBasin();
+            const station = await insertStationDirectly(subBasin.id, {
+                meteoalertaZonaCode: '670502',
+                meteoalertaZonaNombre: 'Sistema Central de Ávila',
+            });
+
+            const { body } = await getStation(station.id).expect(HttpStatus.OK);
+
+            expect(body.meteoalertaZonaCode).toBe('670502');
+            expect(body.meteoalertaZonaNombre).toBe('Sistema Central de Ávila');
+        });
+
+        it('should filter stations by meteoalertaZonaCode (exact match)', async () => {
+            const { subBasin } = await setupBasinAndSubBasin();
+            const target = await insertStationDirectly(subBasin.id, {
+                meteoalertaZonaCode: '670502',
+                meteoalertaZonaNombre: 'Sistema Central de Ávila',
+            });
+            await insertStationDirectly(subBasin.id, {
+                meteoalertaZonaCode: '673701',
+                meteoalertaZonaNombre: 'Meseta de Salamanca',
+            });
+            await insertStationDirectly(subBasin.id); // sin zona meteoalerta
+
+            const { body } = await listStations({ meteoalertaZonaCode: '670502' }).expect(HttpStatus.OK);
+
+            expect(body.total).toBe(1);
+            expect(body.items).toHaveLength(1);
+            expect(body.items[0].stationCode).toBe(target.stationCode);
+            expect(body.items[0].meteoalertaZonaCode).toBe('670502');
+        });
+
+        it('should return no stations when meteoalertaZonaCode matches none', async () => {
+            const { subBasin } = await setupBasinAndSubBasin();
+            await insertStationDirectly(subBasin.id, { meteoalertaZonaCode: '670502' });
+
+            const { body } = await listStations({ meteoalertaZonaCode: '999999' }).expect(HttpStatus.OK);
+
+            expect(body.total).toBe(0);
+            expect(body.items).toHaveLength(0);
+        });
+    });
 });

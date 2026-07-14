@@ -116,6 +116,8 @@ export class StationItemDto {
     @ApiProperty({ nullable: true, example: 'ZONA 1' }) zonaExplNombre: string | null;
     @ApiProperty({ nullable: true, example: 'LOZOYA SOMOSIERRA' }) comarcaName: string | null;
     @ApiProperty({ nullable: true, example: 'CABECERA' }) sistemaName: string | null;
+    @ApiProperty({ nullable: true, example: '670502' }) meteoalertaZonaCode: string | null;
+    @ApiProperty({ nullable: true, example: 'Sistema Central de Ávila' }) meteoalertaZonaNombre: string | null;
     @ApiProperty({ nullable: true }) description: string | null;
     @ApiProperty({ example: true }) isActive: boolean;
     @ApiProperty({ example: '2026-03-24T00:00:00.000Z' }) createdAt: Date | undefined;

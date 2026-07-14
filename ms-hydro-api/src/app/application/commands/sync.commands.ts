@@ -190,6 +190,8 @@ export class SyncGeoserverHandler implements ICommandHandler<SyncGeoserverComman
                     existing.zonaExplNombre = geoStation.zonaExplNombre;
                     existing.comarcaName = geoStation.comarcaName;
                     existing.sistemaName = geoStation.sistemaName;
+                    existing.meteoalertaZonaCode = geoStation.meteoalertaZonaCode;
+                    existing.meteoalertaZonaNombre = geoStation.meteoalertaZonaNombre;
                     await this.stationRepository.update(existing);
                     stationsUpdated++;
                 } else {
@@ -211,6 +213,8 @@ export class SyncGeoserverHandler implements ICommandHandler<SyncGeoserverComman
                         zonaExplNombre: geoStation.zonaExplNombre,
                         comarcaName: geoStation.comarcaName,
                         sistemaName: geoStation.sistemaName,
+                        meteoalertaZonaCode: geoStation.meteoalertaZonaCode,
+                        meteoalertaZonaNombre: geoStation.meteoalertaZonaNombre,
                         description: null,
                         isActive: true,
                     });

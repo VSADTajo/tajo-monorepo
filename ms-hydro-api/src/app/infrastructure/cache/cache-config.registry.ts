@@ -32,9 +32,12 @@ export const StationCacheKeys = {
         if (q.stationType) parts.push(`st${q.stationType}`);
         if (q.isActive !== undefined) parts.push(`a${q.isActive}`);
         if (q.zona) parts.push(`z${q.zona}`);
+        if (q.zonaExplOgcFid !== undefined) parts.push(`zef${q.zonaExplOgcFid}`);
+        if (q.zonaExplNombre) parts.push(`zen${q.zonaExplNombre}`);
         if (q.subBasinName) parts.push(`sbn${q.subBasinName}`);
         if (q.comarcaName) parts.push(`c${q.comarcaName}`);
         if (q.sistemaName) parts.push(`si${q.sistemaName}`);
+        if (q.meteoalertaZonaCode) parts.push(`ma${q.meteoalertaZonaCode}`);
         if (q.stationCode) parts.push(`sc${q.stationCode}`);
         return parts.join(':');
     },

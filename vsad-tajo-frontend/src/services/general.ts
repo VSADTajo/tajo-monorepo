@@ -7,6 +7,7 @@ export type StationsSearchParams =
   | { subBasinName: string }
   | { comarcaName: string }
   | { zonaExplOgcFid: string }
+  | { meteoalertaZonaCode: string }
 
 export type StationByCodeResponse = {
   id: string

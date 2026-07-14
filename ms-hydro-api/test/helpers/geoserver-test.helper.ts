@@ -106,6 +106,26 @@ export async function createGeoserverTestDb(): Promise<GeoserverTestContext> {
         )
     `);
 
+    // Create cht_meteoalerta table (AEMET meteoalert zones — joined by the sync station query)
+    await geoDataSource.query(`
+        CREATE TABLE cht_meteoalerta (
+            ogc_fid SERIAL PRIMARY KEY,
+            geom geometry(MultiPolygon, 4326),
+            cod_z varchar,
+            nom_z varchar
+        )
+    `);
+
+    // Seed two meteoalert zones covering the seeded SAIH points:
+    //   670502 (north) → AR01 (-2.5, 40.5) + E_01 (-2.3, 40.7)
+    //   673701 (south) → P01 (-3.5, 39.5)
+    await geoDataSource.query(`
+        INSERT INTO cht_meteoalerta (geom, cod_z, nom_z)
+        VALUES
+            (ST_Multi(ST_GeomFromText('POLYGON((-3 40, -2 40, -2 41, -3 41, -3 40))', 4326)), '670502', 'Sistema Central de Ávila'),
+            (ST_Multi(ST_GeomFromText('POLYGON((-4 39, -3 39, -3 40, -4 40, -4 39))', 4326)), '673701', 'Meseta de Salamanca')
+    `);
+
     // Create cht_puntos_saih_umbrales table (threshold source for sync)
     await geoDataSource.query(`
         CREATE TABLE cht_puntos_saih_umbrales (

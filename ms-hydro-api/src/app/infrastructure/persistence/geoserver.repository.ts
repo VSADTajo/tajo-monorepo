@@ -38,12 +38,15 @@ export class GeoserverRepository implements IGeoserverRepository {
                     ca.ds_comarca AS "comarcaName",
                     s10.sistema AS "sistemaName",
                     ze.ogc_fid AS "zonaExplOgcFid",
-                    ze.nombre AS "zonaExplNombre"
+                    ze.nombre AS "zonaExplNombre",
+                    zm.cod_z AS "meteoalertaZonaCode",
+                    zm.nom_z AS "meteoalertaZonaNombre"
                 FROM cht_puntos_saih p
                 LEFT JOIN cht_subcuencas s ON ST_Contains(s.geom, p.geom)
                 LEFT JOIN cht_comarcasagrarias ca ON ST_Intersects(p.geom, ca.wkb_geometry)
                 LEFT JOIN cht_sistemas10 s10 ON ST_Intersects(p.geom, s10.geom)
                 LEFT JOIN cht_zonas_expl ze ON ST_Intersects(p.geom, ze.geom)
+                LEFT JOIN cht_meteoalerta zm ON ST_Contains(zm.geom, p.geom)
                 ORDER BY p.codigo
             `);
             this.logger.log(`Found ${rows.length} stations in GeoServer`);
