@@ -70,37 +70,21 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        // Publish the built image to GHCR, then redeploy it in place with the
+        // live container's exact config (verbatim, auto-rollback). Replaces the
+        // old local `docker run`. Deploy scripts live in the Jenkins home
+        // (/var/jenkins_home/deploy) — see docs/jenkins-ghcr-deploy.md.
+        stage('Publish & Deploy') {
+            when { branch 'main' }
             steps {
-                script {
+                withCredentials([usernamePassword(credentialsId: 'ghcr',
+                                  usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
                     sh """
-                        docker stop ${APP_NAME} || true
-                        docker rm ${APP_NAME} || true
-                        docker run -d \
-                            --name ${APP_NAME} \
-                            --network infra-network \
-                            --restart unless-stopped \
-                            -p 80:${APP_PORT} \
-                            -e NODE_ENV=development \
-                            -e APP_NAME=${APP_NAME} \
-                            -e APP_URL=0.0.0.0 \
-                            -e APP_PORT=${APP_PORT} \
-                            -e APP_LOG_LEVEL=info \
-                            -e LOGS_API_URL=http://ms-logs-api:3004 \
-                            -e X_API_KEY=${X_API_KEY} \
-                            -e AUTH_API_URL=http://ms-authentication-api:3002 \
-                            -e USER_API_URL=http://ms-user-api:3001 \
-                            -e SFTP_API_URL=http://ms-sftp-api:3003 \
-                            -e PREDICTIONS_API_URL=http://ms-predictions-api:3007 \
-                            -e HYDRO_API_URL=http://ms-hydro-api:3006 \
-                            -e NOTIFICATIONS_API_URL=http://ms-notifications-api:3009 \
-                            -e METEO_API_URL=http://ms-meteo-api:3010 \
-                            -e REDIS_HOST=infra-redis \
-                            -e REDIS_PORT=6379 \
-                            -e REDIS_PERMISSION_TTL=300 \
-                            -e RBAC_BYPASS_ROLES=admin \
-                            -e JWT_SECRET=${JWT_SECRET} \
-                            ${APP_NAME}:${IMAGE_TAG}
+                        SERVICE=${APP_NAME} \
+                        LOCAL_IMAGE=${APP_NAME}:${IMAGE_TAG} \
+                        REGISTRY=ghcr.io/vsadtajo \
+                        TAG=${IMAGE_TAG} \
+                        bash /var/jenkins_home/deploy/publish-and-deploy.sh
                     """
                 }
             }
