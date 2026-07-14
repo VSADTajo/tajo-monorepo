@@ -15,6 +15,8 @@
 # Env:
 #   REGISTRY  (default ghcr.io/vsadtajo)
 #   TAG       (default latest)
+#   DRY_RUN=1 validate only: pull the image + rebuild the run command, but do
+#             NOT touch any container. Safe to run against live production.
 # =============================================================================
 set -uo pipefail
 
@@ -75,6 +77,11 @@ for svc in $SERVICES; do
     cmd=$(runlike -p "$svc" 2>/dev/null | sed "s#${oldimg}#${newimg}#g")
     if [ -z "$cmd" ]; then
         echo "  ✗ falló runlike"; FAILED="$FAILED $svc"; continue
+    fi
+
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        echo "  ✓ [dry-run] imagen pulleable + config reconstruida ($(printf '%s\n' "$cmd" | grep -c . ) líneas) — no se recrea nada"
+        continue
     fi
 
     docker rename "$svc" "${svc}-prev"
