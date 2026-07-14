@@ -46,7 +46,7 @@ export class GeoserverRepository implements IGeoserverRepository {
                 LEFT JOIN cht_comarcasagrarias ca ON ST_Intersects(p.geom, ca.wkb_geometry)
                 LEFT JOIN cht_sistemas10 s10 ON ST_Intersects(p.geom, s10.geom)
                 LEFT JOIN cht_zonas_expl ze ON ST_Intersects(p.geom, ze.geom)
-                LEFT JOIN cht_meteoalerta zm ON ST_Contains(zm.geom, p.geom)
+                LEFT JOIN cht_meteoalerta zm ON ST_Contains(ST_Transform(zm.geom, 4326), p.geom)
                 ORDER BY p.codigo
             `);
             this.logger.log(`Found ${rows.length} stations in GeoServer`);
