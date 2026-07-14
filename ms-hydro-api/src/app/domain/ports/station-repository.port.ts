@@ -18,6 +18,7 @@ export abstract class IStationRepository {
         comarcaName?: string;
         sistemaName?: string;
         meteoalertaZonaCode?: string;
+        meteoalertaZonaNombre?: string;
         stationCode?: string;
     }): Promise<{ items: Station[]; total: number }>;
     abstract update(data: Station): Promise<Station>;

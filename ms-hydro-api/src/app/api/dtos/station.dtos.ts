@@ -544,6 +544,15 @@ export class ListStationsRequestDto {
     @IsString()
     meteoalertaZonaCode?: string;
 
+    @ApiProperty({
+        description: 'Filter by AEMET meteoalert zone name (nom_z, partial match)',
+        example: 'Norte de Cáceres',
+        required: false,
+    })
+    @IsOptional()
+    @IsString()
+    meteoalertaZonaNombre?: string;
+
     @ApiProperty({ description: 'Filter by station code', example: 'R504', required: false })
     @IsOptional()
     @IsString()

@@ -256,6 +256,7 @@ export class ListStationsMapper {
             comarcaName: dto.comarcaName,
             sistemaName: dto.sistemaName,
             meteoalertaZonaCode: dto.meteoalertaZonaCode,
+            meteoalertaZonaNombre: dto.meteoalertaZonaNombre,
             stationCode: dto.stationCode,
         });
     }

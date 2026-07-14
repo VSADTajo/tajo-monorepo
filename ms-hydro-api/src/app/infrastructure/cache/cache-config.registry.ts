@@ -38,6 +38,7 @@ export const StationCacheKeys = {
         if (q.comarcaName) parts.push(`c${q.comarcaName}`);
         if (q.sistemaName) parts.push(`si${q.sistemaName}`);
         if (q.meteoalertaZonaCode) parts.push(`ma${q.meteoalertaZonaCode}`);
+        if (q.meteoalertaZonaNombre) parts.push(`man${q.meteoalertaZonaNombre}`);
         if (q.stationCode) parts.push(`sc${q.stationCode}`);
         return parts.join(':');
     },

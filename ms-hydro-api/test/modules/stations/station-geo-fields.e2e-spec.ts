@@ -222,6 +222,24 @@ describe('Station geographic fields - zona, comarcaName, sistemaName (e2e)', () 
             expect(body.items[0].meteoalertaZonaCode).toBe('670502');
         });
 
+        it('should filter stations by meteoalertaZonaNombre (partial, case-insensitive)', async () => {
+            const { subBasin } = await setupBasinAndSubBasin();
+            const target = await insertStationDirectly(subBasin.id, {
+                meteoalertaZonaCode: '701001',
+                meteoalertaZonaNombre: 'Norte de Cáceres',
+            });
+            await insertStationDirectly(subBasin.id, {
+                meteoalertaZonaCode: '722801',
+                meteoalertaZonaNombre: 'Sierra de Madrid',
+            });
+
+            const { body } = await listStations({ meteoalertaZonaNombre: 'norte de các' }).expect(HttpStatus.OK);
+
+            expect(body.total).toBe(1);
+            expect(body.items[0].stationCode).toBe(target.stationCode);
+            expect(body.items[0].meteoalertaZonaNombre).toBe('Norte de Cáceres');
+        });
+
         it('should return no stations when meteoalertaZonaCode matches none', async () => {
             const { subBasin } = await setupBasinAndSubBasin();
             await insertStationDirectly(subBasin.id, { meteoalertaZonaCode: '670502' });

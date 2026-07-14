@@ -259,6 +259,7 @@ export interface IListStationsQuery {
     comarcaName?: string;
     sistemaName?: string;
     meteoalertaZonaCode?: string;
+    meteoalertaZonaNombre?: string;
     stationCode?: string;
 }
 
@@ -301,6 +302,9 @@ export class ListStationsQuery {
     get meteoalertaZonaCode(): string | undefined {
         return this.parameters.meteoalertaZonaCode;
     }
+    get meteoalertaZonaNombre(): string | undefined {
+        return this.parameters.meteoalertaZonaNombre;
+    }
     get stationCode(): string | undefined {
         return this.parameters.stationCode;
     }
@@ -330,6 +334,7 @@ export class ListStationsHandler implements IQueryHandler<ListStationsQuery, Lis
             comarcaName: query.comarcaName,
             sistemaName: query.sistemaName,
             meteoalertaZonaCode: query.meteoalertaZonaCode,
+            meteoalertaZonaNombre: query.meteoalertaZonaNombre,
             stationCode: query.stationCode,
         });
 
