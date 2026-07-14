@@ -1,0 +1,32 @@
+# =============================================================================
+# Production override — used by `tajo up` (default mode).
+#
+# - Forces `pull_policy: always` so the host always has the latest image
+#   matching the configured TAG before bringing services up.
+# - Sets `restart: always` for resilience.
+# - Tightens log-driver config to bound disk usage.
+# =============================================================================
+
+x-prod-defaults: &prod-defaults
+    pull_policy: always
+    restart: always
+    logging:
+        driver: json-file
+        options:
+            max-size: '10m'
+            max-file: '5'
+
+services:
+    ms-gateway-api: { <<: *prod-defaults }
+    ms-user-api: { <<: *prod-defaults }
+    ms-authentication-api: { <<: *prod-defaults }
+    ms-sftp-api: { <<: *prod-defaults }
+    ms-logs-api: { <<: *prod-defaults }
+    ms-logs-ui: { <<: *prod-defaults }
+    ms-hydro-api: { <<: *prod-defaults }
+    ms-predictions-api: { <<: *prod-defaults }
+    ms-model-api: { <<: *prod-defaults }
+    ms-notifications-api: { <<: *prod-defaults }
+    ms-meteo-api: { <<: *prod-defaults }
+    vsad-tajo-frontend: { <<: *prod-defaults }
+    geoserver: { <<: *prod-defaults }

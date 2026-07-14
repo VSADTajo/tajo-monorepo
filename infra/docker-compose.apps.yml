@@ -1,0 +1,390 @@
+# =============================================================================
+# Application services.
+# Requires docker-compose.base.yml to be up (or compose both together via
+# `tajo up`, which combines: base + apps + the dev/prod override).
+#
+# Images default to GHCR (ghcr.io/vsadtajo/<service>:latest). For local dev,
+# the docker-compose.dev.yml override replaces `image:` with `build:` and
+# enables hot-reload via bind mounts.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Anchors — shared environment blocks. Use with `<<: *common-...`.
+# Anything per-service (DB_HOST, DB_DATABASE, APP_NAME, APP_PORT) lives in
+# the service's own `environment:` block.
+# -----------------------------------------------------------------------------
+x-common-db-env: &common-db-env
+    DB_PORT: '5432'
+    DB_USERNAME: ${POSTGRES_USER:-postgres}
+    DB_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+    DB_SYNCHRONIZE: 'false'
+    DB_LOGGING: 'false'
+
+x-common-infra-env: &common-infra-env
+    NODE_ENV: ${NODE_ENV:-production}
+    APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+    LOGS_API_URL: http://ms-logs-api:3004
+    REDIS_HOST: infra-redis
+    REDIS_PORT: '6379'
+    REDIS_DEFAULT_TTL: ${REDIS_DEFAULT_TTL:-300}
+    RABBITMQ_HOST: infra-rabbitmq
+    RABBITMQ_PORT: '5672'
+    RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+    RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
+    RABBITMQ_PREFETCH: ${RABBITMQ_PREFETCH:-10}
+    RABBITMQ_RETRY_ATTEMPTS: ${RABBITMQ_RETRY_ATTEMPTS:-3}
+    RABBITMQ_RETRY_DELAY: ${RABBITMQ_RETRY_DELAY:-5000}
+    RABBITMQ_ENABLED: 'true'
+
+x-app-defaults: &app-defaults
+    restart: unless-stopped
+    networks:
+        - infra-network
+    env_file:
+        - ./.env
+
+# Healthcheck for NestJS services. Uses Node 22's built-in fetch so no extra
+# binaries are required in the image.
+x-nest-healthcheck: &nest-healthcheck
+    interval: 30s
+    timeout: 10s
+    retries: 5
+    start_period: 45s
+
+services:
+    # ──────────────────────────────────────────────────────────────────────
+    # API GATEWAY (no DB; pure proxy + RBAC cache)
+    # ──────────────────────────────────────────────────────────────────────
+    ms-gateway-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-gateway-api:${TAG:-latest}
+        container_name: ms-gateway-api
+        environment:
+            <<: *common-infra-env
+            APP_NAME: ms-gateway-api
+            APP_PORT: '3000'
+            AUTH_API_URL: http://ms-authentication-api:3002
+            USER_API_URL: http://ms-user-api:3001
+            SFTP_API_URL: http://ms-sftp-api:3003
+            PREDICTIONS_API_URL: http://ms-predictions-api:3007
+            HYDRO_API_URL: http://ms-hydro-api:3006
+            MODEL_API_URL: http://ms-model-api:3008
+            NOTIFICATIONS_API_URL: http://ms-notifications-api:3009
+            METEO_API_URL: http://ms-meteo-api:3010
+            RBAC_BYPASS_ROLES: ${RBAC_BYPASS_ROLES:-admin}
+        ports:
+            - '3000:3000'
+        depends_on:
+            infra-redis:
+                condition: service_healthy
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3000/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # USERS (RBAC core)
+    # ──────────────────────────────────────────────────────────────────────
+    ms-user-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-user-api:${TAG:-latest}
+        container_name: ms-user-api
+        environment:
+            <<: [*common-db-env, *common-infra-env]
+            APP_NAME: ms-user-api
+            APP_PORT: '3001'
+            DB_HOST: infra-db-user
+            DB_DATABASE: ${DB_USER_DATABASE:-user_db}
+        expose:
+            - '3001'
+        depends_on:
+            infra-db-user:
+                condition: service_healthy
+            infra-redis:
+                condition: service_healthy
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3001/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # AUTHENTICATION (stateless; uses Redis for JWT/permission cache)
+    # ──────────────────────────────────────────────────────────────────────
+    ms-authentication-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-authentication-api:${TAG:-latest}
+        container_name: ms-authentication-api
+        environment:
+            <<: *common-infra-env
+            APP_NAME: ms-authentication-api
+            APP_PORT: '3002'
+            USER_API_URL: http://ms-user-api:3001
+            JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+            JWT_EXPIRATION: ${JWT_EXPIRATION:-1h}
+            JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
+            JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-15d}
+        expose:
+            - '3002'
+        depends_on:
+            infra-redis:
+                condition: service_healthy
+            ms-user-api:
+                condition: service_started
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3002/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # SFTP (file transfer + Mapping Engine UI baked into the image)
+    # ──────────────────────────────────────────────────────────────────────
+    ms-sftp-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-sftp-api:${TAG:-latest}
+        container_name: ms-sftp-api
+        environment:
+            <<: [*common-db-env, *common-infra-env]
+            APP_NAME: ms-sftp-api
+            APP_PORT: '3003'
+            DB_HOST: infra-db-sftp
+            DB_DATABASE: ${DB_SFTP_DATABASE:-sftp_db}
+            SFTP_PORT: ${SFTP_PORT:-8212}
+            SFTP_FILE_STORAGE_PATH: ${SFTP_FILE_STORAGE_PATH:-/data/files}
+            SFTP_KEYS_PATH: ${SFTP_KEYS_PATH:-/data/sftp}
+        ports:
+            - '${SFTP_PORT:-8212}:${SFTP_PORT:-8212}'
+        expose:
+            - '3003'
+        volumes:
+            - sftp-files:/data/files
+            - sftp-keys:/data/sftp
+        depends_on:
+            infra-db-sftp:
+                condition: service_healthy
+            infra-redis:
+                condition: service_healthy
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3003/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # LOGS (Express + Mongo; centralized log ingest for the platform)
+    # ──────────────────────────────────────────────────────────────────────
+    ms-logs-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-logs-api:${TAG:-latest}
+        container_name: ms-logs-api
+        environment:
+            NODE_ENV: ${NODE_ENV:-production}
+            PORT: '3004'
+            MONGO_URI: ${MONGO_URI}
+            FRONTEND_URL: ${PUBLIC_API_URL:-http://localhost:3000}
+        volumes:
+            - logs-files-results:/app/dist/files_results
+        ports:
+            - '3004:3004'
+        depends_on:
+            infra-mongo-logs:
+                condition: service_healthy
+
+    ms-logs-ui:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-logs-ui:${TAG:-latest}
+        container_name: ms-logs-ui
+        ports:
+            - '3005:4173'
+        depends_on:
+            ms-logs-api:
+                condition: service_started
+
+    # ──────────────────────────────────────────────────────────────────────
+    # HYDRO
+    # ──────────────────────────────────────────────────────────────────────
+    ms-hydro-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-hydro-api:${TAG:-latest}
+        container_name: ms-hydro-api
+        environment:
+            <<: [*common-db-env, *common-infra-env]
+            APP_NAME: ms-hydro-api
+            APP_PORT: '3006'
+            DB_HOST: infra-db-hydro
+            DB_DATABASE: ${DB_HYDRO_DATABASE:-hydro_db}
+        expose:
+            - '3006'
+        depends_on:
+            infra-db-hydro:
+                condition: service_healthy
+            infra-redis:
+                condition: service_healthy
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3006/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # PREDICTIONS
+    # ──────────────────────────────────────────────────────────────────────
+    ms-predictions-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-predictions-api:${TAG:-latest}
+        container_name: ms-predictions-api
+        environment:
+            <<: [*common-db-env, *common-infra-env]
+            APP_NAME: ms-predictions-api
+            APP_PORT: '3007'
+            DB_HOST: infra-db-predictions
+            DB_DATABASE: ${DB_PREDICTIONS_DATABASE:-predictions_db}
+        expose:
+            - '3007'
+        depends_on:
+            infra-db-predictions:
+                condition: service_healthy
+            infra-redis:
+                condition: service_healthy
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3007/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # MODEL
+    # ──────────────────────────────────────────────────────────────────────
+    ms-model-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-model-api:${TAG:-latest}
+        container_name: ms-model-api
+        environment:
+            <<: [*common-db-env, *common-infra-env]
+            APP_NAME: ms-model-api
+            APP_PORT: '3008'
+            DB_HOST: infra-db-model
+            DB_DATABASE: ${DB_MODEL_DATABASE:-model_db}
+        expose:
+            - '3008'
+        depends_on:
+            infra-db-model:
+                condition: service_healthy
+            infra-redis:
+                condition: service_healthy
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3008/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # NOTIFICATIONS
+    # ──────────────────────────────────────────────────────────────────────
+    ms-notifications-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-notifications-api:${TAG:-latest}
+        container_name: ms-notifications-api
+        environment:
+            <<: [*common-db-env, *common-infra-env]
+            APP_NAME: ms-notifications-api
+            APP_PORT: '3009'
+            DB_HOST: infra-db-notifications
+            DB_DATABASE: ${DB_NOTIFICATIONS_DATABASE:-notifications_db}
+        expose:
+            - '3009'
+        depends_on:
+            infra-db-notifications:
+                condition: service_healthy
+            infra-redis:
+                condition: service_healthy
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3009/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # METEO (PostGIS — spatial data; uses GDAL CLI internally)
+    # ──────────────────────────────────────────────────────────────────────
+    ms-meteo-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-meteo-api:${TAG:-latest}
+        container_name: ms-meteo-api
+        environment:
+            <<: [*common-db-env, *common-infra-env]
+            APP_NAME: ms-meteo-api
+            APP_PORT: '3010'
+            DB_HOST: infra-db-meteo
+            DB_DATABASE: ${DB_METEO_DATABASE:-meteo_db}
+            GEOSERVER_URL: http://geoserver:8080/geoserver
+            GEOSERVER_USER: ${GEOSERVER_ADMIN_USER:-admin}
+            GEOSERVER_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD:-geoserver}
+        expose:
+            - '3010'
+        depends_on:
+            infra-db-meteo:
+                condition: service_healthy
+            infra-redis:
+                condition: service_healthy
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3010/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # FRONTEND (Vue 3 — served by nginx, API URL baked at build time)
+    # ──────────────────────────────────────────────────────────────────────
+    vsad-tajo-frontend:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/vsad-tajo-frontend:${TAG:-latest}
+        container_name: vsad-tajo-frontend
+        ports:
+            - '8080:80'
+        depends_on:
+            ms-gateway-api:
+                condition: service_started
+
+    # ──────────────────────────────────────────────────────────────────────
+    # GEOSERVER (raster/vector map server)
+    # ──────────────────────────────────────────────────────────────────────
+    geoserver:
+        image: docker.osgeo.org/geoserver:2.24.2
+        container_name: geoserver
+        restart: unless-stopped
+        environment:
+            GEOSERVER_ADMIN_USER: ${GEOSERVER_ADMIN_USER:-admin}
+            GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD:-geoserver}
+            INITIAL_MEMORY: ${GEOSERVER_INITIAL_MEMORY:-512M}
+            MAXIMUM_MEMORY: ${GEOSERVER_MAXIMUM_MEMORY:-2G}
+            INSTALL_EXTENSIONS: 'false'
+            CORS_ENABLED: 'true'
+            CORS_ALLOWED_ORIGINS: '*'
+        volumes:
+            - geoserver-data:/opt/geoserver_data
+        ports:
+            - '8085:8080'
+        depends_on:
+            infra-db-geoserver:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'curl -sf http://localhost:8080/geoserver/web/ -o /dev/null || exit 1']
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 90s
+        networks:
+            - infra-network
+
+volumes:
+    sftp-files:
+    sftp-keys:
+    logs-files-results:
+    geoserver-data:
+
+networks:
+    infra-network:
+        external: true
+        name: infra-network
