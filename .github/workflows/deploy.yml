@@ -13,6 +13,10 @@ name: Deploy to VM
 #   secrets.DEPLOY_USER      — SSH user (e.g. root)
 
 on:
+  # TEMP (remove before merge): lets a push to this branch run deploy.yml in
+  # dry-run mode to validate the GitHub Actions -> VM path end to end.
+  push:
+    branches: [feature/unified-docker-stack]
   workflow_run:
     workflows: ['Build & Push images to GHCR']
     types: [completed]
@@ -60,6 +64,8 @@ jobs:
           SERVICES: ${{ github.event.inputs.services || 'all' }}
           TAG: ${{ github.event.inputs.tag || 'latest' }}
         run: |
+          # TEMP (remove before merge): DRY_RUN forces a safe validation run —
+          # it pulls images and rebuilds config but never touches a container.
           ssh -i ~/.ssh/id_deploy \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "TAG='${TAG}' bash /opt/cutover/redeploy.sh '${SERVICES}'"
+            "DRY_RUN=1 TAG='feature-unified-docker-stack' bash /opt/cutover/redeploy.sh 'all'"
