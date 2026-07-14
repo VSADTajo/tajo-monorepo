@@ -55,7 +55,9 @@ jobs:
                     - { service: ms-authentication-api, context: ms-authentication-api, target: prod }
                     - { service: ms-sftp-api,           context: ms-sftp-api,           target: prod }
                     - { service: ms-logs-api,           context: ms-logs-api,           target: '' }
-                    - { service: ms-logs-ui,            context: ms-logs-api/ui,        target: '' }
+                    # ms-logs-ui's Dockerfile does `COPY ui/…`, so it must build
+                    # from the ms-logs-api parent context, not from ms-logs-api/ui.
+                    - { service: ms-logs-ui,            context: ms-logs-api, file: ms-logs-api/ui/Dockerfile, target: '' }
                     - { service: ms-hydro-api,          context: ms-hydro-api,          target: prod }
                     - { service: ms-predictions-api,    context: ms-predictions-api,    target: prod }
                     - { service: ms-model-api,          context: ms-model-api,          target: prod }
@@ -103,7 +105,7 @@ jobs:
               uses: docker/build-push-action@v6
               with:
                   context: ./${{ matrix.context }}
-                  file: ./${{ matrix.context }}/Dockerfile
+                  file: ${{ matrix.file && format('./{0}', matrix.file) || format('./{0}/Dockerfile', matrix.context) }}
                   target: ${{ matrix.target }}
                   push: ${{ github.event_name != 'pull_request' }}
                   tags: ${{ steps.meta.outputs.tags }}
