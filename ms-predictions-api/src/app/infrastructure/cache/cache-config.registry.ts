@@ -69,7 +69,9 @@ export const ManualSimulationCacheKeys = {
     // v4: list now accepts stationCode/sortBy/sortOrder; bumping the version segment
     // forces any entry cached under the older v3 shape to be ignored.
     list: (params: string) => `manual-simulation:list:v4:${params}`,
-    results: (id: string) => `manual-simulation:results:${id}`,
+    // v2: results now accepts stationCode/typeName filters; bumping the version segment
+    // forces any entry cached under the older v1 shape (id-only) to be ignored.
+    results: (id: string, params: string) => `manual-simulation:results:v2:${id}:${params}`,
     pattern: () => 'manual-simulation:*',
 };
 
@@ -206,7 +208,14 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         GetSimulationResultsQuery.name,
         {
             ttl: 60,
-            key: (q: GetSimulationResultsQuery) => ManualSimulationCacheKeys.results(q.id),
+            key: (q: GetSimulationResultsQuery) =>
+                ManualSimulationCacheKeys.results(
+                    q.id,
+                    JSON.stringify({
+                        s: q.stationCode?.trim().toLowerCase() ?? null,
+                        t: q.typeName?.trim().toLowerCase() ?? null,
+                    }),
+                ),
         },
     ],
 ]);

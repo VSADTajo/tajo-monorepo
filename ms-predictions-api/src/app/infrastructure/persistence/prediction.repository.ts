@@ -417,13 +417,24 @@ export class PredictionRepository implements IPredictionRepository {
         }
     }
 
-    async findWithResultsBySimulationId(simulationId: string): Promise<Prediction[]> {
+    async findWithResultsBySimulationId(
+        simulationId: string,
+        filters?: { stationCode?: string; typeName?: string },
+    ): Promise<Prediction[]> {
         try {
             const qb = this.predictionRepository.createQueryBuilder('prediction');
             qb.innerJoin('prediction.simulation', 'simulation');
             qb.leftJoinAndSelect('prediction.predictionType', 'predictionType');
             qb.leftJoinAndSelect('prediction.results', 'result');
             qb.where('prediction.simulationId = :id', { id: simulationId });
+            const stationCode = filters?.stationCode?.trim();
+            if (stationCode) {
+                qb.andWhere('LOWER(prediction.stationId) = LOWER(:stationCode)', { stationCode });
+            }
+            const typeName = filters?.typeName?.trim();
+            if (typeName) {
+                qb.andWhere('LOWER(predictionType.name) = LOWER(:typeName)', { typeName });
+            }
             qb.orderBy('prediction.stationId', 'ASC');
             qb.addOrderBy('prediction.predictionTypeId', 'ASC');
             qb.addOrderBy('result.date', 'ASC');

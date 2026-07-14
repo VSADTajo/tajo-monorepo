@@ -544,6 +544,26 @@ export class SimulationFilesResponseDto {
 // GetSimulationResults
 // ─────────────────────────────────────────────────────────────
 
+export class GetSimulationResultsQueryDto {
+    @ApiProperty({
+        description: 'Keep only predictions for this station code (case-insensitive exact match)',
+        required: false,
+        example: 'AR71',
+    })
+    @IsOptional()
+    @IsString()
+    stationCode?: string;
+
+    @ApiProperty({
+        description: 'Keep only predictions whose prediction type name matches (case-insensitive exact match)',
+        required: false,
+        example: 'Q.NAM.forecast',
+    })
+    @IsOptional()
+    @IsString()
+    type?: string;
+}
+
 export class PredictionResultItemDto {
     @ApiProperty({ description: 'Time-series entry timestamp (ISO 8601)', example: '2026-07-10T00:00:00.000Z' })
     date: Date;
@@ -609,6 +629,24 @@ export class PredictionWithResultsDto {
         type: [PredictionResultItemDto],
     })
     results: PredictionResultItemDto[];
+
+    @ApiProperty({
+        description:
+            'Result entry with the highest value across results[]. Ties resolve to the earliest occurrence (results are date ASC). Null when the prediction has no results.',
+        type: PredictionResultItemDto,
+        nullable: true,
+        example: { date: '2026-07-10T02:00:00.000Z', value: 173.9, flag: 0 },
+    })
+    max: PredictionResultItemDto | null;
+
+    @ApiProperty({
+        description:
+            'Chronologically last result entry (highest date in results[]). Null when the prediction has no results.',
+        type: PredictionResultItemDto,
+        nullable: true,
+        example: { date: '2026-07-13T00:00:00.000Z', value: 118.6, flag: 0 },
+    })
+    last: PredictionResultItemDto | null;
 }
 
 export class SimulationIdentityDto {

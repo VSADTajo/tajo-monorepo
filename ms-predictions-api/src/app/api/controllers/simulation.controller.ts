@@ -41,6 +41,7 @@ import {
     ListManualSimulationsResponseDto,
     GetManualSimulationByIdResponseDto,
     SimulationFilesResponseDto,
+    GetSimulationResultsQueryDto,
     GetSimulationResultsResponseDto,
 } from '@api/dtos/simulation.dtos';
 
@@ -328,20 +329,27 @@ export class SimulationController {
         response: {
             status: 200,
             type: GetSimulationResultsResponseDto,
-            description: 'Predictions and their time-series results for the simulation',
+            description:
+                'Predictions and their time-series results for the simulation. Each prediction includes the highest-value result (max) and the chronologically last result (last).',
         },
         errors: [
             { status: 400, description: 'Invalid simulation id' },
             { status: 404, description: 'Manual simulation not found' },
         ],
     })
-    async getManualResults(@Param('id') id: string): Promise<GetSimulationResultsResponseDto> {
+    async getManualResults(
+        @Param('id') id: string,
+        @Query() dto: GetSimulationResultsQueryDto,
+    ): Promise<GetSimulationResultsResponseDto> {
         this.logger.log(`Get simulation results request: ${id}`);
         if (!isUUID(id)) {
             throw new HttpException('Invalid simulation id', HttpStatus.BAD_REQUEST);
         }
         try {
-            const query = GetSimulationResultsMapper.toQuery(id);
+            const query = GetSimulationResultsMapper.toQuery(id, {
+                stationCode: dto.stationCode,
+                type: dto.type,
+            });
             const result = await this.cachingQueryBus.execute<SimulationResultsResult>(query);
             return GetSimulationResultsMapper.toResponseDto(result);
         } catch (error) {

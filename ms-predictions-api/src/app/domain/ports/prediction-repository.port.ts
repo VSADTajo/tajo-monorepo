@@ -86,5 +86,8 @@ export abstract class IPredictionRepository {
         predictionTypeId: string,
         percentile: number | null,
     ): Promise<Prediction | null>;
-    abstract findWithResultsBySimulationId(simulationId: string): Promise<Prediction[]>;
+    abstract findWithResultsBySimulationId(
+        simulationId: string,
+        filters?: { stationCode?: string; typeName?: string },
+    ): Promise<Prediction[]>;
 }

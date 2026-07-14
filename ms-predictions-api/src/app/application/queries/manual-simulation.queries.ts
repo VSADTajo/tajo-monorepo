@@ -154,6 +154,8 @@ export class ListManualSimulationsHandler implements IQueryHandler<
 
 export interface IGetSimulationResultsQuery {
     id: string;
+    stationCode?: string;
+    typeName?: string;
 }
 
 export class GetSimulationResultsQuery {
@@ -161,6 +163,14 @@ export class GetSimulationResultsQuery {
 
     get id(): string {
         return this.parameters.id;
+    }
+
+    get stationCode(): string | undefined {
+        return this.parameters.stationCode;
+    }
+
+    get typeName(): string | undefined {
+        return this.parameters.typeName;
     }
 }
 
@@ -184,11 +194,16 @@ export class GetSimulationResultsHandler implements IQueryHandler<GetSimulationR
             throw new ApiError(HttpStatus.NOT_FOUND, `Manual simulation with id "${query.id}" not found`);
         }
 
-        const predictions = await this.predictionRepository.findWithResultsBySimulationId(query.id);
+        const predictions = await this.predictionRepository.findWithResultsBySimulationId(query.id, {
+            stationCode: query.stationCode,
+            typeName: query.typeName,
+        });
 
         this.logger.debug({
             event: 'query.simulation-results.executed',
             simulationId: query.id,
+            stationCode: query.stationCode ?? null,
+            typeName: query.typeName ?? null,
             predictionsCount: predictions.length,
             totalResults: predictions.reduce((sum, p) => sum + (p.results?.length ?? 0), 0),
         });
