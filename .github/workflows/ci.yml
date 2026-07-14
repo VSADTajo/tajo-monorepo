@@ -1,52 +1,124 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [main]
   push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # Dedupe push vs pull_request runs on the same branch; never cancel main.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Detect which services were touched so we only test what changed.
+  # PR  -> diff against the base branch.
+  # push-> diff against the previous SHA (falls back to HEAD~1).
+  # dispatch -> run everything.
+  # ---------------------------------------------------------------------------
+  detect:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.changes.outputs.matrix }}
+      any: ${{ steps.changes.outputs.any }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed services
+        id: changes
+        run: |
+          ALL_SERVICES=(
+            ms-gateway-api
+            ms-user-api
+            ms-authentication-api
+            ms-sftp-api
+            ms-logs-api
+            ms-hydro-api
+            ms-predictions-api
+            ms-model-api
+            ms-notifications-api
+            ms-meteo-api
+            ms-calculator-api
+            vsad-tajo-frontend
+            tajo-toolkit
+          )
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DIFF=$(printf '%s/\n' "${ALL_SERVICES[@]}")
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            DIFF=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          else
+            BEFORE="${{ github.event.before }}"
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              DIFF=$(git diff --name-only HEAD~1 HEAD)
+            else
+              DIFF=$(git diff --name-only "$BEFORE" HEAD)
+            fi
+          fi
+
+          CHANGED=()
+          for svc in "${ALL_SERVICES[@]}"; do
+            if echo "$DIFF" | grep -q "^${svc}/"; then
+              CHANGED+=("$svc")
+            fi
+          done
+
+          if [ ${#CHANGED[@]} -eq 0 ]; then
+            echo "matrix={\"service\":[]}" >> "$GITHUB_OUTPUT"
+            echo "any=false" >> "$GITHUB_OUTPUT"
+          else
+            JSON=$(printf '%s\n' "${CHANGED[@]}" | jq -R . | jq -sc '{service: .}')
+            echo "matrix=$JSON" >> "$GITHUB_OUTPUT"
+            echo "any=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Changed services: ${CHANGED[*]:-none}"
+
   test:
     name: ${{ matrix.service }}
+    needs: detect
+    if: needs.detect.outputs.any == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        service:
-          - ms-gateway-api
-          - ms-user-api
-          - ms-authentication-api
-          - ms-sftp-api
-          - ms-logs-api
-          - ms-hydro-api
-          - ms-predictions-api
-          - ms-model-api
-          - ms-notifications-api
-          - ms-meteo-api
-          - vsad-tajo-frontend
-          - tajo-toolkit
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Resolve the stack once so Node and Python services take different paths.
+      - name: Detect stack
+        id: stack
+        working-directory: ${{ matrix.service }}
+        run: |
+          [ -f package.json ]   && echo "node=true"   >> "$GITHUB_OUTPUT" || echo "node=false"   >> "$GITHUB_OUTPUT"
+          [ -f pyproject.toml ] && echo "python=true" >> "$GITHUB_OUTPUT" || echo "python=false" >> "$GITHUB_OUTPUT"
+
+      # ----- Node / frontend path ------------------------------------------
       - name: Setup Node.js
+        if: steps.stack.outputs.node == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: ${{ matrix.service }}/package-lock.json
 
-      # Resolve which scripts exist before running anything else, so missing
-      # scripts (e.g. vsad-tajo-frontend has no `test`) skip cleanly.
+      # Resolve which scripts exist so missing ones (e.g. the frontend has no
+      # `test`) skip cleanly instead of failing the job.
       - name: Detect available scripts
         id: scripts
+        if: steps.stack.outputs.node == 'true'
         working-directory: ${{ matrix.service }}
         run: |
           has() {
@@ -63,31 +135,32 @@ jobs:
           done
 
       - name: Install dependencies
+        if: steps.stack.outputs.node == 'true'
         working-directory: ${{ matrix.service }}
         run: npm ci
 
       - name: Lint
-        if: steps.scripts.outputs.lint == 'true'
+        if: steps.stack.outputs.node == 'true' && steps.scripts.outputs.lint == 'true'
         working-directory: ${{ matrix.service }}
         run: npm run lint
 
       - name: Type + lint check (frontend)
-        if: steps.scripts.outputs.check == 'true' && steps.scripts.outputs.lint == 'false'
+        if: steps.stack.outputs.node == 'true' && steps.scripts.outputs.check == 'true' && steps.scripts.outputs.lint == 'false'
         working-directory: ${{ matrix.service }}
         run: npm run check
 
       - name: Build
-        if: steps.scripts.outputs.build == 'true'
+        if: steps.stack.outputs.node == 'true' && steps.scripts.outputs.build == 'true'
         working-directory: ${{ matrix.service }}
         run: npm run build
 
       - name: Unit tests
-        if: steps.scripts.outputs.test == 'true'
+        if: steps.stack.outputs.node == 'true' && steps.scripts.outputs.test == 'true'
         working-directory: ${{ matrix.service }}
         run: npm test -- --passWithNoTests
 
       - name: E2E tests
-        if: steps.scripts.outputs.test_e2e == 'true'
+        if: steps.stack.outputs.node == 'true' && steps.scripts.outputs.test_e2e == 'true'
         working-directory: ${{ matrix.service }}
         env:
           # Testcontainers reuses the host Docker; default works on GitHub-hosted runners.
@@ -95,3 +168,42 @@ jobs:
         # --passWithNoTests mirrors the unit step: a service that declares a
         # test:e2e script but ships no *.e2e-spec.ts files must not fail the job.
         run: npm run test:e2e -- --passWithNoTests
+
+      # ----- Python path (ms-calculator-api) -------------------------------
+      - name: Setup Python
+        if: steps.stack.outputs.python == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        if: steps.stack.outputs.python == 'true'
+        working-directory: ${{ matrix.service }}
+        run: pip install -e '.[dev]' || pip install -e '.[test]' || pip install -e .
+
+      - name: Ruff lint
+        if: steps.stack.outputs.python == 'true'
+        working-directory: ${{ matrix.service }}
+        run: ruff check src tests
+
+      - name: Pytest
+        if: steps.stack.outputs.python == 'true'
+        working-directory: ${{ matrix.service }}
+        # Mirror the Jenkins pipeline: the AMQP integration test needs a live
+        # broker and is exercised separately, not in the fast CI lane.
+        run: pytest -v --ignore=tests/integration/test_amqp_consumer_publisher.py
+
+  # Single gate so branch protection can require just one check.
+  ci-success:
+    name: CI success
+    needs: [detect, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify no service failed
+        run: |
+          if [ "${{ needs.test.result }}" = "failure" ] || [ "${{ needs.test.result }}" = "cancelled" ]; then
+            echo "One or more service test jobs failed."
+            exit 1
+          fi
+          echo "All changed services passed (or nothing changed)."

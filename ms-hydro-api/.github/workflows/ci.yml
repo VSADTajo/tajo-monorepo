@@ -1,0 +1,75 @@
+name: CI
+
+# Standalone CI for this service's mirror repo (VSADTajo/<service>).
+# Authored in the monorepo under <service>/.github/workflows/ and synced to the
+# mirror repo root by the monorepo's Sync Subtrees workflow.
+# Runs on GitHub-hosted runners only — never on the self-hosted deploy runner.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      # Resolve which scripts exist so missing ones skip cleanly instead of
+      # failing the job. Keeps this file identical across every Node service.
+      - name: Detect available scripts
+        id: scripts
+        run: |
+          has() {
+            jq -e --arg s "$1" '(.scripts // {}) | has($s)' package.json > /dev/null
+          }
+          for pair in "lint:lint" "test:test" "test:e2e:test_e2e" "build:build" "check:check"; do
+            script="${pair%:*}"
+            key="${pair##*:}"
+            if has "$script"; then
+              echo "${key}=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "${key}=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        if: steps.scripts.outputs.lint == 'true'
+        run: npm run lint
+
+      - name: Type + lint check (frontend)
+        if: steps.scripts.outputs.check == 'true' && steps.scripts.outputs.lint == 'false'
+        run: npm run check
+
+      - name: Build
+        if: steps.scripts.outputs.build == 'true'
+        run: npm run build
+
+      - name: Unit tests
+        if: steps.scripts.outputs.test == 'true'
+        run: npm test -- --passWithNoTests
+
+      - name: E2E tests
+        if: steps.scripts.outputs.test_e2e == 'true'
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
+        run: npm run test:e2e -- --passWithNoTests

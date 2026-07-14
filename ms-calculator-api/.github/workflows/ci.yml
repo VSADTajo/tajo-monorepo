@@ -1,0 +1,42 @@
+name: CI
+
+# Standalone CI for this service's mirror repo (VSADTajo/ms-calculator-api).
+# Authored in the monorepo under ms-calculator-api/.github/workflows/ and synced
+# to the mirror repo root by the monorepo's Sync Subtrees workflow.
+# Python 3.12 + FastAPI service. Runs on GitHub-hosted runners only.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -e '.[dev]' || pip install -e '.[test]' || pip install -e .
+
+      - name: Ruff lint
+        run: ruff check src tests
+
+      - name: Pytest
+        # Mirror the Jenkins pipeline: the AMQP integration test needs a live
+        # broker and is exercised separately, not in the fast CI lane.
+        run: pytest -v --ignore=tests/integration/test_amqp_consumer_publisher.py
