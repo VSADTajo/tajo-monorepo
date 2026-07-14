@@ -32,30 +32,6 @@
           <div class="text-subtitle-2 font-weight-bold px-2 pb-1">Nivel por intervalo (72h)</div>
           <apexchart type="bar" height="260" :options="chartOptions" :series="chartSeries" />
         </v-card>
-
-        <!-- Estaciones de la zona de meteoalerta -->
-        <div class="mt-4">
-          <div class="text-subtitle-2 font-weight-bold pb-2">Estaciones de la zona</div>
-
-          <div v-if="loadingStations" class="d-flex justify-center py-4">
-            <v-progress-circular indeterminate size="24" color="primary" />
-          </div>
-
-          <div
-            v-else-if="!stations.length"
-            class="text-medium-emphasis text-body-2 py-2"
-          >
-            No hay estaciones en esta zona de meteoalerta.
-          </div>
-
-          <ByAreaStationsTable
-            v-else
-            :stations="stations"
-            :loading="loadingStations"
-            :selected-station-code="selectedStationCode"
-            @update:selected-station-code="selectedStationCode = $event"
-          />
-        </div>
       </v-card-text>
     </template>
 
@@ -66,12 +42,9 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref, watch } from 'vue'
+  import { computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useAvisosStore } from '@/stores/avisosStore'
-  import { getStationsByAreaService } from '@/services/general'
-  import type { StationData } from '@/utils/stationsToGeoJSON'
-  import ByAreaStationsTable from './ByAreaStationsTable.vue'
   import type { ApexOptions } from 'apexcharts'
 
   const route = useRoute()
@@ -166,52 +139,6 @@
   })
 
   const displayArea = computed(() => String(selectedAviso.value?.properties?.areaDesc ?? 'Aviso'))
-
-  // ── estaciones de la zona de meteoalerta ──────────────────────────────────
-
-  /** Código de zona AEMET (cod_z / geocode) del aviso seleccionado */
-  const meteoalertaGeocode = computed(() => {
-    const geocode = selectedAviso.value?.properties?.geocode
-    const value = typeof geocode === 'string' ? geocode.trim() : ''
-    return value && value !== 'unknown' ? value : ''
-  })
-
-  const stations = ref<StationData[]>([])
-  const loadingStations = ref(false)
-  const selectedStationCode = ref<string | null>(null)
-  let stationsRequestId = 0
-
-  async function loadStations(geocode: string): Promise<void> {
-    const requestId = ++stationsRequestId
-
-    if (!geocode) {
-      stations.value = []
-      loadingStations.value = false
-      return
-    }
-
-    loadingStations.value = true
-
-    try {
-      const items = await getStationsByAreaService({ meteoalertaZonaCode: geocode })
-      if (requestId !== stationsRequestId) return
-      stations.value = items
-    } catch {
-      if (requestId !== stationsRequestId) return
-      stations.value = []
-    } finally {
-      if (requestId === stationsRequestId) loadingStations.value = false
-    }
-  }
-
-  watch(
-    meteoalertaGeocode,
-    (geocode) => {
-      selectedStationCode.value = null
-      loadStations(geocode)
-    },
-    { immediate: true }
-  )
 
   // ── severity chip ─────────────────────────────────────────────────────────
 

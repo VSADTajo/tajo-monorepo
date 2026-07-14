@@ -19,8 +19,6 @@ export interface StationData {
     [key: string]: unknown
   } | null
   subBasinName?: string
-  meteoalertaZonaCode?: string | null
-  meteoalertaZonaNombre?: string | null
   tipoCod?: string | null
   municipio?: string | null
   provincia?: string | null
