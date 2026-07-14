@@ -1,0 +1,44 @@
+# =============================================================================
+# In-place cutover override — for the EXISTING Hetzner VM (65.21.97.113) ONLY.
+#
+# Attaches the new image-based stack to the production data volumes that were
+# created by the legacy compose (which used the `infra_*` project prefix and a
+# `pg-*` naming scheme), instead of letting compose create fresh empty volumes.
+#
+# A fresh client host must NOT use this file — it uses the default named volumes
+# from base.yml / apps.yml and gets its data via `tajo restore`.
+#
+# Usage (on the VM, project name pinned to `infra` for parity):
+#   docker compose -p infra \
+#     -f docker-compose.base.yml -f docker-compose.apps.yml \
+#     -f docker-compose.prod.yml -f docker-compose.cutover.yml \
+#     up -d --scale geoserver=0        # keep the existing custom GeoServer
+#
+# DB names are aligned via .env (DB_*_DATABASE=ms_*), not here — Postgres
+# ignores POSTGRES_DB on an already-initialised volume; the apps connect using
+# DB_DATABASE, which must point at the real names (ms_user, ms_predictions, …).
+# =============================================================================
+
+volumes:
+    # ---- Postgres (prod used infra_pg-<svc>-data) -------------------------
+    db-user-data: { external: true, name: infra_pg-user-data }
+    db-sftp-data: { external: true, name: infra_pg-sftp-data }
+    db-predictions-data: { external: true, name: infra_pg-predictions-data }
+    db-hydro-data: { external: true, name: infra_pg-hydro-data }
+    db-model-data: { external: true, name: infra_pg-model-data }
+    db-notifications-data: { external: true, name: infra_pg-notifications-data }
+    db-meteo-data: { external: true, name: infra_pg-meteo-data }
+    db-geoserver-data: { external: true, name: infra_pg-geoserver-data }
+
+    # ---- Mongo (logs) -----------------------------------------------------
+    mongo-logs-data: { external: true, name: infra_mongo-logs-data }
+
+    # ---- SFTP + logs files (prod used unprefixed names) -------------------
+    sftp-files: { external: true, name: sftp-storage }
+    sftp-keys: { external: true, name: sftp-keys }
+    logs-files-results: { external: true, name: ms-logs-api-files }
+
+    # redis-data / rabbitmq-data are intentionally NOT pinned. Prod stored
+    # these in ANONYMOUS volumes (cache + transient broker). The new stack
+    # creates fresh named ones — acceptable for a cache, and RabbitMQ queues
+    # should be drained before cutover if in-flight messages matter.
