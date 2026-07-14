@@ -338,7 +338,8 @@ export class PredictionsProxyController {
         summary: 'Get predictions and time-series results of a manual simulation',
         description: [
             'Returns the manual simulation identity together with every prediction the model produced for it,',
-            'each with its ordered time-series entries. Consumed by the frontend to render the outcome of a manual run.',
+            'each with its ordered time-series entries. Each prediction also carries the highest-value result (max)',
+            'and the chronologically last result (last). Consumed by the frontend to render the outcome of a manual run.',
             'Returns an empty predictions array while the simulation is still processing or if the model failed.',
         ].join(' '),
         response: {
@@ -347,12 +348,26 @@ export class PredictionsProxyController {
             description: [
                 'Predictions and their time-series results for the manual simulation.',
                 'Predictions are ordered by (stationId, predictionTypeId); each results[] is ordered by date ASC.',
+                'Each prediction includes max (highest-value result) and last (chronologically last result), both null when results is empty.',
             ].join(' '),
         },
         errors: [
             { status: 400, description: 'Invalid simulation id (not a UUID)' },
             { status: 404, description: 'Manual simulation not found, soft-deleted, or not of type MANUAL' },
         ],
+    })
+    @ApiQuery({
+        name: 'stationCode',
+        required: false,
+        type: String,
+        description: 'Keep only predictions for this station code (case-insensitive exact match)',
+    })
+    @ApiQuery({
+        name: 'type',
+        required: false,
+        type: String,
+        description:
+            'Keep only predictions whose prediction type name matches (case-insensitive exact match, e.g. Q.NAM.forecast)',
     })
     @ApiResponse({
         status: 200,
@@ -387,6 +402,8 @@ export class PredictionsProxyController {
                             { date: '2026-06-19T01:00:00.000Z', value: 121.9, flag: 0 },
                             { date: '2026-06-19T02:00:00.000Z', value: 118.6, flag: 0 },
                         ],
+                        max: { date: '2026-06-19T00:00:00.000Z', value: 123.4, flag: 0 },
+                        last: { date: '2026-06-19T02:00:00.000Z', value: 118.6, flag: 0 },
                     },
                     {
                         id: '4a2c9d3e-7b58-4f5a-9d0c-1e2f3a4b5c6d',
@@ -405,6 +422,8 @@ export class PredictionsProxyController {
                             { date: '2026-06-19T00:00:00.000Z', value: 0.2, flag: 0 },
                             { date: '2026-06-19T01:00:00.000Z', value: 0.0, flag: 0 },
                         ],
+                        max: { date: '2026-06-19T00:00:00.000Z', value: 0.2, flag: 0 },
+                        last: { date: '2026-06-19T01:00:00.000Z', value: 0.0, flag: 0 },
                     },
                 ],
             },
@@ -415,10 +434,19 @@ export class PredictionsProxyController {
         @Req() req: express.Request,
         @Res() res: express.Response,
     ): Promise<void> {
+        // Only forward the query params the upstream endpoint accepts; upstream runs with
+        // forbidNonWhitelisted so unrecognized params would 400.
+        const forwarded: Record<string, string> = {};
+        const stationCode = req.query.stationCode;
+        const type = req.query.type;
+        if (typeof stationCode === 'string' && stationCode.length > 0) forwarded.stationCode = stationCode;
+        if (typeof type === 'string' && type.length > 0) forwarded.type = type;
+
         const result = await this.proxyService.forward({
             method: 'GET',
             baseUrl: this.servicesConfig.predictionsApiUrl,
             path: `/simulations/manual/${id}/results`,
+            query: forwarded,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,

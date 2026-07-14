@@ -612,6 +612,24 @@ export class SimulationResultsPredictionGwDto {
         description: 'Time-series entries for this prediction, ordered ascending by date.',
     })
     results: PredictionResultPointGwDto[];
+
+    @ApiProperty({
+        type: PredictionResultPointGwDto,
+        nullable: true,
+        description:
+            'Result entry with the highest value across results[]. Ties resolve to the earliest occurrence (results are date ASC). Null when results is empty.',
+        example: { date: '2026-06-19T00:00:00.000Z', value: 123.4, flag: 0 },
+    })
+    max: PredictionResultPointGwDto | null;
+
+    @ApiProperty({
+        type: PredictionResultPointGwDto,
+        nullable: true,
+        description:
+            'Chronologically last result entry (highest date in results[]). Null when results is empty.',
+        example: { date: '2026-06-19T02:00:00.000Z', value: 118.6, flag: 0 },
+    })
+    last: PredictionResultPointGwDto | null;
 }
 
 export class SimulationResultsIdentityGwDto {
