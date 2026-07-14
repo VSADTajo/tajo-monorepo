@@ -10,9 +10,7 @@ name: Build & Push images to GHCR
 
 on:
     push:
-        # feature/unified-docker-stack is TEMPORARY — for validating the GHCR
-        # build+push lane before merging to main. Remove it before merge.
-        branches: [main, feature/unified-docker-stack]
+        branches: [main]
         tags: ['v*']
         paths-ignore:
             - '**/*.md'

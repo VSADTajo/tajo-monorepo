@@ -43,8 +43,16 @@ ms-notifications-api, ms-meteo-api, vsad-tajo-frontend.
 
 ### 1. Pause Jenkins
 So a push can't re-deploy the old way and clobber the swap. Jenkins is **paused,
-not removed** (fallback). Confirm `quietingDown: true`, or disable the pipeline
-jobs.
+not removed** (fallback). Quiet mode needs a CSRF crumb from the SAME session
+(cookie jar) or it returns 403:
+
+```bash
+JB=http://localhost:9080 ; JA='<user>:<pass>' ; CJ=/tmp/jc
+CRUMB=$(curl -s -c $CJ -u "$JA" "$JB/crumbIssuer/api/json" | sed -n 's/.*"crumb":"\([^"]*\)".*/\1/p')
+curl -s -b $CJ -u "$JA" -H "Jenkins-Crumb:$CRUMB" -X POST "$JB/quietDown"
+# after cutover, undo with:   ... -X POST "$JB/cancelQuietDown"
+```
+Confirm: `curl -s -u "$JA" "$JB/api/json?tree=quietingDown"` → `true`.
 
 ### 2. Migration dry-check (the key safety gate)
 For every DB-backed service, compare migrations **applied in the DB** vs those
@@ -56,6 +64,23 @@ For every DB-backed service, compare migrations **applied in the DB** vs those
 
 ### 3. Baseline
 Record current health of the 12 services (to compare after).
+
+### 4. Service-specific fixes
+**ms-notifications-api** — its DB already has the `notifications` table but NO
+migrations table, so the image's `CreateNotificationsTable` migration would run
+on boot, hit an existing table, and crash the container. Baseline it first
+(additive, does NOT touch data) so the migration is seen as already applied:
+
+```bash
+docker exec infra-db-notifications psql -U postgres -d ms_notifications -c \
+  "CREATE TABLE IF NOT EXISTS migrations (id SERIAL PRIMARY KEY, timestamp bigint NOT NULL, name varchar NOT NULL);
+   INSERT INTO migrations (timestamp, name) VALUES (1710936000000, 'CreateNotificationsTable1710936000000');"
+```
+
+**ms-predictions-api** — prod has one extra applied migration
+(`CreateNotificationsTable1771553400000`) that is not in the monorepo. It is a
+**no-op** on deploy (the image's migrations are a subset already applied); safe,
+no action needed — just noted for source-of-truth cleanup later.
 
 ---
 
