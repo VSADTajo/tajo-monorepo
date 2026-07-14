@@ -160,8 +160,12 @@ export class ListManualSimulationsMapper {
 // ─────────────────────────────────────────────────────────────
 
 export class GetSimulationResultsMapper {
-    static toQuery(id: string): GetSimulationResultsQuery {
-        return new GetSimulationResultsQuery({ id });
+    static toQuery(id: string, filters?: { stationCode?: string; type?: string }): GetSimulationResultsQuery {
+        return new GetSimulationResultsQuery({
+            id,
+            stationCode: filters?.stationCode,
+            typeName: filters?.type,
+        });
     }
 
     static toResponseDto(result: SimulationResultsResult): GetSimulationResultsResponseDto {
@@ -175,25 +179,36 @@ export class GetSimulationResultsMapper {
                 createdAt: result.simulation.createdAt,
                 updatedAt: result.simulation.updatedAt,
             },
-            predictions: result.predictions.map((p) => ({
-                id: p.id,
-                stationId: p.stationId,
-                stationName: p.stationName ?? null,
-                predictionTypeId: p.predictionTypeId,
-                predictionTypeName: p.predictionType?.name ?? null,
-                predictionTypeUnit: p.predictionType?.unit ?? null,
-                percentile: p.percentile !== null && p.percentile !== undefined ? Number(p.percentile) : null,
-                predictionProvider: p.predictionProvider ?? null,
-                predictedBy: p.predictedBy ?? null,
-                predictionDate: p.predictionDate ?? null,
-                predictionStartDate: p.predictionStartDate ?? null,
-                predictionEndDate: p.predictionEndDate ?? null,
-                results: (p.results ?? []).map((r) => ({
+            predictions: result.predictions.map((p) => {
+                const results = (p.results ?? []).map((r) => ({
                     date: r.date,
                     value: typeof r.value === 'string' ? Number(r.value) : r.value,
                     flag: r.flag,
-                })),
-            })),
+                }));
+                // results come pre-ordered by date ASC from the repository query
+                const last = results.length > 0 ? results[results.length - 1] : null;
+                const max =
+                    results.length > 0
+                        ? results.reduce((acc, cur) => (cur.value > acc.value ? cur : acc), results[0])
+                        : null;
+                return {
+                    id: p.id,
+                    stationId: p.stationId,
+                    stationName: p.stationName ?? null,
+                    predictionTypeId: p.predictionTypeId,
+                    predictionTypeName: p.predictionType?.name ?? null,
+                    predictionTypeUnit: p.predictionType?.unit ?? null,
+                    percentile: p.percentile !== null && p.percentile !== undefined ? Number(p.percentile) : null,
+                    predictionProvider: p.predictionProvider ?? null,
+                    predictedBy: p.predictedBy ?? null,
+                    predictionDate: p.predictionDate ?? null,
+                    predictionStartDate: p.predictionStartDate ?? null,
+                    predictionEndDate: p.predictionEndDate ?? null,
+                    results,
+                    max,
+                    last,
+                };
+            }),
         };
     }
 }

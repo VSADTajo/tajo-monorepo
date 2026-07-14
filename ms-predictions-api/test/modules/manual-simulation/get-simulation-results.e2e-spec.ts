@@ -109,8 +109,20 @@ describe('Get Simulation Results (e2e)', () => {
         return request(app.getHttpServer()).post('/simulations/manual').send(dto);
     }
 
-    function getSimulationResults(id: string) {
-        return request(app.getHttpServer()).get(`/simulations/manual/${id}/results`);
+    function getSimulationResults(id: string, query?: Record<string, string>) {
+        const req = request(app.getHttpServer()).get(`/simulations/manual/${id}/results`);
+        return query ? req.query(query) : req;
+    }
+
+    // Deterministic events builder for max/last assertions.
+    function buildEventsWithValues(values: number[]) {
+        const baseDate = new Date('2026-07-10T00:00:00Z').getTime();
+        return values.map((v, i) => ({
+            timestamp: new Date(baseDate + i * 3600000).toISOString(),
+            value: v,
+            flag: 0,
+            isMissing: false,
+        }));
     }
 
     it('should return 200 with sorted predictions and results for a manual simulation', async () => {
@@ -219,5 +231,166 @@ describe('Get Simulation Results (e2e)', () => {
 
     it('should return 400 when the id is not a valid UUID', async () => {
         await getSimulationResults('not-a-uuid').expect(HttpStatus.BAD_REQUEST);
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // Query params + max/last
+    // ─────────────────────────────────────────────────────────────
+
+    // Seeds a manual simulation with two stations and two prediction types,
+    // returning the created simulation id.
+    async function seedTwoStationsTwoTypes(): Promise<string> {
+        const { body: sim } = await createManualSimulation(
+            buildCreateManualSimulationDto({ maneuvers: [{ reservoirCode: 'E001', outputFlowValue: 10 }] }),
+        ).expect(HttpStatus.CREATED);
+
+        // Station AR71 / Q.NAM.forecast — values [10, 30, 20] → max=30, last=20
+        await commandBus.execute(
+            new ProcessTimeSeriesCommand({
+                series: buildTimeSeriesData({
+                    locationId: 'AR71',
+                    parameterId: 'Q.NAM.forecast',
+                    moduleInstanceId: 'MOD-1',
+                    stationName: 'Station AR71',
+                    forecastDate: '2026-07-10T00:00:00.000Z',
+                    events: buildEventsWithValues([10, 30, 20]),
+                }),
+                simulationId: sim.id,
+            }),
+        );
+
+        // Station AR71 / P.harmonie.forecast — values [1, 2, 3] → max=3, last=3
+        await commandBus.execute(
+            new ProcessTimeSeriesCommand({
+                series: buildTimeSeriesData({
+                    locationId: 'AR71',
+                    parameterId: 'P.harmonie.forecast',
+                    moduleInstanceId: 'MOD-1',
+                    stationName: 'Station AR71',
+                    forecastDate: '2026-07-10T00:00:00.000Z',
+                    events: buildEventsWithValues([1, 2, 3]),
+                }),
+                simulationId: sim.id,
+            }),
+        );
+
+        // Station AR72 / Q.NAM.forecast — values [5, 5, 5] → max=5 (first), last=5 (last)
+        await commandBus.execute(
+            new ProcessTimeSeriesCommand({
+                series: buildTimeSeriesData({
+                    locationId: 'AR72',
+                    parameterId: 'Q.NAM.forecast',
+                    moduleInstanceId: 'MOD-1',
+                    stationName: 'Station AR72',
+                    forecastDate: '2026-07-10T00:00:00.000Z',
+                    events: buildEventsWithValues([5, 5, 5]),
+                }),
+                simulationId: sim.id,
+            }),
+        );
+
+        return sim.id;
+    }
+
+    it('should compute max and last per prediction from its results', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId).expect(HttpStatus.OK);
+
+        expect(body.predictions).toHaveLength(3);
+
+        const ar71Q = body.predictions.find(
+            (p: any) => p.stationId === 'AR71' && p.predictionTypeName === 'Q.NAM.forecast',
+        );
+        expect(ar71Q).toBeDefined();
+        expect(ar71Q.max).toEqual(expect.objectContaining({ value: 30, flag: 0 }));
+        expect(ar71Q.last).toEqual(expect.objectContaining({ value: 20, flag: 0 }));
+
+        const ar71P = body.predictions.find(
+            (p: any) => p.stationId === 'AR71' && p.predictionTypeName === 'P.harmonie.forecast',
+        );
+        expect(ar71P.max).toEqual(expect.objectContaining({ value: 3 }));
+        expect(ar71P.last).toEqual(expect.objectContaining({ value: 3 }));
+
+        const ar72Q = body.predictions.find((p: any) => p.stationId === 'AR72');
+        expect(ar72Q.max).toEqual(expect.objectContaining({ value: 5 }));
+        expect(ar72Q.last).toEqual(expect.objectContaining({ value: 5 }));
+        // Ties: max resolves to the first occurrence chronologically (results are date ASC).
+        expect(new Date(ar72Q.max.date).getTime()).toBeLessThanOrEqual(new Date(ar72Q.last.date).getTime());
+    });
+
+    it('should return max and last as null when a prediction has no results', async () => {
+        const { body: sim } = await createManualSimulation(
+            buildCreateManualSimulationDto({ maneuvers: [{ reservoirCode: 'E001', outputFlowValue: 5 }] }),
+        ).expect(HttpStatus.CREATED);
+
+        // Seed one prediction WITHOUT time-series events (no ingestion) — insert directly.
+        const predictionTypeRepo = dataSource.getRepository(PredictionType);
+        const savedType = await predictionTypeRepo.save(
+            predictionTypeRepo.create({ name: 'Q.empty.forecast', unit: 'm3/s' }),
+        );
+
+        const predictionRepo = dataSource.getRepository(Prediction);
+        await predictionRepo.save(
+            predictionRepo.create({
+                simulationId: sim.id,
+                stationId: 'AR99',
+                stationName: 'Station AR99',
+                predictionTypeId: savedType.id,
+                percentile: null,
+                predictionProvider: 'test',
+                predictedBy: 'mod-test',
+            }),
+        );
+
+        const { body } = await getSimulationResults(sim.id).expect(HttpStatus.OK);
+        expect(body.predictions).toHaveLength(1);
+        expect(body.predictions[0].results).toEqual([]);
+        expect(body.predictions[0].max).toBeNull();
+        expect(body.predictions[0].last).toBeNull();
+    });
+
+    it('should filter predictions by stationCode (case-insensitive)', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId, { stationCode: 'ar72' }).expect(HttpStatus.OK);
+
+        expect(body.predictions).toHaveLength(1);
+        expect(body.predictions[0].stationId).toBe('AR72');
+    });
+
+    it('should filter predictions by type (case-insensitive) matching prediction type name', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId, { type: 'q.nam.FORECAST' }).expect(HttpStatus.OK);
+
+        expect(body.predictions).toHaveLength(2);
+        expect(body.predictions.every((p: any) => p.predictionTypeName === 'Q.NAM.forecast')).toBe(true);
+    });
+
+    it('should combine stationCode and type filters', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId, {
+            stationCode: 'AR71',
+            type: 'Q.NAM.forecast',
+        }).expect(HttpStatus.OK);
+
+        expect(body.predictions).toHaveLength(1);
+        expect(body.predictions[0].stationId).toBe('AR71');
+        expect(body.predictions[0].predictionTypeName).toBe('Q.NAM.forecast');
+    });
+
+    it('should return empty predictions array when filters match nothing', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId, { stationCode: 'AR99' }).expect(HttpStatus.OK);
+
+        expect(body.predictions).toEqual([]);
+    });
+
+    it('should reject unknown query params (whitelist enforced)', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+        await getSimulationResults(simId, { unknownParam: 'anything' }).expect(HttpStatus.BAD_REQUEST);
     });
 });
