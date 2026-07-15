@@ -6,6 +6,7 @@ import { ISimulationRepository } from '@domain/ports/simulation-repository.port'
 import type { SimulationSortBy, SortOrder } from '@domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '@domain/ports/maneuver-repository.port';
 import { IPredictionRepository } from '@domain/ports/prediction-repository.port';
+import { IStationCatalogService } from '@domain/ports/station-catalog-service.port';
 import { SimulationType, SimulationStatus } from '@domain/entities/simulation.entity';
 import {
     ManualSimulationResult,
@@ -180,6 +181,7 @@ export class GetSimulationResultsHandler implements IQueryHandler<GetSimulationR
         @Inject(Logger) private readonly logger: Logger,
         private readonly simulationRepository: ISimulationRepository,
         private readonly predictionRepository: IPredictionRepository,
+        private readonly stationCatalog: IStationCatalogService,
     ) {}
 
     async execute(query: GetSimulationResultsQuery): Promise<SimulationResultsResult> {
@@ -194,10 +196,15 @@ export class GetSimulationResultsHandler implements IQueryHandler<GetSimulationR
             throw new ApiError(HttpStatus.NOT_FOUND, `Manual simulation with id "${query.id}" not found`);
         }
 
-        const predictions = await this.predictionRepository.findWithResultsBySimulationId(query.id, {
-            stationCode: query.stationCode,
-            typeName: query.typeName,
-        });
+        const [predictions, stations] = await Promise.all([
+            this.predictionRepository.findWithResultsBySimulationId(query.id, {
+                stationCode: query.stationCode,
+                typeName: query.typeName,
+            }),
+            this.stationCatalog.listFullStations(),
+        ]);
+
+        const stationsByCode = new Map(stations.map((s) => [s.stationCode.toLowerCase(), s]));
 
         this.logger.debug({
             event: 'query.simulation-results.executed',
@@ -206,8 +213,9 @@ export class GetSimulationResultsHandler implements IQueryHandler<GetSimulationR
             typeName: query.typeName ?? null,
             predictionsCount: predictions.length,
             totalResults: predictions.reduce((sum, p) => sum + (p.results?.length ?? 0), 0),
+            stationsCatalogSize: stationsByCode.size,
         });
 
-        return new SimulationResultsResult({ simulation, predictions });
+        return new SimulationResultsResult({ simulation, predictions, stationsByCode });
     }
 }

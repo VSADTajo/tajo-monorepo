@@ -575,15 +575,107 @@ export class PredictionResultItemDto {
     flag: number;
 }
 
+// Nested station snapshot resolved from ms-hydro-api (via IStationCatalogService).
+// Shape mirrors CreateStationResponseDto on hydro-api. `threshold` is opaque here
+// (typed as unknown) because it's a pass-through of hydro-api's own DTO.
+export class PredictionStationDto {
+    @ApiProperty({ description: 'Station ID (UUID from hydro-api)', example: '550e8400-e29b-41d4-a716-446655440000' })
+    id: string;
+
+    @ApiProperty({ description: 'Station display name', example: 'Embalse del Tranco' })
+    name: string;
+
+    @ApiProperty({ description: 'Sub-basin name', example: 'Tajo Alto' })
+    subBasinName: string;
+
+    @ApiProperty({ description: 'SAIH station code — matches Prediction.stationId', example: 'AR71' })
+    stationCode: string;
+
+    @ApiProperty({ description: 'Station type (StationType enum on hydro-api)', example: 'EMBALSE' })
+    stationType: string;
+
+    @ApiProperty({ description: 'Sub-basin ID (UUID)', example: '550e8400-e29b-41d4-a716-446655440000' })
+    subBasinId: string;
+
+    @ApiProperty({
+        description: 'Station threshold snapshot from hydro-api; opaque pass-through',
+        nullable: true,
+        additionalProperties: true,
+    })
+    threshold: unknown | null;
+
+    @ApiProperty({ description: 'Latitude', nullable: true, example: 40.1234 })
+    latitude: number | null;
+
+    @ApiProperty({ description: 'Longitude', nullable: true, example: -4.5678 })
+    longitude: number | null;
+
+    @ApiProperty({ description: 'Altitude (m)', nullable: true, example: 550.0 })
+    altitude: number | null;
+
+    @ApiProperty({ description: 'Municipality', nullable: true, example: 'Sacedón' })
+    municipio: string | null;
+
+    @ApiProperty({ description: 'Province', nullable: true, example: 'Guadalajara' })
+    provincia: string | null;
+
+    @ApiProperty({ description: 'Autonomous community', nullable: true, example: 'Castilla La Mancha' })
+    ccaa: string | null;
+
+    @ApiProperty({ description: 'Station type code (SAIH)', nullable: true, example: 'AC' })
+    tipoCod: string | null;
+
+    @ApiProperty({ description: 'SAIH zone', nullable: true, example: 'CABECERA' })
+    zona: string | null;
+
+    @ApiProperty({ description: 'Exploitation zone ogc_fid', nullable: true, example: 2 })
+    zonaExplOgcFid: number | null;
+
+    @ApiProperty({ description: 'Exploitation zone name', nullable: true, example: 'ZONA 2' })
+    zonaExplNombre: string | null;
+
+    @ApiProperty({ description: 'Agricultural district (comarca)', nullable: true, example: 'TALAVERA DE LA REINA' })
+    comarcaName: string | null;
+
+    @ApiProperty({ description: 'Water system name', nullable: true, example: 'CABECERA' })
+    sistemaName: string | null;
+
+    @ApiProperty({ description: 'AEMET meteoalert zone code', nullable: true, example: '670502' })
+    meteoalertaZonaCode: string | null;
+
+    @ApiProperty({ description: 'AEMET meteoalert zone name', nullable: true, example: 'Sistema Central de Ávila' })
+    meteoalertaZonaNombre: string | null;
+
+    @ApiProperty({ description: 'Station description', nullable: true, example: 'Estación aforo tramo alto' })
+    description: string | null;
+
+    @ApiProperty({ description: 'Whether the station is active', example: true })
+    isActive: boolean;
+
+    @ApiProperty({ description: 'Station creation timestamp', nullable: true, example: '2026-03-12T00:00:00.000Z' })
+    createdAt: Date | string | null;
+
+    @ApiProperty({ description: 'Station last update timestamp', nullable: true, example: '2026-03-12T00:00:00.000Z' })
+    updatedAt: Date | string | null;
+}
+
 export class PredictionWithResultsDto {
     @ApiProperty({ description: 'Prediction unique identifier' })
     id: string;
 
-    @ApiProperty({ description: 'Station code', example: 'AR71' })
+    @ApiProperty({ description: 'Station code — canonical SAIH identifier', example: 'AR71' })
     stationId: string;
 
-    @ApiProperty({ description: 'Station name', nullable: true, example: 'Embalse del Tranco' })
+    @ApiProperty({ description: 'Station name (denormalized copy)', nullable: true, example: 'Embalse del Tranco' })
     stationName: string | null;
+
+    @ApiProperty({
+        description:
+            'Full station snapshot resolved from ms-hydro-api by stationCode. Null when the station is not found in the hydro-api catalog (e.g. legacy stations or catalog fetch failure).',
+        type: PredictionStationDto,
+        nullable: true,
+    })
+    station: PredictionStationDto | null;
 
     @ApiProperty({ description: 'Prediction type identifier (UUID)' })
     predictionTypeId: string;

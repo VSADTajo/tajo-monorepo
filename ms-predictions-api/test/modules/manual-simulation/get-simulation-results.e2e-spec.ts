@@ -19,6 +19,7 @@ import { ICacheService } from '../../../src/app/domain/ports/cache-service.port'
 import { IMessageBroker } from '../../../src/app/domain/ports/message-broker.port';
 import { ISimulationSftpService } from '../../../src/app/domain/ports/simulation-sftp.port';
 import { IStationThresholdService } from '../../../src/app/domain/ports/station-threshold-service.port';
+import { IStationCatalogService } from '../../../src/app/domain/ports/station-catalog-service.port';
 
 import { SimulationRepository } from '../../../src/app/infrastructure/persistence/simulation.repository';
 import { ManeuverRepository } from '../../../src/app/infrastructure/persistence/maneuver.repository';
@@ -69,6 +70,46 @@ describe('Get Simulation Results (e2e)', () => {
         getThreshold: jest.fn().mockResolvedValue(null),
     };
 
+    // Full station snapshots injected via the station catalog (would come from hydro-api in real deployment).
+    const buildFullStation = (stationCode: string, overrides: Record<string, unknown> = {}) => ({
+        id: `station-uuid-${stationCode}`,
+        name: `Station ${stationCode}`,
+        subBasinName: 'Tajo Alto',
+        stationCode,
+        stationType: 'AFORO_EN_RIO',
+        subBasinId: 'sub-basin-uuid',
+        threshold: null,
+        latitude: 40.5,
+        longitude: -4.5,
+        altitude: 550.0,
+        municipio: 'Sacedón',
+        provincia: 'Guadalajara',
+        ccaa: 'Castilla La Mancha',
+        tipoCod: 'AC',
+        zona: 'CABECERA',
+        zonaExplOgcFid: 2,
+        zonaExplNombre: 'ZONA 2',
+        comarcaName: 'TALAVERA DE LA REINA',
+        sistemaName: 'CABECERA',
+        meteoalertaZonaCode: '670502',
+        meteoalertaZonaNombre: 'Sistema Central de Ávila',
+        description: null,
+        isActive: true,
+        createdAt: '2026-03-12T00:00:00.000Z',
+        updatedAt: '2026-06-01T09:30:00.000Z',
+        ...overrides,
+    });
+
+    const mockStationCatalog = {
+        listStations: jest.fn().mockResolvedValue([]),
+        listFullStations: jest
+            .fn()
+            .mockResolvedValue([
+                buildFullStation('AR71'),
+                buildFullStation('AR72', { latitude: 41.0, longitude: -5.0, meteoalertaZonaCode: '670999' }),
+            ]),
+    };
+
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
             entities: [Simulation, Maneuver, Prediction, PredictionType, PredictionResult],
@@ -86,6 +127,7 @@ describe('Get Simulation Results (e2e)', () => {
                 { provide: IMessageBroker, useValue: mockMessageBroker },
                 { provide: ICacheService, useValue: mockCacheService },
                 { provide: IStationThresholdService, useValue: mockStationThresholdService },
+                { provide: IStationCatalogService, useValue: mockStationCatalog },
                 CachingQueryBus,
             ],
         });
@@ -197,6 +239,14 @@ describe('Get Simulation Results (e2e)', () => {
         expect(firstResult).toHaveProperty('value');
         expect(firstResult).toHaveProperty('flag');
         expect(typeof firstResult.value).toBe('number');
+
+        // Assert full station snapshot is attached from the catalog
+        expect(firstPrediction.station).toBeDefined();
+        expect(firstPrediction.station.stationCode).toBe('AR71');
+        expect(firstPrediction.station.meteoalertaZonaCode).toBe('670502');
+        expect(firstPrediction.station.provincia).toBe('Guadalajara');
+        expect(body.predictions[1].station.stationCode).toBe('AR72');
+        expect(body.predictions[1].station.meteoalertaZonaCode).toBe('670999');
     });
 
     it('should return 200 with empty predictions when nothing has been ingested yet', async () => {
@@ -348,6 +398,8 @@ describe('Get Simulation Results (e2e)', () => {
         expect(body.predictions[0].results).toEqual([]);
         expect(body.predictions[0].max).toBeNull();
         expect(body.predictions[0].last).toBeNull();
+        // AR99 is not in the mock hydro-api catalog → station is null
+        expect(body.predictions[0].station).toBeNull();
     });
 
     it('should filter predictions by stationCode (case-insensitive)', async () => {
