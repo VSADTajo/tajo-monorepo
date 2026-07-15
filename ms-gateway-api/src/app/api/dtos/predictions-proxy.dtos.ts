@@ -534,6 +534,89 @@ export class PredictionResultPointGwDto {
     flag: number;
 }
 
+// Full station snapshot as returned by ms-hydro-api. Pass-through of that
+// service's CreateStationResponseDto — see ms-hydro-api swagger for canonical shape.
+export class PredictionStationGwDto {
+    @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000', description: 'Station id (UUID from hydro-api).' })
+    id: string;
+
+    @ApiProperty({ example: 'Embalse del Tranco' })
+    name: string;
+
+    @ApiProperty({ example: 'Tajo Alto' })
+    subBasinName: string;
+
+    @ApiProperty({ example: 'AR71', description: 'SAIH station code — matches prediction.stationId.' })
+    stationCode: string;
+
+    @ApiProperty({ example: 'EMBALSE' })
+    stationType: string;
+
+    @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
+    subBasinId: string;
+
+    @ApiProperty({
+        nullable: true,
+        description: 'Threshold snapshot from hydro-api. Opaque pass-through.',
+        additionalProperties: true,
+    })
+    threshold: unknown | null;
+
+    @ApiProperty({ nullable: true, example: 40.1234 })
+    latitude: number | null;
+
+    @ApiProperty({ nullable: true, example: -4.5678 })
+    longitude: number | null;
+
+    @ApiProperty({ nullable: true, example: 550.0 })
+    altitude: number | null;
+
+    @ApiProperty({ nullable: true, example: 'Sacedón' })
+    municipio: string | null;
+
+    @ApiProperty({ nullable: true, example: 'Guadalajara' })
+    provincia: string | null;
+
+    @ApiProperty({ nullable: true, example: 'Castilla La Mancha' })
+    ccaa: string | null;
+
+    @ApiProperty({ nullable: true, example: 'AC' })
+    tipoCod: string | null;
+
+    @ApiProperty({ nullable: true, example: 'CABECERA' })
+    zona: string | null;
+
+    @ApiProperty({ nullable: true, example: 2 })
+    zonaExplOgcFid: number | null;
+
+    @ApiProperty({ nullable: true, example: 'ZONA 2' })
+    zonaExplNombre: string | null;
+
+    @ApiProperty({ nullable: true, example: 'TALAVERA DE LA REINA' })
+    comarcaName: string | null;
+
+    @ApiProperty({ nullable: true, example: 'CABECERA' })
+    sistemaName: string | null;
+
+    @ApiProperty({ nullable: true, example: '670502' })
+    meteoalertaZonaCode: string | null;
+
+    @ApiProperty({ nullable: true, example: 'Sistema Central de Ávila' })
+    meteoalertaZonaNombre: string | null;
+
+    @ApiProperty({ nullable: true, example: 'Estación aforo tramo alto' })
+    description: string | null;
+
+    @ApiProperty({ example: true })
+    isActive: boolean;
+
+    @ApiProperty({ nullable: true, example: '2026-03-12T00:00:00.000Z' })
+    createdAt: Date | string | null;
+
+    @ApiProperty({ nullable: true, example: '2026-03-12T00:00:00.000Z' })
+    updatedAt: Date | string | null;
+}
+
 export class SimulationResultsPredictionGwDto {
     @ApiProperty({ example: '3f9d1e2b-6c47-4a8b-9c1d-2e3f4a5b6c7d' })
     id: string;
@@ -544,9 +627,17 @@ export class SimulationResultsPredictionGwDto {
     @ApiProperty({
         nullable: true,
         example: 'Embalse de Arévalo',
-        description: 'Station display name if the provider supplied one.',
+        description: 'Station display name if the provider supplied one (denormalized on the prediction record).',
     })
     stationName: string | null;
+
+    @ApiProperty({
+        type: PredictionStationGwDto,
+        nullable: true,
+        description:
+            'Full station snapshot resolved from ms-hydro-api by stationCode. Null when the station is not found in the hydro-api catalog.',
+    })
+    station: PredictionStationGwDto | null;
 
     @ApiProperty({ example: 'a1b2c3d4-e5f6-7890-abcd-ef0123456789' })
     predictionTypeId: string;
@@ -625,8 +716,7 @@ export class SimulationResultsPredictionGwDto {
     @ApiProperty({
         type: PredictionResultPointGwDto,
         nullable: true,
-        description:
-            'Chronologically last result entry (highest date in results[]). Null when results is empty.',
+        description: 'Chronologically last result entry (highest date in results[]). Null when results is empty.',
         example: { date: '2026-06-19T02:00:00.000Z', value: 118.6, flag: 0 },
     })
     last: PredictionResultPointGwDto | null;
