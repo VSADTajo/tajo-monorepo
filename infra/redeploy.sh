@@ -23,25 +23,44 @@ set -uo pipefail
 REGISTRY="${REGISTRY:-ghcr.io/vsadtajo}"
 TAG="${TAG:-latest}"
 
-# Services that ship a GHCR image. GeoServer (custom image) and sftp-frontend
-# are intentionally excluded — they are managed separately.
-ALL_SERVICES="ms-gateway-api ms-user-api ms-authentication-api ms-sftp-api ms-logs-api ms-logs-ui ms-hydro-api ms-predictions-api ms-model-api ms-notifications-api ms-meteo-api vsad-tajo-frontend"
+# Services that ship a GHCR image. Only GeoServer (custom image) is managed
+# separately. sftp-frontend and ms-calculator-api (Python) are included: the
+# health gate below adapts to non-Node runtimes.
+ALL_SERVICES="ms-gateway-api ms-user-api ms-authentication-api ms-sftp-api sftp-frontend ms-logs-api ms-logs-ui ms-hydro-api ms-predictions-api ms-model-api ms-notifications-api ms-meteo-api ms-calculator-api vsad-tajo-frontend"
 
 REQUEST="${1:-all}"
 if [ "$REQUEST" = "all" ]; then SERVICES="$ALL_SERVICES"; else SERVICES="$REQUEST"; fi
 
 runlike() { docker run --rm -v /var/run/docker.sock:/var/run/docker.sock assaflavie/runlike "$@"; }
 
-# Passes if the /health endpoint responds; for services without an APP_PORT
-# (nginx frontends) it falls back to "container stayed running".
+# Health gate. The probe adapts to the container runtime so it works for Node,
+# Python (FastAPI) and nginx images alike:
+#   - no APP_PORT (nginx frontends: ms-logs-ui, sftp-frontend): pass if the
+#     container stays running.
+#   - container has `node`: probe /health from inside via node's fetch (all the
+#     NestJS services — unchanged behaviour).
+#   - no `node` (e.g. ms-calculator-api, Python): probe /health over the
+#     container network with a throwaway curl container (language-agnostic).
 health_ok() {
-    local name="$1" port="$2" i
+    local name="$1" port="$2" i net
     if [ -z "$port" ]; then
         sleep 5
         docker ps --filter "name=^${name}$" --filter status=running -q | grep -q . && return 0 || return 1
     fi
+    if docker exec "$name" sh -c 'command -v node' >/dev/null 2>&1; then
+        for i in $(seq 1 40); do
+            if docker exec "$name" node -e "fetch('http://localhost:${port}/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
+                return 0
+            fi
+            sleep 3
+        done
+        return 1
+    fi
+    # Non-Node runtime: hit /health by container name over its own network.
+    net=$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$name" | awk '{print $1}')
     for i in $(seq 1 40); do
-        if docker exec "$name" node -e "fetch('http://localhost:${port}/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
+        if docker run --rm --network "$net" curlimages/curl:latest \
+                -fsS "http://${name}:${port}/health" >/dev/null 2>&1; then
             return 0
         fi
         sleep 3
