@@ -999,3 +999,4 @@ The `docker-compose.yml` overrides `DB_HOST=database` and `REDIS_HOST=redis` to 
 - 003-manual-simulation-flow: Extended TimeSeriesIngestedConsumer to pass simulationId when present in payload
 - 003-manual-simulation-flow: Added ManualSimulationCacheKeys + CACHE_REGISTRY entries for manual simulation queries
 - 003-manual-simulation-flow: Added sftp-api config module (SFTP_API_URL env var)
+- 004-manual-results-station: GET /simulations/manual/:id/results returns each prediction with full station snapshot (via IStationCatalogService.listFullStations from ms-hydro-api), max/last of results, and supports stationCode/type filters
