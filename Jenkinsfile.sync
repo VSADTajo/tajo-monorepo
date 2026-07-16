@@ -1,0 +1,103 @@
+// =============================================================================
+// Jenkinsfile.sync — monorepo -> individual repos subtree sync (runs in Jenkins).
+//
+// Replaces the GitHub Action `sync-subtrees.yml`, which stopped working when the
+// org's GitHub Actions got blocked by billing. Jenkins is the orchestrator, so
+// the sync lives here now: on every push to `main` of the monorepo, split each
+// changed service subtree and force-push it to its standalone repo. That push is
+// what each service's own multibranch pipeline watches to build + deploy to GHCR.
+//
+// Driven by the `monorepo-sync` job (SCM = tajo-monorepo, branch main, this file).
+// Credentials: `github-credentials` (Classic PAT, `repo` scope) — same one the
+// service pipelines already use; it has push rights to the org repos.
+// =============================================================================
+pipeline {
+    agent any
+
+    options {
+        timeout(time: 20, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
+    environment {
+        ORG = 'VSADTajo'
+        // Services with a standalone mirror repo. Same set as the old Action.
+        // sftp-frontend and ms-logs-ui are NOT here: they travel inside
+        // ms-sftp-api/ and ms-logs-api/ respectively.
+        SERVICES = 'ms-gateway-api ms-user-api ms-authentication-api ms-sftp-api ms-logs-api ms-hydro-api ms-predictions-api ms-model-api ms-notifications-api ms-meteo-api ms-calculator-api tajo-toolkit'
+        SPLITSH_URL = 'https://github.com/splitsh/lite/releases/download/v1.0.1/lite_linux_amd64.tar.gz'
+    }
+
+    stages {
+        stage('Checkout (full history)') {
+            steps {
+                checkout scm
+                // splitsh-lite needs the full history of each prefix.
+                sh 'git fetch --unshallow 2>/dev/null || git fetch --all --tags || true'
+            }
+        }
+
+        stage('Install splitsh-lite') {
+            steps {
+                sh '''
+                    set -eu
+                    if [ ! -x /tmp/splitsh-lite ]; then
+                        curl -fsSL "$SPLITSH_URL" -o /tmp/splitsh.tar.gz
+                        tar -xzf /tmp/splitsh.tar.gz -C /tmp --no-same-owner splitsh-lite
+                        chmod +x /tmp/splitsh-lite
+                    fi
+                    /tmp/splitsh-lite --version
+                '''
+            }
+        }
+
+        stage('Detect & sync changed subtrees') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'github-credentials',
+                                  usernameVariable: 'GH_USER', passwordVariable: 'GH_TOKEN')]) {
+                    sh '''
+                        set -eu
+
+                        # Range to diff: since the last successful sync when available
+                        # (captures multi-commit pushes), else just the last commit.
+                        BASE="${GIT_PREVIOUS_SUCCESSFUL_COMMIT:-}"
+                        if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+                            BASE="HEAD~1"
+                        fi
+                        echo "Diffing ${BASE}..HEAD"
+
+                        CHANGED=""
+                        for svc in $SERVICES; do
+                            if git diff --name-only "$BASE" HEAD | grep -q "^${svc}/"; then
+                                CHANGED="$CHANGED $svc"
+                            fi
+                        done
+
+                        if [ -z "$CHANGED" ]; then
+                            echo "No changed services. Nothing to sync."
+                            exit 0
+                        fi
+                        echo "Changed services:$CHANGED"
+
+                        for svc in $CHANGED; do
+                            echo "=================== $svc ==================="
+                            SHA=$(/tmp/splitsh-lite --prefix="$svc")
+                            echo "  split SHA: $SHA"
+                            # Token is masked by withCredentials in the build log.
+                            git push "https://${GH_USER}:${GH_TOKEN}@github.com/${ORG}/${svc}.git" \
+                                "${SHA}:refs/heads/main" --force
+                            echo "  synced $svc"
+                        done
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success { echo 'Subtree sync completed.' }
+        failure { echo 'Subtree sync failed. Check the log above.' }
+        always  { deleteDir() }
+    }
+}
