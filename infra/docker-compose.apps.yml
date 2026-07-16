@@ -151,9 +151,19 @@ services:
             APP_PORT: '3003'
             DB_HOST: infra-db-sftp
             DB_DATABASE: ${DB_SFTP_DATABASE:-sftp_db}
-            SFTP_PORT: ${SFTP_PORT:-8212}
-            SFTP_FILE_STORAGE_PATH: ${SFTP_FILE_STORAGE_PATH:-/data/files}
-            SFTP_KEYS_PATH: ${SFTP_KEYS_PATH:-/data/sftp}
+            APP_URL: 0.0.0.0
+            DB_SSL: 'false'
+            X_API_KEY: ${X_API_KEY:-}
+            AUTH_API_URL: http://ms-authentication-api:3002
+            SFTP_SERVER_ENABLED: 'true'
+            SFTP_SERVER_PORT: ${SFTP_PORT:-8212}
+            SFTP_SERVER_HOST_KEY_PATH: /data/sftp/host_key
+            SFTP_SERVER_AUTO_GENERATE_HOST_KEY: 'true'
+            SFTP_SERVER_MAX_CONNECTIONS: '10'
+            SFTP_CONNECTION_TIMEOUT: '10000'
+            SFTP_OPERATION_TIMEOUT: '60000'
+            STORAGE_BASE_PATH: /data/files
+            STORAGE_MAX_FILE_SIZE: '524288000'
         ports:
             - '${SFTP_PORT:-8212}:${SFTP_PORT:-8212}'
         expose:
@@ -239,6 +249,14 @@ services:
             APP_PORT: '3006'
             DB_HOST: infra-db-hydro
             DB_DATABASE: ${DB_HYDRO_DATABASE:-hydro_db}
+            GEOSERVER_DB_HOST: infra-db-geoserver
+            GEOSERVER_DB_PORT: '5432'
+            GEOSERVER_DB_USERNAME: ${POSTGRES_USER:-postgres}
+            GEOSERVER_DB_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+            GEOSERVER_DB_DATABASE: ${DB_GEOSERVER_DATABASE:-geoserver}
+            APP_URL: 0.0.0.0
+            DB_SSL: 'false'
+            X_API_KEY: ${X_API_KEY:-}
         expose:
             - '3006'
         depends_on:
