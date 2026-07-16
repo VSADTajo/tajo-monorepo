@@ -215,8 +215,13 @@ services:
         <<: *app-defaults
         image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-logs-ui:${TAG:-latest}
         container_name: ms-logs-ui
+        # Runtime config: the entrypoint substitutes these into the built assets
+        # at start, so ONE image works on any host (see ui/docker-entrypoint.sh).
+        environment:
+            API_URL: ${PUBLIC_LOGS_API_URL:-http://localhost:3004}
+            GATEWAY_URL: ${PUBLIC_API_URL:-http://localhost:3000}
         ports:
-            - '3005:4173'
+            - '3005:80'
         depends_on:
             ms-logs-api:
                 condition: service_started
