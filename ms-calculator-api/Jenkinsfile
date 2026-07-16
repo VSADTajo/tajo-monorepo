@@ -3,15 +3,27 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'ms-calculator-api'
-        CONTAINER_PORT = '3011'
-        DEPLOY_HOST = '65.21.97.113'
-        DEPLOY_USER = 'root'
+        APP_PORT   = '3011'
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+                    env.BRANCH_NAME_SAFE = env.BRANCH_NAME?.replaceAll('/', '-') ?: 'main'
+                    env.IMAGE_TAG = "${env.BRANCH_NAME_SAFE}-${env.GIT_COMMIT_SHORT}"
+                }
             }
         }
 
@@ -20,7 +32,7 @@ pipeline {
                 sh """
                     DOCKER_BUILDKIT=1 docker build \\
                         --target dev \\
-                        -t ${IMAGE_NAME}-ci:\${BUILD_NUMBER} \\
+                        -t ${IMAGE_NAME}-ci:${IMAGE_TAG} \\
                         .
                 """
             }
@@ -28,7 +40,7 @@ pipeline {
 
         stage('Lint') {
             steps {
-                sh "docker run --rm ${IMAGE_NAME}-ci:\${BUILD_NUMBER} ruff check src tests"
+                sh "docker run --rm ${IMAGE_NAME}-ci:${IMAGE_TAG} ruff check src tests"
             }
         }
 
@@ -37,7 +49,7 @@ pipeline {
                 sh """
                     docker run --rm \\
                         -v \${WORKSPACE}:/junit \\
-                        ${IMAGE_NAME}-ci:\${BUILD_NUMBER} \\
+                        ${IMAGE_NAME}-ci:${IMAGE_TAG} \\
                         pytest -v --junitxml=/junit/junit.xml --ignore=tests/integration/test_amqp_consumer_publisher.py
                 """
             }
@@ -53,43 +65,42 @@ pipeline {
                 sh """
                     DOCKER_BUILDKIT=1 docker build \\
                         --target prod \\
-                        -t ${IMAGE_NAME}:\${BUILD_NUMBER} \\
-                        -t ${IMAGE_NAME}:latest \\
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \\
                         .
                 """
             }
         }
 
-        stage('Deploy') {
-            when {
-                branch 'main'
-            }
+        // Publish the built image to GHCR, then redeploy it in place with the
+        // live container's exact config (verbatim env, auto-rollback). Replaces
+        // the old local `docker run`. redeploy.sh detects this is a non-Node
+        // (Python) image and probes /health over the container network instead
+        // of via node. Deploy scripts live in the Jenkins home
+        // (/var/jenkins_home/deploy) — see docs/jenkins-ghcr-deploy.md.
+        stage('Publish & Deploy') {
+            when { branch 'main' }
             steps {
-                sh """
-                    docker stop ${IMAGE_NAME} || true
-                    docker rm ${IMAGE_NAME} || true
-                    docker run -d \\
-                        --name ${IMAGE_NAME} \\
-                        --restart unless-stopped \\
-                        --network infra-network \\
-                        -p ${CONTAINER_PORT}:${CONTAINER_PORT} \\
-                        -e NODE_ENV=production \\
-                        -e RABBITMQ_HOST=infra-rabbitmq \\
-                        -e RABBITMQ_PORT=5672 \\
-                        -e RABBITMQ_USER=guest \\
-                        -e RABBITMQ_PASSWORD=guest \\
-                        -e RABBITMQ_VHOST=/ \\
-                        -e APP_PORT=${CONTAINER_PORT} \\
-                        -e APP_LOG_LEVEL=info \\
-                        -e LOGS_API_URL=http://ms-logs-api:3004 \\
-                        -e X_API_KEY="\${X_API_KEY}" \\
-                        ${IMAGE_NAME}:latest
-                """
+                withCredentials([usernamePassword(credentialsId: 'ghcr',
+                                  usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
+                    sh """
+                        SERVICE=${IMAGE_NAME} \\
+                        LOCAL_IMAGE=${IMAGE_NAME}:${IMAGE_TAG} \\
+                        REGISTRY=ghcr.io/vsadtajo \\
+                        TAG=${IMAGE_TAG} \\
+                        bash /var/jenkins_home/deploy/publish-and-deploy.sh
+                    """
+                }
             }
         }
     }
 
     post {
+        success {
+            echo "Pipeline completed successfully! Deployed ${IMAGE_NAME}:${IMAGE_TAG} on port ${APP_PORT}"
+        }
+        failure {
+            echo 'Pipeline failed. Check the logs above for details.'
+        }
         always {
             deleteDir()
         }
