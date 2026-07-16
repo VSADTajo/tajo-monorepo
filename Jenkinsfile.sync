@@ -32,9 +32,14 @@ pipeline {
     stages {
         stage('Checkout (full history)') {
             steps {
-                checkout scm
-                // splitsh-lite needs the full history of each prefix.
-                sh 'git fetch --unshallow 2>/dev/null || git fetch --all --tags || true'
+                // Full clone (no shallow) — splitsh-lite needs the complete
+                // history of each prefix to compute the split.
+                checkout([
+                    $class: 'GitSCM',
+                    branches: scm.branches,
+                    userRemoteConfigs: scm.userRemoteConfigs,
+                    extensions: [[$class: 'CloneOption', shallow: false, depth: 0, noTags: false]]
+                ])
             }
         }
 
@@ -44,7 +49,8 @@ pipeline {
                     set -eu
                     if [ ! -x /tmp/splitsh-lite ]; then
                         curl -fsSL "$SPLITSH_URL" -o /tmp/splitsh.tar.gz
-                        tar -xzf /tmp/splitsh.tar.gz -C /tmp --no-same-owner splitsh-lite
+                        tar -xzf /tmp/splitsh.tar.gz -C /tmp splitsh-lite 2>/dev/null \
+                            || tar -xzf /tmp/splitsh.tar.gz -C /tmp
                         chmod +x /tmp/splitsh-lite
                     fi
                     /tmp/splitsh-lite --version
