@@ -73,6 +73,7 @@ services:
             NOTIFICATIONS_API_URL: http://ms-notifications-api:3009
             METEO_API_URL: http://ms-meteo-api:3010
             RBAC_BYPASS_ROLES: ${RBAC_BYPASS_ROLES:-admin}
+            REDIS_PERMISSION_TTL: ${REDIS_PERMISSION_TTL:-3600}
         ports:
             - '3000:3000'
         depends_on:
@@ -97,6 +98,7 @@ services:
             APP_PORT: '3001'
             DB_HOST: infra-db-user
             DB_DATABASE: ${DB_USER_DATABASE:-user_db}
+            ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
         expose:
             - '3001'
         depends_on:
@@ -283,6 +285,8 @@ services:
             APP_PORT: '3007'
             DB_HOST: infra-db-predictions
             DB_DATABASE: ${DB_PREDICTIONS_DATABASE:-predictions_db}
+            HYDRO_API_BASE_URL: http://ms-hydro-api:3006
+            STATION_THRESHOLD_CACHE_TTL: ${STATION_THRESHOLD_CACHE_TTL:-300}
         expose:
             - '3007'
         depends_on:
@@ -309,6 +313,8 @@ services:
             APP_PORT: '3008'
             DB_HOST: infra-db-model
             DB_DATABASE: ${DB_MODEL_DATABASE:-model_db}
+            SFTP_API_BASE_URL: http://ms-sftp-api:3003
+            USE_CALCULATOR_PIPELINE: ${USE_CALCULATOR_PIPELINE:-true}
         expose:
             - '3008'
         depends_on:
@@ -364,6 +370,17 @@ services:
             GEOSERVER_URL: http://geoserver:8080/geoserver
             GEOSERVER_USER: ${GEOSERVER_ADMIN_USER:-admin}
             GEOSERVER_PASSWORD: ${GEOSERVER_ADMIN_PASSWORD:-geoserver}
+            GEOSERVER_WORKSPACE: ${GEOSERVER_WORKSPACE:-Tajo}
+            AEMET_API_KEY: ${AEMET_API_KEY:-}
+            AEMET_BASE_URL: ${AEMET_BASE_URL:-https://opendata.aemet.es/opendata}
+            AEMET_DEFAULT_AREA: ${AEMET_DEFAULT_AREA:-esp}
+            METEO_BASE_PATH: ${METEO_BASE_PATH:-tajo/METEO}
+            METEO_GEOTIFF_DIR: ${METEO_GEOTIFF_DIR:-/opt/datasets/meteo}
+            METEO_SYNC_CRON: ${METEO_SYNC_CRON:-0 */3 * * *}
+            METEO_RETENTION_CRON: ${METEO_RETENTION_CRON:-0 3 * * *}
+            METEO_RETENTION_DAYS: ${METEO_RETENTION_DAYS:-7}
+            METEO_RETENTION_MODE: ${METEO_RETENTION_MODE:-today}
+            SFTP_API_INTERNAL_CALLER: ms-meteo-api
         expose:
             - '3010'
         depends_on:
