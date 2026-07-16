@@ -575,9 +575,70 @@ export class PredictionResultItemDto {
     flag: number;
 }
 
+// Threshold snapshot nested under PredictionStationDto — mirrors StationThresholdDto
+// on ms-hydro-api. All numeric fields are nullable because they come from hetero-
+// geneous SAIH sources.
+export class StationThresholdSnapshotDto {
+    @ApiProperty({ description: 'Threshold row id (UUID)', example: '4708e332-3c70-4863-a510-dd51343fcd43' })
+    id: string;
+
+    @ApiProperty({
+        description: 'Station id (UUID) — foreign key to the parent station',
+        example: '5fab2257-fbe3-447d-b05b-9ea5ff863d61',
+    })
+    stationId: string;
+
+    @ApiProperty({ description: 'Measurement parameter type', example: 'NIVEL', nullable: true })
+    parametro: string | null;
+
+    @ApiProperty({ description: 'SAIH signal code', example: 'AR01LI__01', nullable: true })
+    senal: string | null;
+
+    @ApiProperty({ description: 'Level threshold 1 (pre-alert)', nullable: true, example: null })
+    umbralNivel1: number | null;
+
+    @ApiProperty({ description: 'Flow threshold 1 (pre-alert)', nullable: true, example: null })
+    umbralCaudal1: number | null;
+
+    @ApiProperty({ description: 'Level threshold 2 (alert)', nullable: true, example: null })
+    umbralNivel2: number | null;
+
+    @ApiProperty({ description: 'Flow threshold 2 (alert)', nullable: true, example: null })
+    umbralCaudal2: number | null;
+
+    @ApiProperty({ description: 'Level threshold 3 (alarm)', nullable: true, example: null })
+    umbralNivel3: number | null;
+
+    @ApiProperty({ description: 'Flow threshold 3 (alarm)', nullable: true, example: null })
+    umbralCaudal3: number | null;
+
+    @ApiProperty({ description: 'Max wall level', nullable: true, example: null })
+    maxNivelMuro: number | null;
+
+    @ApiProperty({ description: 'Max booth level', nullable: true, example: null })
+    maxNivelCaseta: number | null;
+
+    @ApiProperty({ description: 'Volume threshold 1 (hm3)', nullable: true, example: 12 })
+    umbralVolumen1: number | null;
+
+    @ApiProperty({ description: 'Volume threshold 2 (hm3)', nullable: true, example: 20 })
+    umbralVolumen2: number | null;
+
+    @ApiProperty({ description: 'Volume threshold 3 (hm3)', nullable: true, example: 35 })
+    umbralVolumen3: number | null;
+
+    @ApiProperty({ description: 'Inflow SAIH signal code', nullable: true, example: 'FICT99' })
+    caudalEntrada: string | null;
+
+    @ApiProperty({ description: 'Outflow SAIH signal code', nullable: true, example: 'FICT98' })
+    caudalSalida: string | null;
+
+    @ApiProperty({ description: 'Reservoir capacity (hm3)', nullable: true, example: 31 })
+    capacidad: number | null;
+}
+
 // Nested station snapshot resolved from ms-hydro-api (via IStationCatalogService).
-// Shape mirrors CreateStationResponseDto on hydro-api. `threshold` is opaque here
-// (typed as unknown) because it's a pass-through of hydro-api's own DTO.
+// Shape mirrors CreateStationResponseDto on hydro-api.
 export class PredictionStationDto {
     @ApiProperty({ description: 'Station ID (UUID from hydro-api)', example: '550e8400-e29b-41d4-a716-446655440000' })
     id: string;
@@ -598,11 +659,16 @@ export class PredictionStationDto {
     subBasinId: string;
 
     @ApiProperty({
-        description: 'Station threshold snapshot from hydro-api; opaque pass-through',
+        description: [
+            'Station threshold snapshot from hydro-api. Contains SAIH thresholds for level/flow/volume',
+            '(pre-alert/alert/alarm). All numeric fields are individually nullable — a station typically',
+            'populates only the metrics that apply to it (e.g. an EMBALSE populates volume thresholds;',
+            'a river gauge populates level/flow).',
+        ].join(' '),
+        type: StationThresholdSnapshotDto,
         nullable: true,
-        additionalProperties: true,
     })
-    threshold: unknown | null;
+    threshold: StationThresholdSnapshotDto | null;
 
     @ApiProperty({ description: 'Latitude', nullable: true, example: 40.1234 })
     latitude: number | null;

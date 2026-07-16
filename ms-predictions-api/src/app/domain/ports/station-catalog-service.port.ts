@@ -4,6 +4,33 @@ export interface StationCatalogItem {
 }
 
 /**
+ * Station threshold snapshot returned by ms-hydro-api under Station.threshold.
+ * Each numeric field is individually nullable because a station usually
+ * populates only the metrics that apply to it (an EMBALSE fills volume/capacity,
+ * a river gauge fills level/flow, etc.).
+ */
+export interface StationThresholdSnapshot {
+    id: string;
+    stationId: string;
+    parametro: string | null;
+    senal: string | null;
+    umbralNivel1: number | null;
+    umbralCaudal1: number | null;
+    umbralNivel2: number | null;
+    umbralCaudal2: number | null;
+    umbralNivel3: number | null;
+    umbralCaudal3: number | null;
+    maxNivelMuro: number | null;
+    maxNivelCaseta: number | null;
+    umbralVolumen1: number | null;
+    umbralVolumen2: number | null;
+    umbralVolumen3: number | null;
+    caudalEntrada: string | null;
+    caudalSalida: string | null;
+    capacidad: number | null;
+}
+
+/**
  * Full station snapshot as returned by ms-hydro-api. Mirrors CreateStationResponseDto
  * on that service; unknown extra keys are preserved via passthrough.
  */
@@ -14,7 +41,7 @@ export interface FullStationCatalogItem {
     stationCode: string;
     stationType: string;
     subBasinId: string;
-    threshold: unknown | null;
+    threshold: StationThresholdSnapshot | null;
     latitude: number | null;
     longitude: number | null;
     altitude: number | null;

@@ -534,6 +534,67 @@ export class PredictionResultPointGwDto {
     flag: number;
 }
 
+// Threshold snapshot nested under PredictionStationGwDto — mirrors StationThresholdDto
+// on ms-hydro-api. All numeric fields are nullable because they come from heterogeneous
+// SAIH sources; a station typically populates only the metrics that apply to it
+// (e.g. an EMBALSE populates umbralVolumen* + capacidad; a river gauge populates
+// umbralNivel* / umbralCaudal*).
+export class StationThresholdSnapshotGwDto {
+    @ApiProperty({ example: '4708e332-3c70-4863-a510-dd51343fcd43', description: 'Threshold row id (UUID).' })
+    id: string;
+
+    @ApiProperty({ example: '5fab2257-fbe3-447d-b05b-9ea5ff863d61', description: 'Station id (UUID).' })
+    stationId: string;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Measurement parameter type.' })
+    parametro: string | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'SAIH signal code.' })
+    senal: string | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Level threshold 1 (pre-alert).' })
+    umbralNivel1: number | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Flow threshold 1 (pre-alert).' })
+    umbralCaudal1: number | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Level threshold 2 (alert).' })
+    umbralNivel2: number | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Flow threshold 2 (alert).' })
+    umbralCaudal2: number | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Level threshold 3 (alarm).' })
+    umbralNivel3: number | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Flow threshold 3 (alarm).' })
+    umbralCaudal3: number | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Max wall level.' })
+    maxNivelMuro: number | null;
+
+    @ApiProperty({ nullable: true, example: null, description: 'Max booth level.' })
+    maxNivelCaseta: number | null;
+
+    @ApiProperty({ nullable: true, example: 12, description: 'Volume threshold 1 (hm3).' })
+    umbralVolumen1: number | null;
+
+    @ApiProperty({ nullable: true, example: 20, description: 'Volume threshold 2 (hm3).' })
+    umbralVolumen2: number | null;
+
+    @ApiProperty({ nullable: true, example: 35, description: 'Volume threshold 3 (hm3).' })
+    umbralVolumen3: number | null;
+
+    @ApiProperty({ nullable: true, example: 'FICT99', description: 'Inflow SAIH signal code.' })
+    caudalEntrada: string | null;
+
+    @ApiProperty({ nullable: true, example: 'FICT98', description: 'Outflow SAIH signal code.' })
+    caudalSalida: string | null;
+
+    @ApiProperty({ nullable: true, example: 31, description: 'Reservoir capacity (hm3).' })
+    capacidad: number | null;
+}
+
 // Full station snapshot as returned by ms-hydro-api. Pass-through of that
 // service's CreateStationResponseDto — see ms-hydro-api swagger for canonical shape.
 export class PredictionStationGwDto {
@@ -556,11 +617,15 @@ export class PredictionStationGwDto {
     subBasinId: string;
 
     @ApiProperty({
+        type: StationThresholdSnapshotGwDto,
         nullable: true,
-        description: 'Threshold snapshot from hydro-api. Opaque pass-through.',
-        additionalProperties: true,
+        description: [
+            'Threshold snapshot from hydro-api. Contains SAIH thresholds for level/flow/volume',
+            '(pre-alert/alert/alarm). Each numeric field is individually nullable — stations populate only',
+            'the metrics that apply to them (embalse → volume+capacity; river gauge → level+flow).',
+        ].join(' '),
     })
-    threshold: unknown | null;
+    threshold: StationThresholdSnapshotGwDto | null;
 
     @ApiProperty({ nullable: true, example: 40.1234 })
     latitude: number | null;
