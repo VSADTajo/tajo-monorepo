@@ -765,9 +765,11 @@ export class SimulationResultsPredictionGwDto {
 
     @ApiProperty({
         type: [PredictionResultPointGwDto],
-        description: 'Time-series entries for this prediction, ordered ascending by date.',
+        required: false,
+        description:
+            'Time-series entries for this prediction, ordered ascending by date. Only present when the request passes `?withResults=true`. Otherwise the response conveys only `max` and `last`.',
     })
-    results: PredictionResultPointGwDto[];
+    results?: PredictionResultPointGwDto[];
 
     @ApiProperty({
         type: PredictionResultPointGwDto,

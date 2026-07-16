@@ -371,9 +371,18 @@ export class PredictionsProxyController {
         description:
             'Keep only predictions whose prediction type name matches (case-insensitive exact match, e.g. Q.NAM.forecast)',
     })
+    @ApiQuery({
+        name: 'withResults',
+        required: false,
+        type: Boolean,
+        description: [
+            'Include the full time-series `results[]` array per prediction. Default false — only station + max + last are returned',
+            '(summary mode, smaller payload). Pass `?withResults=true` to opt into the full series.',
+        ].join(' '),
+    })
     @ApiResponse({
         status: 200,
-        description: 'Example response with two predictions for the same station',
+        description: 'Example response with two predictions for the same station (with ?withResults=true)',
         schema: {
             example: {
                 simulation: {
@@ -533,8 +542,10 @@ export class PredictionsProxyController {
         const forwarded: Record<string, string> = {};
         const stationCode = req.query.stationCode;
         const type = req.query.type;
+        const withResults = req.query.withResults;
         if (typeof stationCode === 'string' && stationCode.length > 0) forwarded.stationCode = stationCode;
         if (typeof type === 'string' && type.length > 0) forwarded.type = type;
+        if (typeof withResults === 'string' && withResults.length > 0) forwarded.withResults = withResults;
 
         const result = await this.proxyService.forward({
             method: 'GET',

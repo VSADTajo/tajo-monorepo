@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
     ArrayMinSize,
     IsArray,
+    IsBoolean,
     IsDateString,
     IsEnum,
     IsIn,
@@ -562,6 +563,25 @@ export class GetSimulationResultsQueryDto {
     @IsOptional()
     @IsString()
     type?: string;
+
+    @ApiProperty({
+        description: [
+            'Include the full time-series `results[]` array on each prediction.',
+            'When omitted or false, each prediction returns only its `station`, `max` and `last` — smaller payload, useful for summary views.',
+            'When true, the full results array is included alongside max/last.',
+        ].join(' '),
+        required: false,
+        example: 'true',
+        default: false,
+    })
+    @IsOptional()
+    @Transform(({ value }) => {
+        if (value === true || value === 'true' || value === '1') return true;
+        if (value === false || value === 'false' || value === '0') return false;
+        return value;
+    })
+    @IsBoolean()
+    withResults?: boolean;
 }
 
 export class PredictionResultItemDto {
@@ -783,10 +803,12 @@ export class PredictionWithResultsDto {
     predictionEndDate: Date | null;
 
     @ApiProperty({
-        description: 'Ordered time-series entries (date ASC)',
+        description:
+            'Ordered time-series entries (date ASC). Only present when the request includes `?withResults=true`. When absent, the summary fields `max` and `last` still convey the peak and latest values of the underlying series.',
         type: [PredictionResultItemDto],
+        required: false,
     })
-    results: PredictionResultItemDto[];
+    results?: PredictionResultItemDto[];
 
     @ApiProperty({
         description:

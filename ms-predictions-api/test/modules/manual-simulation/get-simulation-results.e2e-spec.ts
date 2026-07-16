@@ -205,8 +205,8 @@ describe('Get Simulation Results (e2e)', () => {
             }),
         );
 
-        // 3. GET the results endpoint
-        const { body } = await getSimulationResults(sim.id).expect(HttpStatus.OK);
+        // 3. GET the results endpoint — request the full time series
+        const { body } = await getSimulationResults(sim.id, { withResults: 'true' }).expect(HttpStatus.OK);
 
         // Assert simulation identity
         expect(body.simulation).toBeDefined();
@@ -393,13 +393,68 @@ describe('Get Simulation Results (e2e)', () => {
             }),
         );
 
-        const { body } = await getSimulationResults(sim.id).expect(HttpStatus.OK);
+        const { body } = await getSimulationResults(sim.id, { withResults: 'true' }).expect(HttpStatus.OK);
         expect(body.predictions).toHaveLength(1);
         expect(body.predictions[0].results).toEqual([]);
         expect(body.predictions[0].max).toBeNull();
         expect(body.predictions[0].last).toBeNull();
         // AR99 is not in the mock hydro-api catalog → station is null
         expect(body.predictions[0].station).toBeNull();
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // withResults toggle
+    // ─────────────────────────────────────────────────────────────
+
+    it('should omit results[] by default and include only station + max + last (summary mode)', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId).expect(HttpStatus.OK);
+
+        expect(body.predictions.length).toBeGreaterThan(0);
+        for (const p of body.predictions) {
+            expect(p).not.toHaveProperty('results');
+            expect(p).toHaveProperty('max');
+            expect(p).toHaveProperty('last');
+            expect(p).toHaveProperty('station');
+        }
+    });
+
+    it('should include results[] when withResults=true', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId, { withResults: 'true' }).expect(HttpStatus.OK);
+
+        expect(body.predictions.length).toBeGreaterThan(0);
+        for (const p of body.predictions) {
+            expect(p).toHaveProperty('results');
+            expect(Array.isArray(p.results)).toBe(true);
+            expect(p).toHaveProperty('max');
+            expect(p).toHaveProperty('last');
+        }
+    });
+
+    it('should treat withResults=false as summary mode', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId, { withResults: 'false' }).expect(HttpStatus.OK);
+
+        for (const p of body.predictions) {
+            expect(p).not.toHaveProperty('results');
+        }
+    });
+
+    it('should still compute max/last correctly in summary mode', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        const { body } = await getSimulationResults(simId).expect(HttpStatus.OK);
+        const ar71Q = body.predictions.find(
+            (p: any) => p.stationId === 'AR71' && p.predictionTypeName === 'Q.NAM.forecast',
+        );
+        // Same seed as seedTwoStationsTwoTypes: values [10, 30, 20] → max=30, last=20
+        expect(ar71Q.max).toEqual(expect.objectContaining({ value: 30 }));
+        expect(ar71Q.last).toEqual(expect.objectContaining({ value: 20 }));
+        expect(ar71Q).not.toHaveProperty('results');
     });
 
     it('should filter predictions by stationCode (case-insensitive)', async () => {

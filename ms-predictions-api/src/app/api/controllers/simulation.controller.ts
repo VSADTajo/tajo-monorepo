@@ -351,7 +351,7 @@ export class SimulationController {
                 type: dto.type,
             });
             const result = await this.cachingQueryBus.execute<SimulationResultsResult>(query);
-            return GetSimulationResultsMapper.toResponseDto(result);
+            return GetSimulationResultsMapper.toResponseDto(result, { withResults: dto.withResults });
         } catch (error) {
             if (error instanceof EntityError) throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
             if (error instanceof ApiError) throw new HttpException(error.message, error.statusCode);

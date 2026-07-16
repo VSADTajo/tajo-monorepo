@@ -168,7 +168,11 @@ export class GetSimulationResultsMapper {
         });
     }
 
-    static toResponseDto(result: SimulationResultsResult): GetSimulationResultsResponseDto {
+    static toResponseDto(
+        result: SimulationResultsResult,
+        opts?: { withResults?: boolean },
+    ): GetSimulationResultsResponseDto {
+        const withResults = opts?.withResults === true;
         return {
             simulation: {
                 id: result.simulation.id,
@@ -192,7 +196,7 @@ export class GetSimulationResultsMapper {
                         ? results.reduce((acc, cur) => (cur.value > acc.value ? cur : acc), results[0])
                         : null;
                 const station = result.stationsByCode[p.stationId?.toLowerCase() ?? ''] ?? null;
-                return {
+                const base = {
                     id: p.id,
                     stationId: p.stationId,
                     stationName: p.stationName ?? null,
@@ -206,10 +210,12 @@ export class GetSimulationResultsMapper {
                     predictionDate: p.predictionDate ?? null,
                     predictionStartDate: p.predictionStartDate ?? null,
                     predictionEndDate: p.predictionEndDate ?? null,
-                    results,
                     max,
                     last,
                 };
+                // Only include the full results[] when explicitly requested via ?withResults=true.
+                // Default is summary mode: station + max + last only, smaller payload for list/dashboard views.
+                return withResults ? { ...base, results } : base;
             }),
         };
     }
