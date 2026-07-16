@@ -29,7 +29,6 @@ jobs:
           - ms-model-api
           - ms-notifications-api
           - ms-meteo-api
-          - vsad-tajo-frontend
           - tajo-toolkit
 
     steps:
@@ -44,7 +43,7 @@ jobs:
           cache-dependency-path: ${{ matrix.service }}/package-lock.json
 
       # Resolve which scripts exist before running anything else, so missing
-      # scripts (e.g. vsad-tajo-frontend has no `test`) skip cleanly.
+      # scripts skip cleanly.
       - name: Detect available scripts
         id: scripts
         working-directory: ${{ matrix.service }}
