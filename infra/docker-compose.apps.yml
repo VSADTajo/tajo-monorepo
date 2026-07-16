@@ -232,6 +232,8 @@ services:
         environment:
             API_URL: ${PUBLIC_LOGS_API_URL:-http://localhost:3004}
             GATEWAY_URL: ${PUBLIC_API_URL:-http://localhost:3000}
+            SCHEDULER_URL: ${PUBLIC_SCHEDULER_URL:-http://localhost:3000}
+            PREDICTIONS_URL: ${PUBLIC_PREDICTIONS_URL:-http://localhost:3000}
         ports:
             - '3005:80'
         depends_on:
@@ -255,7 +257,7 @@ services:
             GEOSERVER_DB_PORT: '5432'
             GEOSERVER_DB_USERNAME: ${POSTGRES_USER:-postgres}
             GEOSERVER_DB_PASSWORD: ${POSTGRES_PASSWORD:-secret}
-            GEOSERVER_DB_DATABASE: ${DB_GEOSERVER_DATABASE:-geoserver}
+            GEOSERVER_DB_DATABASE: ${DB_GEOSERVER_DATABASE:-geoserver_db}
             APP_URL: 0.0.0.0
             DB_SSL: 'false'
             X_API_KEY: ${X_API_KEY:-}

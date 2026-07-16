@@ -8,7 +8,9 @@ COPY ui/ ./
 # process env over .env.production, so these win — ONE image works on any host.
 # docker-entrypoint.sh swaps them for the real values at container start.
 ENV VITE_API_URL=__RUNTIME_API_URL__ \
-    VITE_URL_API_GATEWAY=__RUNTIME_URL_API_GATEWAY__
+    VITE_URL_API_GATEWAY=__RUNTIME_URL_API_GATEWAY__ \
+    VITE_SCHEDULER_API_URL=__RUNTIME_SCHEDULER_API_URL__ \
+    VITE_PREDICTIONS_API_URL=__RUNTIME_PREDICTIONS_API_URL__
 RUN npm run build
 
 # Stage de producción
