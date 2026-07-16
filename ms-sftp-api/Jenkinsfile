@@ -75,62 +75,6 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
-            steps {
-                script {
-                    sh """
-                        docker volume create sftp-storage || true
-                        docker volume create sftp-keys || true
-                        docker stop ${APP_NAME} || true
-                        docker rm ${APP_NAME} || true
-                        docker run -d \
-                            --name ${APP_NAME} \
-                            --network infra-network \
-                            --restart unless-stopped \
-                            -p ${SFTP_PORT}:${SFTP_PORT} \
-                            -v sftp-storage:/data/files \
-                            -v sftp-keys:/data/sftp \
-                            -e NODE_ENV=development \
-                            -e APP_NAME=${APP_NAME} \
-                            -e APP_URL=0.0.0.0 \
-                            -e APP_PORT=${APP_PORT} \
-                            -e APP_LOG_LEVEL=info \
-                            -e LOGS_API_URL=http://ms-logs-api:3004 \
-                            -e X_API_KEY=${X_API_KEY} \
-                            -e DB_HOST=${DB_HOST} \
-                            -e DB_PORT=5432 \
-                            -e DB_DATABASE=${DB_DATABASE} \
-                            -e DB_USERNAME=${POSTGRES_USER} \
-                            -e DB_PASSWORD=${POSTGRES_PASSWORD} \
-                            -e DB_SYNCHRONIZE=false \
-                            -e DB_SSL=false \
-                            -e DB_LOGGING=true \
-                            -e REDIS_HOST=infra-redis \
-                            -e REDIS_PORT=6379 \
-                            -e REDIS_DEFAULT_TTL=300 \
-                            -e RABBITMQ_HOST=infra-rabbitmq \
-                            -e RABBITMQ_PORT=5672 \
-                            -e RABBITMQ_USER=${RABBITMQ_USER} \
-                            -e RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD} \
-                            -e RABBITMQ_VHOST=/ \
-                            -e RABBITMQ_PREFETCH=10 \
-                            -e RABBITMQ_ENABLED=false \
-                            -e STORAGE_BASE_PATH=/data/files \
-                            -e STORAGE_MAX_FILE_SIZE=524288000 \
-                            -e SFTP_CONNECTION_TIMEOUT=10000 \
-                            -e SFTP_OPERATION_TIMEOUT=60000 \
-                            -e SFTP_SERVER_ENABLED=true \
-                            -e SFTP_SERVER_PORT=${SFTP_PORT} \
-                            -e SFTP_SERVER_HOST_KEY_PATH=/data/sftp/host_key \
-                            -e SFTP_SERVER_AUTO_GENERATE_HOST_KEY=true \
-                            -e SFTP_SERVER_MAX_CONNECTIONS=10 \
-                            -e AUTH_API_URL=http://ms-authentication-api:3002 \
-                            ${APP_NAME}:${IMAGE_TAG}
-                    """
-                }
-            }
-        }
-
         stage('Frontend - Docker Build') {
             steps {
                 script {
@@ -145,18 +89,31 @@ pipeline {
             }
         }
 
-        stage('Frontend - Deploy') {
+        // Publish both images to GHCR, then redeploy each in place with the
+        // live container's exact config (verbatim env + volumes, auto-rollback).
+        // Replaces the old local `docker run` for API and frontend. Deploy
+        // scripts live in the Jenkins home (/var/jenkins_home/deploy) — see
+        // docs/jenkins-ghcr-deploy.md.
+        stage('Publish & Deploy') {
+            when { branch 'main' }
             steps {
-                script {
+                withCredentials([usernamePassword(credentialsId: 'ghcr',
+                                  usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
+                    // API
                     sh """
-                        docker stop ${FRONTEND_NAME} || true
-                        docker rm ${FRONTEND_NAME} || true
-                        docker run -d \
-                            --name ${FRONTEND_NAME} \
-                            --network infra-network \
-                            --restart unless-stopped \
-                            -p ${FRONTEND_PORT}:80 \
-                            ${FRONTEND_NAME}:${IMAGE_TAG}
+                        SERVICE=${APP_NAME} \
+                        LOCAL_IMAGE=${APP_NAME}:${IMAGE_TAG} \
+                        REGISTRY=ghcr.io/vsadtajo \
+                        TAG=${IMAGE_TAG} \
+                        bash /var/jenkins_home/deploy/publish-and-deploy.sh
+                    """
+                    // Frontend (nginx SPA)
+                    sh """
+                        SERVICE=${FRONTEND_NAME} \
+                        LOCAL_IMAGE=${FRONTEND_NAME}:${IMAGE_TAG} \
+                        REGISTRY=ghcr.io/vsadtajo \
+                        TAG=${IMAGE_TAG} \
+                        bash /var/jenkins_home/deploy/publish-and-deploy.sh
                     """
                 }
             }

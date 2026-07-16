@@ -107,9 +107,18 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'ghcr',
                                   usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
+                    // API
                     sh """
                         SERVICE=${APP_NAME} \
                         LOCAL_IMAGE=${APP_NAME}:${IMAGE_TAG} \
+                        REGISTRY=ghcr.io/vsadtajo \
+                        TAG=${IMAGE_TAG} \
+                        bash /var/jenkins_home/deploy/publish-and-deploy.sh
+                    """
+                    // UI (nginx) — same publish + image-swap flow, own GHCR image
+                    sh """
+                        SERVICE=${UI_NAME} \
+                        LOCAL_IMAGE=${UI_NAME}:${IMAGE_TAG} \
                         REGISTRY=ghcr.io/vsadtajo \
                         TAG=${IMAGE_TAG} \
                         bash /var/jenkins_home/deploy/publish-and-deploy.sh
@@ -121,7 +130,7 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline completed successfully! Deployed ${APP_NAME}:${IMAGE_TAG} on port ${APP_PORT}"
+            echo "Pipeline completed successfully! Deployed ${APP_NAME}:${IMAGE_TAG} on port ${APP_PORT} and ${UI_NAME}:${IMAGE_TAG} on port ${UI_PORT}"
         }
         failure {
             echo 'Pipeline failed. Check the logs above for details.'
