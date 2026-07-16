@@ -138,7 +138,8 @@ services:
             <<: *nest-healthcheck
 
     # ──────────────────────────────────────────────────────────────────────
-    # SFTP (file transfer + Mapping Engine UI baked into the image)
+    # SFTP (file transfer; the Mapping Engine UI runs as the separate
+    # sftp-frontend service below)
     # ──────────────────────────────────────────────────────────────────────
     ms-sftp-api:
         <<: *app-defaults
@@ -170,6 +171,20 @@ services:
         healthcheck:
             test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3003/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
             <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # SFTP FRONTEND (Mapping Engine UI — React SPA served by nginx, own image.
+    # API URLs are baked at build time, so it needs its own GHCR image.)
+    # ──────────────────────────────────────────────────────────────────────
+    sftp-frontend:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/sftp-frontend:${TAG:-latest}
+        container_name: sftp-frontend
+        ports:
+            - '5174:80'
+        depends_on:
+            ms-sftp-api:
+                condition: service_started
 
     # ──────────────────────────────────────────────────────────────────────
     # LOGS (Express + Mongo; centralized log ingest for the platform)
@@ -332,6 +347,29 @@ services:
                 condition: service_healthy
         healthcheck:
             test: ['CMD-SHELL', 'node -e "fetch(''http://localhost:3010/health'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+            <<: *nest-healthcheck
+
+    # ──────────────────────────────────────────────────────────────────────
+    # CALCULATOR (Python/FastAPI — event-driven volume-balance calc; no DB,
+    # consumes/publishes via RabbitMQ. Python image, so the healthcheck can't
+    # use node — it probes /health with urllib instead.)
+    # ──────────────────────────────────────────────────────────────────────
+    ms-calculator-api:
+        <<: *app-defaults
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-calculator-api:${TAG:-latest}
+        container_name: ms-calculator-api
+        environment:
+            <<: *common-infra-env
+            APP_NAME: ms-calculator-api
+            APP_PORT: '3011'
+            X_API_KEY: ${X_API_KEY:?X_API_KEY is required}
+        ports:
+            - '3011:3011'
+        depends_on:
+            infra-rabbitmq:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD-SHELL', 'python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(''http://localhost:3011/health'').status==200 else 1)"']
             <<: *nest-healthcheck
 
     # ──────────────────────────────────────────────────────────────────────
