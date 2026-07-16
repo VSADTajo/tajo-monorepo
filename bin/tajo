@@ -96,9 +96,20 @@ ensure_env() {
     set -a; . "${ENV_FILE}"; set +a
 }
 
+# apps.yml references `infra-network` as external, so it must exist before the
+# stack comes up. On a fresh host (e.g. a client VM) it doesn't yet — create it
+# idempotently. On an existing host this is a harmless no-op.
+ensure_network() {
+    if ! docker network inspect infra-network >/dev/null 2>&1; then
+        log "creating docker network 'infra-network'"
+        docker network create infra-network >/dev/null
+    fi
+}
+
 # ─── commands ─────────────────────────────────────────────────────────────────
 cmd_up() {
     ensure_env
+    ensure_network
     log "starting stack (mode=${MODE})"
     if [ "${MODE}" = "prod" ]; then
         compose pull --ignore-pull-failures
