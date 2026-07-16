@@ -389,6 +389,12 @@ services:
         <<: *app-defaults
         image: ${REGISTRY:-ghcr.io/vsadtajo}/vsad-tajo-frontend:${TAG:-latest}
         container_name: vsad-tajo-frontend
+        # Runtime config: the entrypoint substitutes these into the built assets
+        # at start, so ONE image works on any host (see the frontend's
+        # docker-entrypoint.sh).
+        environment:
+            API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
+            GEOSERVER_URL: ${PUBLIC_GEOSERVER_URL:-http://localhost:8085/geoserver}
         ports:
             - '8080:80'
         depends_on:
