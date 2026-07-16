@@ -77,15 +77,29 @@ Frontends en el browser:
 
 | URL | Frontend | Portable? |
 |-----|----------|-----------|
-| http://localhost:8080 | vsad-tajo-frontend | ❌ todavía apunta a la IP de prod |
+| http://localhost:8080 | vsad-tajo-frontend | ✅ runtime config |
 | http://localhost:3005 | logs-ui | ✅ runtime config |
 | http://localhost:5174 | sftp-frontend | ✅ runtime config |
 
-## Notas
+Los tres frontends leen sus URLs en runtime (envsubst en el arranque), así que
+apuntan al gateway local con la config del `.env` — sin rebuild.
 
-- **`vsad-tajo-frontend`**: hasta hacerlo portable (vive en repo separado), su imagen
-  tiene la IP de prod horneada, así que el Vue no hablará con el gateway local. Los
-  otros dos (logs-ui, sftp-frontend) sí, gracias al runtime config.
+## Nota sobre `vsad-tajo-frontend`
+
+Su imagen GHCR portable todavía no está publicada (la migración vive en la branch
+`feature/ghcr-runtime-config` de su repo, sin mergear a main). Para incluirlo en la
+prueba, buildealo local y tagealo como lo espera el compose:
+
+```bash
+git clone -b feature/ghcr-runtime-config \
+    git@github-tajo:VSADTajo/vsad-tajo-frontend.git /tmp/vtf
+docker build --target prod -t ghcr.io/vsadtajo/vsad-tajo-frontend:${TAG:-latest} /tmp/vtf
+```
+
+Con la imagen ya presente localmente, `tajo up` la usa (el pull la ignora si ya
+existe). Los otros dos frontends salen directo de GHCR.
+
+## Notas generales
 - Bajar todo: `bin/tajo down` (con `-v` borra también los volúmenes/datos, pide
   confirmación).
 - Ver logs: `bin/tajo logs [servicio]`.
