@@ -191,7 +191,7 @@ export class GetSimulationResultsMapper {
                     results.length > 0
                         ? results.reduce((acc, cur) => (cur.value > acc.value ? cur : acc), results[0])
                         : null;
-                const station = result.stationsByCode.get(p.stationId?.toLowerCase() ?? '') ?? null;
+                const station = result.stationsByCode[p.stationId?.toLowerCase() ?? ''] ?? null;
                 return {
                     id: p.id,
                     stationId: p.stationId,

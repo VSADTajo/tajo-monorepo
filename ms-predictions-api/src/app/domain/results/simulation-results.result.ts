@@ -6,16 +6,17 @@ export class SimulationResultsResult {
     readonly simulation: Simulation;
     readonly predictions: Prediction[];
     // Snapshot of the full stations catalog indexed by lowercased stationCode.
-    // Empty map when the hydro-api catalog fetch failed — the mapper falls back to null.
-    readonly stationsByCode: Map<string, FullStationCatalogItem>;
+    // Plain Record (not Map) so it survives JSON roundtrip through Redis cache.
+    // Empty when the hydro-api catalog fetch failed — mapper falls back to null.
+    readonly stationsByCode: Record<string, FullStationCatalogItem>;
 
     constructor(params: {
         simulation: Simulation;
         predictions: Prediction[];
-        stationsByCode?: Map<string, FullStationCatalogItem>;
+        stationsByCode?: Record<string, FullStationCatalogItem>;
     }) {
         this.simulation = params.simulation;
         this.predictions = params.predictions;
-        this.stationsByCode = params.stationsByCode ?? new Map();
+        this.stationsByCode = params.stationsByCode ?? {};
     }
 }

@@ -204,7 +204,10 @@ export class GetSimulationResultsHandler implements IQueryHandler<GetSimulationR
             this.stationCatalog.listFullStations(),
         ]);
 
-        const stationsByCode = new Map(stations.map((s) => [s.stationCode.toLowerCase(), s]));
+        // Record (plain object) rather than Map so the value survives JSON serialization
+        // through the CachingQueryBus / Redis roundtrip.
+        const stationsByCode: Record<string, (typeof stations)[number]> = {};
+        for (const s of stations) stationsByCode[s.stationCode.toLowerCase()] = s;
 
         this.logger.debug({
             event: 'query.simulation-results.executed',
@@ -213,7 +216,7 @@ export class GetSimulationResultsHandler implements IQueryHandler<GetSimulationR
             typeName: query.typeName ?? null,
             predictionsCount: predictions.length,
             totalResults: predictions.reduce((sum, p) => sum + (p.results?.length ?? 0), 0),
-            stationsCatalogSize: stationsByCode.size,
+            stationsCatalogSize: Object.keys(stationsByCode).length,
         });
 
         return new SimulationResultsResult({ simulation, predictions, stationsByCode });

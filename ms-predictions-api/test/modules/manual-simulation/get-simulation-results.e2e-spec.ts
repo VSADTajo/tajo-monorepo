@@ -445,4 +445,32 @@ describe('Get Simulation Results (e2e)', () => {
         const simId = await seedTwoStationsTwoTypes();
         await getSimulationResults(simId, { unknownParam: 'anything' }).expect(HttpStatus.BAD_REQUEST);
     });
+
+    // Regression: the stationsByCode index on SimulationResultsResult must survive
+    // Redis's JSON stringify/parse roundtrip. A Map<> value silently becomes {} on
+    // JSON.stringify, so if the mapper does `.get()` on the cached result the cache
+    // HIT path throws 500 in production. This test simulates the roundtrip.
+    it('should return 200 on cache HIT (result survives JSON roundtrip)', async () => {
+        const simId = await seedTwoStationsTwoTypes();
+
+        // 1. Warm the mock: capture what the handler would have cached on MISS
+        let captured: unknown = null;
+        mockCacheService.set.mockImplementationOnce(async (_key: string, value: unknown) => {
+            captured = value;
+        });
+        await getSimulationResults(simId).expect(HttpStatus.OK);
+        expect(captured).not.toBeNull();
+
+        // 2. Simulate Redis roundtrip: what comes back from cache is the JSON-parsed value
+        const roundtripped = JSON.parse(JSON.stringify(captured));
+        mockCacheService.get.mockResolvedValueOnce(roundtripped);
+
+        // 3. Second call must succeed and preserve station enrichment through the mapper
+        const { body } = await getSimulationResults(simId).expect(HttpStatus.OK);
+        expect(body.predictions.length).toBeGreaterThan(0);
+        const ar71 = body.predictions.find((p: any) => p.stationId === 'AR71');
+        expect(ar71).toBeDefined();
+        expect(ar71.station).not.toBeNull();
+        expect(ar71.station.stationCode).toBe('AR71');
+    });
 });
