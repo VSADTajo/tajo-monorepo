@@ -180,6 +180,11 @@ services:
         <<: *app-defaults
         image: ${REGISTRY:-ghcr.io/vsadtajo}/sftp-frontend:${TAG:-latest}
         container_name: sftp-frontend
+        # Runtime config: the image ships with a URL placeholder; the entrypoint
+        # substitutes AUTH_API_URL into the built assets at start, so ONE image
+        # works on any host. Points at the public gateway URL from the .env.
+        environment:
+            AUTH_API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
         ports:
             - '5174:80'
         depends_on:

@@ -78,10 +78,13 @@ pipeline {
         stage('Frontend - Docker Build') {
             steps {
                 script {
+                    // No --build-arg for the URL: the image bakes a runtime
+                    // placeholder (see frontend Dockerfile + docker-entrypoint.sh)
+                    // so one image works on any host. The real URL is injected
+                    // at container start via AUTH_API_URL.
                     sh """
                         docker build \
                             --target prod \
-                            --build-arg VITE_AUTH_API_URL=http://65.21.97.113 \
                             -t ${FRONTEND_NAME}:${IMAGE_TAG} \
                             ./frontend
                     """
