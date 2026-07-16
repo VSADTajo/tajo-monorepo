@@ -112,7 +112,9 @@ cmd_up() {
     ensure_network
     log "starting stack (mode=${MODE})"
     if [ "${MODE}" = "prod" ]; then
-        compose pull --ignore-pull-failures
+        # Don't let a pull miss abort the whole up (set -e): a locally tagged or
+        # pinned image may not be in the registry. Fall back to local copies.
+        compose pull --ignore-pull-failures || warn "some images were not pulled; using local copies if present"
     fi
     compose up -d --remove-orphans "$@"
     ok "stack is up — run 'tajo status' to see health"
