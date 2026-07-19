@@ -28,10 +28,34 @@ TAG="${TAG:-latest}"
 # health gate below adapts to non-Node runtimes.
 ALL_SERVICES="ms-gateway-api ms-user-api ms-authentication-api ms-sftp-api sftp-frontend ms-logs-api ms-logs-ui ms-hydro-api ms-predictions-api ms-model-api ms-notifications-api ms-meteo-api ms-calculator-api vsad-tajo-frontend"
 
+# Named-volume policy per (service, destination). runlike emits volumes as
+# "--volume /dest" without the source name, which docker interprets as an
+# anonymous volume — data at that path is lost on every recreate. Rewrite the
+# runlike output so each recreate preserves the named volume actually holding
+# the data.
+# Format: one "svc|dest|named" tuple per line.
+NAMED_VOLUMES='
+ms-sftp-api|/data/files|sftp-storage
+ms-sftp-api|/data/sftp|sftp-keys
+ms-logs-api|/app/dist/files_results|ms-logs-api-files
+'
+
 REQUEST="${1:-all}"
 if [ "$REQUEST" = "all" ]; then SERVICES="$ALL_SERVICES"; else SERVICES="$REQUEST"; fi
 
 runlike() { docker run --rm -v /var/run/docker.sock:/var/run/docker.sock assaflavie/runlike "$@"; }
+
+# Rewrite "--volume /dest" -> "--volume <named>:/dest" in $cmd for every
+# destination listed in NAMED_VOLUMES for $svc.
+apply_named_volumes() {
+    local svc="$1" cmd="$2" rsvc dest named
+    while IFS='|' read -r rsvc dest named; do
+        [ -z "$rsvc" ] && continue
+        [ "$rsvc" != "$svc" ] && continue
+        cmd=$(printf '%s' "$cmd" | sed -E "s|(--volume )${dest}([[:space:]])|\1${named}:${dest}\2|g")
+    done <<<"$NAMED_VOLUMES"
+    printf '%s' "$cmd"
+}
 
 # Health gate. The probe adapts to the container runtime so it works for Node,
 # Python (FastAPI) and nginx images alike:
@@ -97,6 +121,7 @@ for svc in $SERVICES; do
     if [ -z "$cmd" ]; then
         echo "  ✗ falló runlike"; FAILED="$FAILED $svc"; continue
     fi
+    cmd=$(apply_named_volumes "$svc" "$cmd")
 
     if [ "${DRY_RUN:-0}" = "1" ]; then
         echo "  ✓ [dry-run] imagen pulleable + config reconstruida ($(printf '%s\n' "$cmd" | grep -c . ) líneas) — no se recrea nada"
