@@ -58,10 +58,12 @@ services:
 
     ms-logs-ui:
         build:
-            context: ../ms-logs-api/ui
+            context: ../ms-logs-api
+            dockerfile: ui/Dockerfile
             args:
                 VITE_API_URL: http://localhost:3004
         # UI is built static — no hot-reload override.
+        # Context is ms-logs-api (not ui/) because the Dockerfile COPYs use ui/ paths.
 
     sftp-frontend:
         build:
