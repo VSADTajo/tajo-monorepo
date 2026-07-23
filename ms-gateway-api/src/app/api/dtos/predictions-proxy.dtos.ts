@@ -3,11 +3,13 @@ import {
     IsArray,
     IsDateString,
     IsIn,
+    IsInt,
     IsNotEmpty,
     IsNumber,
     IsOptional,
     IsString,
     IsUUID,
+    Matches,
     Min,
     MaxLength,
     ValidateNested,
@@ -283,6 +285,29 @@ export class CreatePredictionTypeResponseDto {
 // Manual Simulation
 // ─────────────────────────────────────────────────────────────
 
+export class ManeuverSeriesPointDto {
+    @ApiProperty({ description: 'Event date (YYYY-MM-DD)', example: '2026-07-22' })
+    @IsNotEmpty()
+    @IsString()
+    @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'series date must be YYYY-MM-DD' })
+    date: string;
+
+    @ApiProperty({ description: 'Event time (HH:MM:SS)', example: '00:15:00' })
+    @IsNotEmpty()
+    @IsString()
+    @Matches(/^\d{2}:\d{2}:\d{2}$/, { message: 'series time must be HH:MM:SS' })
+    time: string;
+
+    @ApiProperty({ description: 'Output flow value in m³/s', example: 20.011 })
+    @IsNumber()
+    value: number;
+
+    @ApiProperty({ description: 'FEWS quality flag', required: false, default: 0, example: 0 })
+    @IsOptional()
+    @IsInt()
+    flag?: number;
+}
+
 export class ManeuverInputDto {
     @ApiProperty({ description: 'Reservoir SAIH code', example: 'E001' })
     @IsNotEmpty()
@@ -311,6 +336,20 @@ export class ManeuverInputDto {
     @IsOptional()
     @IsDateString()
     endDate?: string;
+
+    @ApiProperty({
+        description:
+            'Optional full 15-minute series modified in the visor (CURVE mode). When provided it is ' +
+            'forwarded as the station events (passthrough) and takes precedence over `outputFlowValue`. ' +
+            'When omitted (FLAT mode), the backend fills a 15-minute grid with the constant `outputFlowValue`.',
+        type: [ManeuverSeriesPointDto],
+        required: false,
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ManeuverSeriesPointDto)
+    series?: ManeuverSeriesPointDto[];
 }
 
 export class CreateManualSimulationRequestDto {
