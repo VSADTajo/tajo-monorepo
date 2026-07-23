@@ -27,6 +27,7 @@ import { PredictionResult } from '../../../src/app/domain/entities/prediction-re
 import { ISimulationRepository } from '../../../src/app/domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '../../../src/app/domain/ports/maneuver-repository.port';
 import { IPredictionRepository } from '../../../src/app/domain/ports/prediction-repository.port';
+import { IStationCatalogService } from '../../../src/app/domain/ports/station-catalog-service.port';
 import { IPredictionResultRepository } from '../../../src/app/domain/ports/prediction-result-repository.port';
 import { IPredictionTypeRepository } from '../../../src/app/domain/ports/prediction-type-repository.port';
 import { ICacheService } from '../../../src/app/domain/ports/cache-service.port';
@@ -148,6 +149,10 @@ describe('SimulationManualBalanceComputedConsumer (e2e)', () => {
                 { provide: ISimulationRepository, useClass: SimulationRepository },
                 { provide: IManeuverRepository, useClass: ManeuverRepository },
                 { provide: IPredictionRepository, useClass: PredictionRepository },
+                {
+                    provide: IStationCatalogService,
+                    useValue: { listStations: async () => [], listFullStations: async () => [] },
+                },
                 { provide: IPredictionResultRepository, useClass: PredictionResultRepository },
                 { provide: IPredictionTypeRepository, useClass: PredictionTypeRepository },
                 { provide: ITransactionManagerService, useClass: TransactionManagerService },

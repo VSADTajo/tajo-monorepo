@@ -12,6 +12,7 @@ import {
     IsOptional,
     IsString,
     IsUUID,
+    Matches,
     Max,
     MaxLength,
     Min,
@@ -322,6 +323,29 @@ export enum ModmeteoChoice {
     BOTH = 'BOTH',
 }
 
+export class ManeuverSeriesPointDto {
+    @ApiProperty({ description: 'Event date (YYYY-MM-DD)', example: '2026-07-22' })
+    @IsNotEmpty()
+    @IsString()
+    @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'series date must be YYYY-MM-DD' })
+    date: string;
+
+    @ApiProperty({ description: 'Event time (HH:MM:SS)', example: '00:15:00' })
+    @IsNotEmpty()
+    @IsString()
+    @Matches(/^\d{2}:\d{2}:\d{2}$/, { message: 'series time must be HH:MM:SS' })
+    time: string;
+
+    @ApiProperty({ description: 'Output flow value in m³/s', example: 20.011 })
+    @IsNumber()
+    value: number;
+
+    @ApiProperty({ description: 'FEWS quality flag', required: false, default: 0, example: 0 })
+    @IsOptional()
+    @IsInt()
+    flag?: number;
+}
+
 export class ManeuverInputDto {
     @ApiProperty({ description: 'Reservoir SAIH code', example: 'E001' })
     @IsNotEmpty()
@@ -350,6 +374,21 @@ export class ManeuverInputDto {
     @IsOptional()
     @IsDateString()
     endDate?: string;
+
+    @ApiProperty({
+        description:
+            'Optional full 15-minute series modified in the visor (CURVE mode). ' +
+            'When provided, it is written verbatim as the station events (passthrough, FEWS shape) ' +
+            'and takes precedence over `outputFlowValue`. When omitted (FLAT mode), a complete ' +
+            '15-minute grid is generated with the constant `outputFlowValue` over the modified window.',
+        type: [ManeuverSeriesPointDto],
+        required: false,
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ManeuverSeriesPointDto)
+    series?: ManeuverSeriesPointDto[];
 }
 
 export class CreateManualSimulationRequestDto {
@@ -366,8 +405,9 @@ export class CreateManualSimulationRequestDto {
 
     @ApiProperty({
         description:
-            'Meteorological forcing to use when building the SFTP input file. ' +
-            'HARMONIE → Q.NAM.harmonie, EPS → Q.NAM.ens, BOTH → both files (tagus_harmonie_Q_*.json and tagus_eps_Q_*.json).',
+            'Meteorological forcing recorded on the simulation and published in the dispatch event. ' +
+            'It no longer splits the SFTP input file: a single Q_mod_input_<firstStep>.json is always generated ' +
+            'with the modified station series, regardless of this value.',
         enum: ModmeteoChoice,
         example: ModmeteoChoice.BOTH,
     })

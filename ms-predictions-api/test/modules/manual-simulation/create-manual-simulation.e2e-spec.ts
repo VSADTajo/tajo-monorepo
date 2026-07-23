@@ -13,6 +13,7 @@ import { PredictionResult } from '../../../src/app/domain/entities/prediction-re
 import { ISimulationRepository } from '../../../src/app/domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '../../../src/app/domain/ports/maneuver-repository.port';
 import { IPredictionRepository } from '../../../src/app/domain/ports/prediction-repository.port';
+import { IStationCatalogService } from '../../../src/app/domain/ports/station-catalog-service.port';
 import { ICacheService } from '../../../src/app/domain/ports/cache-service.port';
 import { IMessageBroker } from '../../../src/app/domain/ports/message-broker.port';
 import { ISimulationSftpService } from '../../../src/app/domain/ports/simulation-sftp.port';
@@ -57,6 +58,12 @@ describe('Create Manual Simulation (e2e)', () => {
         delByPattern: jest.fn().mockResolvedValue(undefined),
     };
 
+    // The station catalog is an HTTP call to ms-hydro-api → mocked (no external calls in tests).
+    const mockStationCatalogService = {
+        listStations: jest.fn().mockResolvedValue([]),
+        listFullStations: jest.fn().mockResolvedValue([]),
+    };
+
     beforeAll(async () => {
         const ctx: TestContext = await createTestApp({
             entities: [Simulation, Maneuver, Prediction, PredictionType, PredictionResult],
@@ -69,6 +76,7 @@ describe('Create Manual Simulation (e2e)', () => {
                 { provide: ISimulationRepository, useClass: SimulationRepository },
                 { provide: IManeuverRepository, useClass: ManeuverRepository },
                 { provide: IPredictionRepository, useClass: PredictionRepository },
+                { provide: IStationCatalogService, useValue: mockStationCatalogService },
                 { provide: ISimulationSftpService, useValue: mockSftpService },
                 { provide: IMessageBroker, useValue: mockMessageBroker },
                 { provide: ICacheService, useValue: mockCacheService },
@@ -154,7 +162,7 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(codes).toContain('E200');
         });
 
-        it('should call SFTP service to upload input file', async () => {
+        it('should call SFTP service to upload a single input file named by the first time step', async () => {
             const maneuverIds = await createManeuvers(1);
             const dto = buildCreateManualSimulationDto({ maneuverIds, modmeteo: 'HARMONIE' });
 
@@ -163,8 +171,15 @@ describe('Create Manual Simulation (e2e)', () => {
             expect(mockSftpService.uploadInputFile).toHaveBeenCalledTimes(1);
             const [simulationId, fileName, content] = mockSftpService.uploadInputFile.mock.calls[0];
             expect(typeof simulationId).toBe('string');
-            expect(fileName).toMatch(/^tagus_harmonie_Q_\d{12}\.json$/);
+            expect(fileName).toMatch(/^Q_mod_input_\d{12}\.json$/);
             expect(content).toBeInstanceOf(Buffer);
+
+            // The single file carries the modified series with the import-critical header fields.
+            const parsed = JSON.parse((content as Buffer).toString('utf-8'));
+            expect(parsed.version).toBe('1.34');
+            expect(parsed.timeSeries).toHaveLength(1);
+            expect(parsed.timeSeries[0].header.parameterId).toBe('Q.salida.forecast');
+            expect(typeof parsed.timeSeries[0].header.locationId).toBe('string');
         });
 
         it('should pre-create the output folder on the SFTP for the simulation', async () => {
@@ -184,20 +199,62 @@ describe('Create Manual Simulation (e2e)', () => {
             await createManualSimulation(dto).expect(HttpStatus.CREATED);
         });
 
-        it('should call SFTP service once per modmeteo when BOTH is requested', async () => {
+        it('should upload a single file regardless of modmeteo (BOTH no longer splits the file)', async () => {
             const maneuverIds = await createManeuvers(1);
             const dto = buildCreateManualSimulationDto({ maneuverIds, modmeteo: 'BOTH' });
 
             await createManualSimulation(dto).expect(HttpStatus.CREATED);
 
-            expect(mockSftpService.uploadInputFile).toHaveBeenCalledTimes(2);
-            const tags = mockSftpService.uploadInputFile.mock.calls.map((call) => call[1]);
-            expect(tags).toEqual(
-                expect.arrayContaining([
-                    expect.stringMatching(/^tagus_harmonie_Q_\d{12}\.json$/),
-                    expect.stringMatching(/^tagus_eps_Q_\d{12}\.json$/),
-                ]),
-            );
+            expect(mockSftpService.uploadInputFile).toHaveBeenCalledTimes(1);
+            expect(mockSftpService.uploadInputFile.mock.calls[0][1]).toMatch(/^Q_mod_input_\d{12}\.json$/);
+        });
+
+        it('should emit one timeSeries per modified station in the same file', async () => {
+            const maneuverIds = await createManeuvers(3); // E100, E101, E102
+            const dto = buildCreateManualSimulationDto({ maneuverIds });
+
+            await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            expect(mockSftpService.uploadInputFile).toHaveBeenCalledTimes(1);
+            const content = mockSftpService.uploadInputFile.mock.calls[0][2] as Buffer;
+            const parsed = JSON.parse(content.toString('utf-8'));
+            expect(parsed.timeSeries).toHaveLength(3);
+            const locationIds = parsed.timeSeries
+                .map((s: { header: { locationId: string } }) => s.header.locationId)
+                .sort();
+            expect(locationIds).toEqual(['E100', 'E101', 'E102']);
+            for (const s of parsed.timeSeries) {
+                expect(s.header.parameterId).toBe('Q.salida.forecast');
+            }
+        });
+
+        it('should write a provided curve verbatim (CURVE mode) instead of a flat fill', async () => {
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: undefined,
+                maneuvers: [
+                    {
+                        reservoirCode: 'E_09',
+                        outputFlowValue: 20,
+                        series: [
+                            { date: '2026-07-22', time: '00:00:00', value: 20.004, flag: 0 },
+                            { date: '2026-07-22', time: '00:15:00', value: 20.011, flag: 0 },
+                            { date: '2026-07-22', time: '00:30:00', value: 20.02, flag: 0 },
+                        ],
+                    },
+                ],
+            });
+
+            await createManualSimulation(dto).expect(HttpStatus.CREATED);
+
+            const content = mockSftpService.uploadInputFile.mock.calls[0][2] as Buffer;
+            const parsed = JSON.parse(content.toString('utf-8'));
+            expect(parsed.timeSeries[0].events).toHaveLength(3);
+            expect(parsed.timeSeries[0].events[0]).toEqual({
+                date: '2026-07-22',
+                time: '00:00:00',
+                value: '20.004',
+                flag: '0',
+            });
         });
 
         it('should publish simulation.manual.dispatched event', async () => {
@@ -253,6 +310,24 @@ describe('Create Manual Simulation (e2e)', () => {
             });
 
             await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
+        });
+
+        it('should return 400 (not 500) when a curve series has an unparseable timestamp', async () => {
+            const dto = buildCreateManualSimulationDto({
+                maneuverIds: undefined,
+                maneuvers: [
+                    {
+                        reservoirCode: 'E_09',
+                        outputFlowValue: 20,
+                        // passes the DTO format regex but is not a real date/time → must be rejected
+                        // by the handler BEFORE persisting (no 500, no orphaned simulation).
+                        series: [{ date: '2026-13-45', time: '99:99:99', value: 20 }],
+                    },
+                ],
+            });
+
+            await createManualSimulation(dto).expect(HttpStatus.BAD_REQUEST);
+            expect(mockSftpService.uploadInputFile).not.toHaveBeenCalled();
         });
 
         it('should return 400 (not 500) when a maneuverId is not a valid UUID', async () => {

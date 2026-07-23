@@ -35,6 +35,7 @@ import { PredictionResult } from '../../../src/app/domain/entities/prediction-re
 import { ISimulationRepository } from '../../../src/app/domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '../../../src/app/domain/ports/maneuver-repository.port';
 import { IPredictionRepository } from '../../../src/app/domain/ports/prediction-repository.port';
+import { IStationCatalogService } from '../../../src/app/domain/ports/station-catalog-service.port';
 import { ICacheService } from '../../../src/app/domain/ports/cache-service.port';
 import { IMessageBroker } from '../../../src/app/domain/ports/message-broker.port';
 import { ISimulationSftpService } from '../../../src/app/domain/ports/simulation-sftp.port';
@@ -105,6 +106,10 @@ describe('Cache invalidation on simulation status change — REAL Redis (regress
                 { provide: ISimulationRepository, useClass: SimulationRepository },
                 { provide: IManeuverRepository, useClass: ManeuverRepository },
                 { provide: IPredictionRepository, useClass: PredictionRepository },
+                {
+                    provide: IStationCatalogService,
+                    useValue: { listStations: async () => [], listFullStations: async () => [] },
+                },
                 { provide: ISimulationSftpService, useValue: mockSftpService },
                 { provide: IMessageBroker, useValue: mockMessageBroker },
                 // REAL cache backed by the Redis container (not the no-op mock).

@@ -1,8 +1,21 @@
+export interface ManeuverSeriesPointShape {
+    date: string;
+    time: string;
+    value: number;
+    flag?: number;
+}
+
 export interface CreateManualSimulationDtoShape {
     description?: string;
     modmeteo: 'HARMONIE' | 'EPS' | 'BOTH';
     maneuverIds?: string[];
-    maneuvers?: { reservoirCode: string; outputFlowValue: number; startDate?: string; endDate?: string }[];
+    maneuvers?: {
+        reservoirCode: string;
+        outputFlowValue: number;
+        startDate?: string;
+        endDate?: string;
+        series?: ManeuverSeriesPointShape[];
+    }[];
 }
 
 export function buildCreateManualSimulationDto(
