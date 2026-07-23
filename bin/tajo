@@ -231,6 +231,98 @@ cmd_restore() {
     ok "restore complete — run 'tajo up' to start"
 }
 
+# ─── create-admin ─────────────────────────────────────────────────────────────
+# HTTP helper — runs curl inside a throwaway container ON the compose network so
+# it can reach the internal-only services (ms-*-api are `expose`d, not published)
+# by name. Sends the x-internal-caller header that BOTH auth-api and user-api
+# require (their ClientWhitelistMiddleware allows ms-gateway-api). Echoes the
+# response body followed by a final line holding the HTTP status code, so the
+# caller gets both from a single command substitution (a global would be lost in
+# the `$(...)` subshell).
+_api() {
+    # _api METHOD URL [JSON_BODY]   ->   <body>\n<http_status>
+    local method="$1" url="$2" body="${3:-}"
+    local curl_args=(-sS -m 30 -w '\n%{http_code}' -X "${method}" "${url}"
+        -H 'content-type: application/json' -H 'x-internal-caller: ms-gateway-api')
+    [ -n "${body}" ] && curl_args+=(--data "${body}")
+    docker run --rm --network infra-network curlimages/curl:latest "${curl_args[@]}" 2>/dev/null
+}
+_http_status() { printf '%s' "$1" | tail -n1; }
+_http_body() { printf '%s' "$1" | sed '$d'; }
+
+# Extract the first string value for a JSON key from stdin (no jq dependency).
+_json() {
+    sed -n 's/.*"'"$1"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1
+}
+
+# Bootstrap the FIRST platform admin. Runs once: refuses if an admin role already
+# exists (the `admin` role — RBAC_BYPASS_ROLES — bypasses all permission checks).
+# Talks DIRECTLY to auth-api (/register) and user-api (roles/assign), both gated
+# by the x-internal-caller whitelist, bypassing the gateway's RBAC — the only way
+# to seed the very first admin when none exists yet.
+cmd_create_admin() {
+    [ $# -ge 2 ] || die "usage: tajo create-admin <email> <password> [name]"
+    ensure_env
+    local email="$1" password="$2" name="${3:-Administrator}"
+
+    case "${email}" in *@*.*) ;; *) die "invalid email: ${email}" ;; esac
+    [ "${#password}" -ge 8 ] || die "password must be at least 8 characters"
+
+    # The bypass role name comes from RBAC_BYPASS_ROLES (first entry, default 'admin').
+    local admin_role="${RBAC_BYPASS_ROLES%%,*}"; admin_role="${admin_role:-admin}"
+    local auth="http://ms-authentication-api:3002"
+    local userapi="http://ms-user-api:3001"
+    local resp status body userId roleId
+
+    docker network inspect infra-network >/dev/null 2>&1 || die "network 'infra-network' not found — is the stack up? run 'tajo up'"
+
+    resp="$(_api GET "${userapi}/health")"
+    [ "$(_http_status "${resp}")" = "200" ] || die "ms-user-api is not reachable — run 'tajo up' and wait until it is healthy"
+
+    # 1. Lock: refuse if an admin role already exists (create-admin is once-only).
+    log "checking for an existing '${admin_role}' role"
+    resp="$(_api GET "${userapi}/roles")"
+    status="$(_http_status "${resp}")"; body="$(_http_body "${resp}")"
+    [ "${status}" = "200" ] || die "could not list roles (HTTP ${status}): ${body}"
+    if printf '%s' "${body}" | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${admin_role}\""; then
+        die "an '${admin_role}' role already exists — create-admin only runs on a fresh install (nothing was changed)"
+    fi
+
+    # 2. Register the user (auth-api hashes the password and forwards to user-api).
+    log "registering user ${email}"
+    resp="$(_api POST "${auth}/auth/register" "{\"name\":\"${name}\",\"email\":\"${email}\",\"password\":\"${password}\"}")"
+    status="$(_http_status "${resp}")"; body="$(_http_body "${resp}")"
+    if [ "${status}" = "201" ]; then
+        userId="$(printf '%s' "${body}" | _json userId)"
+    elif [ "${status}" = "409" ]; then
+        warn "user already exists — reusing it"
+        userId="$(_http_body "$(_api GET "${userapi}/users/by-email/${email}")" | _json id)"
+    else
+        die "register failed (HTTP ${status}): ${body}"
+    fi
+    [ -n "${userId}" ] || die "could not determine the user id"
+
+    # 3. Create the admin role.
+    log "creating '${admin_role}' role"
+    resp="$(_api POST "${userapi}/roles" "{\"name\":\"${admin_role}\",\"description\":\"Platform administrator (full access)\"}")"
+    status="$(_http_status "${resp}")"; body="$(_http_body "${resp}")"
+    [ "${status}" = "201" ] || die "create role failed (HTTP ${status}): ${body}"
+    roleId="$(printf '%s' "${body}" | _json id)"
+    [ -n "${roleId}" ] || die "could not determine the role id"
+
+    # 4. Assign the admin role to the user.
+    log "assigning '${admin_role}' to ${email}"
+    resp="$(_api POST "${userapi}/users/${userId}/roles" "{\"roleId\":\"${roleId}\"}")"
+    status="$(_http_status "${resp}")"; body="$(_http_body "${resp}")"
+    case "${status}" in
+        200 | 201) ;;
+        *) die "assign role failed (HTTP ${status}): ${body}" ;;
+    esac
+
+    ok "admin created: ${email}"
+    ok "log in at your platform URL (e.g. http://<host>:8080) with that email + password"
+}
+
 cmd_help() {
     cat <<EOF
 tajo — unified CLI for the VSAD Tajo platform
@@ -254,6 +346,7 @@ Commands:
     psql <service>                    Open psql against the service's database
     backup                            Tar all data volumes to backups/<timestamp>/
     restore <backup-dir>              Restore data volumes from a backup directory
+    create-admin <email> <pass> [name]  Create the FIRST platform admin (runs once)
     help                              This message
 
 Environment overrides:
@@ -266,6 +359,7 @@ Examples:
     tajo up --dev                     Build from source + bring up with hot-reload
     tajo migrate ms-user-api          Run pending migrations for ms-user-api
     tajo psql ms-predictions-api      Open psql into the predictions DB
+    tajo create-admin me@acme.com S3cret42 "Jane Doe"   Seed the first admin
     TAG=v1.2.3 tajo up                Deploy a specific version
 EOF
 }
@@ -298,6 +392,7 @@ case "${cmd}" in
     psql)     cmd_psql "$@" ;;
     backup)   cmd_backup "$@" ;;
     restore)  cmd_restore "$@" ;;
+    create-admin) cmd_create_admin "$@" ;;
     help|-h|--help) cmd_help ;;
     *) die "unknown command: ${cmd} (run 'tajo help')" ;;
 esac
