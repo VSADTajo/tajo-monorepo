@@ -12,10 +12,14 @@ set -eu
 
 ASSETS=/usr/share/nginx/html
 
-: "${API_URL:?API_URL is required (set it in infra/.env)}"
-: "${GATEWAY_URL:?GATEWAY_URL is required (set it in infra/.env)}"
-: "${SCHEDULER_URL:?SCHEDULER_URL is required (set it in infra/.env)}"
-: "${PREDICTIONS_URL:?PREDICTIONS_URL is required (set it in infra/.env)}"
+# Use the runtime env when provided; otherwise fall back to a localhost default instead of
+# aborting, so a missing var never crash-loops the container. The effective URLs are logged
+# below, so a fallback (localhost) is visible to whoever inspects the container logs.
+: "${API_URL:=http://localhost:3004}"
+: "${GATEWAY_URL:=http://localhost:3000}"
+: "${SCHEDULER_URL:=http://localhost:3000}"
+: "${PREDICTIONS_URL:=http://localhost:3000}"
+echo "runtime-config: API_URL=$API_URL GATEWAY_URL=$GATEWAY_URL SCHEDULER_URL=$SCHEDULER_URL PREDICTIONS_URL=$PREDICTIONS_URL"
 
 # `|` delimiter so URLs with `/` don't need escaping. Longer placeholders first
 # so no placeholder is a prefix of another during substitution.

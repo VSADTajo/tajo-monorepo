@@ -12,8 +12,10 @@ set -eu
 
 ASSETS=/usr/share/nginx/html
 
-# placeholder -> required env var
-: "${AUTH_API_URL:?AUTH_API_URL is required (set it in infra/.env)}"
+# Use the runtime env when provided; otherwise fall back to a localhost default instead of
+# aborting, so a missing var never crash-loops the container (worst case: a visible localhost URL).
+: "${AUTH_API_URL:=http://localhost:3000}"
+echo "runtime-config: AUTH_API_URL=$AUTH_API_URL"
 
 # `|` delimiter so URLs with `/` don't need escaping.
 find "$ASSETS" -type f \( -name '*.js' -o -name '*.html' \) -exec \
