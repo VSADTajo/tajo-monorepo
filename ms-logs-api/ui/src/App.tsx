@@ -14,6 +14,7 @@ import Dashboard from './components/dashboard';
 import Login from './components/Login';
 import { PredictionsDataPanel } from './components/predictions-data';
 import { ManualSimulationsPanel } from './components/manual-simulations';
+import { WebhooksPanel } from './components/webhooks';
 // import { ReportsPanel } from './components/reports';
 import Sidebar from './components/Sidebar';
 import { useAuth } from './contexts/AuthContext';
@@ -24,7 +25,7 @@ function App() {
   const { isAuthenticated, isLoading } = useAuth();
   const isLoginPage = location.pathname === '/login';
 
-  const [activePanel, setActivePanel] = useState<'logs' | 'forecasts' | 'input-data' | 'io-history' | 'balancer' | 'predictions-data' | 'manual-simulations' | 'reports' | 'administration' | 'hydro' | 'alerts' | 'prediction-types'>('logs');
+  const [activePanel, setActivePanel] = useState<'logs' | 'forecasts' | 'input-data' | 'io-history' | 'balancer' | 'predictions-data' | 'manual-simulations' | 'reports' | 'administration' | 'hydro' | 'alerts' | 'prediction-types' | 'webhooks'>('logs');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   if (isLoginPage) {
@@ -72,6 +73,8 @@ function App() {
         return isAdmin() ? <PredictionsDataPanel /> : <Dashboard />;
       case 'manual-simulations':
         return isAdmin() ? <ManualSimulationsPanel /> : <Dashboard />;
+      case 'webhooks':
+        return isAdmin() ? <WebhooksPanel /> : <Dashboard />;
       // case 'reports':
       //   return <ReportsPanel />;
       // case 'balancer':

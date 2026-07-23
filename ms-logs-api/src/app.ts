@@ -4,6 +4,7 @@ import morgan from "morgan";
 import path from "path";
 import { setupSwagger } from "./config/swagger";
 import { validateToken } from "./middlewares/auth.middleware";
+import { requireAdmin } from "./middlewares/admin.middleware";
 import logRouter from "./routes/log.routes";
 import forecastRouter from "./routes/forecast.routes";
 import healthRouter from "./routes/health.routes";
@@ -13,6 +14,7 @@ import predictionsDataRouter from "./routes/predictions-data.routes";
 import reportsRouter from "./routes/reports.routes";
 import exportsRouter from "./routes/exports.routes";
 import alertRouter from "./routes/alert.routes";
+import webhookRouter from "./routes/webhook.routes";
 
 
 const app = express();
@@ -22,7 +24,7 @@ app.use(morgan("dev"));
 
 app.use(cors({
     origin: process.env.NODE_ENV === "development" ? true : process.env.FRONTEND_URL,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "Cache-Control", "Pragma"],
     credentials: true,
 }));
@@ -40,5 +42,6 @@ app.use("/api/predictions-data", validateToken, predictionsDataRouter);
 app.use("/api/reports", validateToken, reportsRouter);
 app.use("/api/exports", validateToken, exportsRouter);
 app.use("/api/alerts", validateToken, alertRouter);
+app.use("/api/webhooks", validateToken, requireAdmin, webhookRouter);
 
 export default app;

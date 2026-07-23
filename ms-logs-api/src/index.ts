@@ -15,11 +15,13 @@ async function main() {
 
         startCleanupCron();
 
-        // Connect to RabbitMQ for alert notifications
+        // Connect to RabbitMQ for alert notifications + webhook fan-out
         try {
             await RabbitMQService.connect();
+            // Subscribe to simulation events and dispatch outbound webhooks to subscribers
+            await RabbitMQService.consumeSimulationEvents();
         } catch (error) {
-            console.error("RabbitMQ connection failed (alerts will retry on dispatch):", error);
+            console.error("RabbitMQ connection failed (alerts will retry on dispatch, webhooks disabled until reconnect):", error);
         }
 
         // Start the alert engine (loads enabled rules and registers crons)
