@@ -63,6 +63,11 @@ services:
                 VITE_API_URL: http://localhost:3004
         # UI is built static — no hot-reload override.
 
+    sftp-frontend:
+        build:
+            context: ../ms-sftp-api/frontend
+        # nginx-served static build (runtime URL config) — no hot-reload override.
+
     ms-hydro-api:
         build:
             context: ../ms-hydro-api
@@ -107,6 +112,12 @@ services:
             - ../ms-meteo-api:/app
             - /app/node_modules
         command: sh -c "npm run migration:run && npm run start:dev"
+
+    ms-calculator-api:
+        build:
+            context: ../ms-calculator-api
+            target: dev
+        # Python/FastAPI — the dev stage self-runs uvicorn --reload on 3011.
 
     vsad-tajo-frontend:
         build:
