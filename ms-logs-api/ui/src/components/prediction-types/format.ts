@@ -1,3 +1,22 @@
+/** Days within which a last entry is considered "fresh" (green). Older → stale (red / FALTA). */
+export const FRESH_WITHIN_DAYS = 3;
+
+export type CoverageState = 'fresh' | 'stale' | 'never';
+
+/**
+ * Classifies a cell from its last-entry timestamp:
+ *  - 'never': the station never received this type       → gray "-"
+ *  - 'fresh': last entry within FRESH_WITHIN_DAYS         → green (shows date)
+ *  - 'stale': last entry older than that (had it, stopped) → red "FALTA" (still shows the date)
+ */
+export function coverageState(iso: string | null, now: number = Date.now()): CoverageState {
+    if (!iso) return 'never';
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return 'never';
+    const ageDays = (now - then) / (24 * 60 * 60 * 1000);
+    return ageDays <= FRESH_WITHIN_DAYS ? 'fresh' : 'stale';
+}
+
 /** Format an ISO timestamp as a short local date-time, or "—" when null. */
 export function formatLastEntered(iso: string | null): string {
     if (!iso) return '—';

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getCoverageMatrix, downloadCoverageMatrixReport } from './api';
-import { formatLastEntered } from './format';
+import { coverageState, formatLastEntered, FRESH_WITHIN_DAYS } from './format';
 
 export default function CoverageMatrixPanel() {
     const [onlyProblems, setOnlyProblems] = useState(false);
@@ -18,9 +18,8 @@ export default function CoverageMatrixPanel() {
     const stations = useMemo(() => {
         const all = data?.stations ?? [];
         if (!onlyProblems) return all;
-        // "Con problemas" = at least one type never entered for this station.
-        const totalTypes = data?.types.length ?? 0;
-        return all.filter((s) => s.withData < totalTypes);
+        // "Con faltas" = at least one type this station had but stopped receiving (stale / red).
+        return all.filter((s) => s.cells.some((c) => coverageState(c) === 'stale'));
     }, [data, onlyProblems]);
 
     const handleDownload = async () => {
@@ -45,9 +44,22 @@ export default function CoverageMatrixPanel() {
                         Cobertura de todas las estaciones
                     </h2>
                     {data && (
-                        <p className="text-xs text-slate-400 mt-0.5">
-                            {data.stations.length} estaciones × {types.length} types · última entrada por celda
-                        </p>
+                        <>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                {data.stations.length} estaciones × {types.length} types · última entrada por celda
+                            </p>
+                            <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
+                                <span className="flex items-center gap-1">
+                                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-500/40" /> con dato (≤{FRESH_WITHIN_DAYS}d)
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/40" /> FALTA (dejó de llegar)
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-slate-600" /> - nunca recibió
+                                </span>
+                            </div>
+                        </>
                     )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -58,7 +70,7 @@ export default function CoverageMatrixPanel() {
                             onChange={(e) => setOnlyProblems(e.target.checked)}
                             className="accent-indigo-500"
                         />
-                        Sólo con faltantes
+                        Sólo con faltas
                     </label>
                     <button
                         onClick={handleDownload}
@@ -111,17 +123,27 @@ export default function CoverageMatrixPanel() {
                                         )}
                                     </td>
                                     {s.cells.map((cell, index) => {
-                                        const hasData = cell !== null;
+                                        const state = coverageState(cell);
+                                        const cls =
+                                            state === 'fresh'
+                                                ? 'text-emerald-300 bg-emerald-500/5'
+                                                : state === 'stale'
+                                                  ? 'text-red-300 bg-red-500/10 font-medium'
+                                                  : 'text-slate-600';
                                         return (
                                             <td
                                                 key={types[index]?.id ?? index}
-                                                className={`px-3 py-2 whitespace-nowrap ${
-                                                    hasData
-                                                        ? 'text-emerald-300 bg-emerald-500/5'
-                                                        : 'text-slate-600 italic'
-                                                }`}
+                                                className={`px-3 py-2 whitespace-nowrap ${cls}`}
+                                                title={cell ? formatLastEntered(cell) : 'Nunca recibió este type'}
                                             >
-                                                {hasData ? formatLastEntered(cell) : 'nunca'}
+                                                {state === 'fresh' && formatLastEntered(cell)}
+                                                {state === 'stale' && (
+                                                    <span>
+                                                        FALTA
+                                                        <span className="text-red-400/60 ml-1">· {formatLastEntered(cell)}</span>
+                                                    </span>
+                                                )}
+                                                {state === 'never' && '-'}
                                             </td>
                                         );
                                     })}

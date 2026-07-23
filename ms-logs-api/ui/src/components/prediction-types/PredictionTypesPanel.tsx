@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getPredictionTypesByStation, downloadStationReport } from './api';
 import StationAutocomplete from './StationAutocomplete';
 import CoverageMatrixPanel from './CoverageMatrixPanel';
-import { formatLastEntered, relativeFromNow } from './format';
+import { coverageState, formatLastEntered, relativeFromNow } from './format';
 
 type Tab = 'station' | 'matrix';
 
@@ -153,44 +153,43 @@ export default function PredictionTypesPanel() {
                                 </p>
                             ) : (
                                 <div className="space-y-2">
-                                    {types.map((t) => (
-                                        <div
-                                            key={t.id}
-                                            className={`flex items-center gap-3 px-4 py-3 border rounded-lg ${
-                                                t.hasData
-                                                    ? 'border-slate-700/50 bg-slate-800/60'
-                                                    : 'border-slate-800/60 bg-slate-900/40'
-                                            }`}
-                                        >
-                                            <span
-                                                className={`w-2 h-2 rounded-full shrink-0 ${
-                                                    t.hasData ? 'bg-emerald-400' : 'bg-slate-600'
-                                                }`}
-                                            />
-                                            <div className="flex-1 min-w-0">
-                                                <p
-                                                    className={`text-sm font-medium truncate ${
-                                                        t.hasData ? 'text-slate-200' : 'text-slate-500'
+                                    {types.map((t) => {
+                                        const state = coverageState(t.lastEntered);
+                                        const rowCls =
+                                            state === 'fresh'
+                                                ? 'border-slate-700/50 bg-slate-800/60'
+                                                : state === 'stale'
+                                                  ? 'border-red-800/40 bg-red-950/20'
+                                                  : 'border-slate-800/60 bg-slate-900/40';
+                                        const dotCls =
+                                            state === 'fresh' ? 'bg-emerald-400' : state === 'stale' ? 'bg-red-400' : 'bg-slate-600';
+                                        const nameCls = state === 'never' ? 'text-slate-500' : 'text-slate-200';
+                                        return (
+                                            <div key={t.id} className={`flex items-center gap-3 px-4 py-3 border rounded-lg ${rowCls}`}>
+                                                <span className={`w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`text-sm font-medium truncate ${nameCls}`}>{t.name}</p>
+                                                </div>
+                                                <span
+                                                    className={`text-xs whitespace-nowrap ${
+                                                        state === 'fresh'
+                                                            ? 'text-slate-300'
+                                                            : state === 'stale'
+                                                              ? 'text-red-300 font-medium'
+                                                              : 'text-slate-600'
                                                     }`}
+                                                    title={t.lastEntered ?? 'Nunca recibió este type'}
                                                 >
-                                                    {t.name}
-                                                </p>
+                                                    {state === 'fresh' && `${formatLastEntered(t.lastEntered)} · ${relativeFromNow(t.lastEntered)}`}
+                                                    {state === 'stale' && `FALTA · ${formatLastEntered(t.lastEntered)} · ${relativeFromNow(t.lastEntered)}`}
+                                                    {state === 'never' && '-'}
+                                                </span>
+                                                <span className="text-xs px-2 py-0.5 rounded border text-indigo-300 bg-indigo-400/10 border-indigo-500/30 shrink-0">
+                                                    {t.unit}
+                                                </span>
                                             </div>
-                                            <span
-                                                className={`text-xs whitespace-nowrap ${
-                                                    t.hasData ? 'text-slate-300' : 'text-slate-600 italic'
-                                                }`}
-                                                title={t.lastEntered ?? undefined}
-                                            >
-                                                {t.hasData
-                                                    ? `${formatLastEntered(t.lastEntered)} · ${relativeFromNow(t.lastEntered)}`
-                                                    : 'nunca'}
-                                            </span>
-                                            <span className="text-xs px-2 py-0.5 rounded border text-indigo-300 bg-indigo-400/10 border-indigo-500/30 shrink-0">
-                                                {t.unit}
-                                            </span>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {types.length === 0 && (
                                         <p className="text-center text-slate-600 py-8">
                                             Sin types para este filtro.
