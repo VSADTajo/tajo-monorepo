@@ -1,0 +1,296 @@
+{
+  "version": "1.34",
+  "timeZone": "0.0",
+  "timeSeries": [
+    {
+      "header": {
+        "type": "accumulative",
+        "moduleInstanceId": "Processing_Catchment_Harmonie",
+        "locationId": "Sistema.Tajo.1",
+        "parameterId": "P.areal.harmonie.sis10",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2026-07-14",
+          "time": "01:00:00"
+        },
+        "endDate": {
+          "date": "2026-07-17",
+          "time": "01:00:00"
+        },
+        "forecastDate": {
+          "date": "2026-07-14",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "CABECERA",
+        "lat": "40.47210116876888",
+        "lon": "-2.4155304998866556",
+        "x": "549545.0",
+        "y": "4480322.0",
+        "z": "0.0",
+        "units": "mm",
+        "creationDate": "2026-07-14",
+        "creationTime": "07:32:53",
+        "approvedDate": {
+          "date": "2026-07-14",
+          "time": "07:33:46"
+        }
+      },
+      "events": [
+        {
+          "date": "2026-07-14",
+          "time": "01:00:00",
+          "value": "0.85",
+          "flag": "2"
+        },
+        {
+          "date": "2026-07-14",
+          "time": "02:00:00",
+          "value": "0.9",
+          "flag": "2"
+        },
+        {
+          "date": "2026-07-14",
+          "time": "03:00:00",
+          "value": "1.4",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "accumulative",
+        "moduleInstanceId": "Processing_Catchment_Harmonie",
+        "locationId": "Sistema.Tajo.1",
+        "parameterId": "P.areal.harmonie.sis10.12H",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "43200"
+        },
+        "startDate": {
+          "date": "2026-07-14",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2026-07-17",
+          "time": "12:00:00"
+        },
+        "forecastDate": {
+          "date": "2026-07-14",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "CABECERA",
+        "lat": "40.47210116876888",
+        "lon": "-2.4155304998866556",
+        "x": "549545.0",
+        "y": "4480322.0",
+        "z": "0.0",
+        "units": "mm",
+        "creationDate": "2026-07-14",
+        "creationTime": "07:32:53",
+        "approvedDate": {
+          "date": "2026-07-14",
+          "time": "07:33:46"
+        }
+      },
+      "events": [
+        {
+          "date": "2026-07-14",
+          "time": "00:00:00",
+          "value": "-999.0",
+          "flag": "8"
+        },
+        {
+          "date": "2026-07-14",
+          "time": "12:00:00",
+          "value": "5.1",
+          "flag": "2"
+        },
+        {
+          "date": "2026-07-15",
+          "time": "00:00:00",
+          "value": "5.3",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "accumulative",
+        "moduleInstanceId": "Processing_Catchment_Harmonie",
+        "locationId": "Cuenca.NAM.AR01",
+        "parameterId": "P.areal.harmonie.subcNAM",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2026-07-14",
+          "time": "01:00:00"
+        },
+        "endDate": {
+          "date": "2026-07-17",
+          "time": "01:00:00"
+        },
+        "forecastDate": {
+          "date": "2026-07-14",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "AR01 - GALLO EN PENAMEDIODIA",
+        "lat": "40.73088057511272",
+        "lon": "-1.742807061723227",
+        "x": "606162.0",
+        "y": "4509643.0",
+        "z": "0.0",
+        "units": "mm",
+        "creationDate": "2026-07-14",
+        "creationTime": "07:32:53",
+        "approvedDate": {
+          "date": "2026-07-14",
+          "time": "07:33:46"
+        }
+      },
+      "events": [
+        {
+          "date": "2026-07-14",
+          "time": "01:00:00",
+          "value": "0.29",
+          "flag": "2"
+        },
+        {
+          "date": "2026-07-14",
+          "time": "02:00:00",
+          "value": "0.15",
+          "flag": "2"
+        },
+        {
+          "date": "2026-07-14",
+          "time": "03:00:00",
+          "value": "0.51",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "accumulative",
+        "moduleInstanceId": "Processing_Catchment_Harmonie",
+        "locationId": "Cuenca.NAM.AR01",
+        "parameterId": "P.areal.harmonie.subcNAM.24H",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "86400"
+        },
+        "startDate": {
+          "date": "2026-07-14",
+          "time": "00:00:00"
+        },
+        "endDate": {
+          "date": "2026-07-18",
+          "time": "00:00:00"
+        },
+        "forecastDate": {
+          "date": "2026-07-14",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "AR01 - GALLO EN PENAMEDIODIA",
+        "lat": "40.73088057511272",
+        "lon": "-1.742807061723227",
+        "x": "606162.0",
+        "y": "4509643.0",
+        "z": "0.0",
+        "units": "mm",
+        "creationDate": "2026-07-14",
+        "creationTime": "07:32:53",
+        "approvedDate": {
+          "date": "2026-07-14",
+          "time": "07:33:46"
+        }
+      },
+      "events": [
+        {
+          "date": "2026-07-14",
+          "time": "00:00:00",
+          "value": "-999.0",
+          "flag": "8"
+        },
+        {
+          "date": "2026-07-15",
+          "time": "00:00:00",
+          "value": "4.42",
+          "flag": "2"
+        },
+        {
+          "date": "2026-07-16",
+          "time": "00:00:00",
+          "value": "24.32",
+          "flag": "2"
+        }
+      ]
+    },
+    {
+      "header": {
+        "type": "accumulative",
+        "moduleInstanceId": "Processing_Catchment_Harmonie",
+        "locationId": "Cuenca.AEMET.1",
+        "parameterId": "P.areal.harmonie.aemet",
+        "timeStep": {
+          "unit": "second",
+          "multiplier": "3600"
+        },
+        "startDate": {
+          "date": "2026-07-14",
+          "time": "01:00:00"
+        },
+        "endDate": {
+          "date": "2026-07-17",
+          "time": "01:00:00"
+        },
+        "forecastDate": {
+          "date": "2026-07-14",
+          "time": "00:00:00"
+        },
+        "missVal": "-999.0",
+        "stationName": "ALBARRACIN Y JILOCA",
+        "lat": "40.593143524777865",
+        "lon": "-1.2496867444593005",
+        "x": "648109.0",
+        "y": "4495066.0",
+        "z": "0.0",
+        "units": "mm",
+        "creationDate": "2026-07-14",
+        "creationTime": "07:32:53",
+        "approvedDate": {
+          "date": "2026-07-14",
+          "time": "07:33:46"
+        }
+      },
+      "events": [
+        {
+          "date": "2026-07-14",
+          "time": "01:00:00",
+          "value": "0.08",
+          "flag": "2"
+        },
+        {
+          "date": "2026-07-14",
+          "time": "02:00:00",
+          "value": "0.09",
+          "flag": "2"
+        },
+        {
+          "date": "2026-07-14",
+          "time": "03:00:00",
+          "value": "0.37",
+          "flag": "2"
+        }
+      ]
+    }
+  ]
+}

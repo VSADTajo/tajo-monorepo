@@ -1006,3 +1006,4 @@ The `docker-compose.yml` overrides `DB_HOST=database` and `REDIS_HOST=redis` to 
 - 001-user-roles: Added TypeScript 5.7+ (strict mode) on Node.js >= 22 + NestJS 11, @nestjs/cqrs 11, TypeORM 0.3, class-validator, class-transformer, nestjs-pino
 - microservice: Added RabbitMQ messaging layer — IMessageBroker port, RabbitmqService adapter, messaging.registry.ts, hybrid bootstrap, example consumer
 - microservice: Grouped mappers by domain (role.mappers.ts, user.mappers.ts), added entity validate() pattern, centralized cache keys
+- aerial-precipitation: ingest FEWS areal precipitation JSONs from SFTP + query endpoints (list, latest, by-location); see .specify/specs/aerial-precipitation/

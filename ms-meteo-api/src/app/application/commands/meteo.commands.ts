@@ -556,9 +556,7 @@ export class AccumulateMeteoHandler implements ICommandHandler<AccumulateMeteoCo
         // Store in cache for 3 hours (same interval as the cron).
         await this.cacheService
             .set(cacheKey, { layerName: result.layerName, filesUsed: result.filesUsed }, 10_800)
-            .catch((err) =>
-                this.logger.warn({ msg: 'Failed to cache acumulado result', error: String(err) }),
-            );
+            .catch((err) => this.logger.warn({ msg: 'Failed to cache acumulado result', error: String(err) }));
 
         return result;
     }

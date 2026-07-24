@@ -30,6 +30,8 @@ export class InMemorySftpFileClient extends ISftpFileClient {
     public listCalls = 0;
     public readCalls = 0;
     public downloadCalls = 0;
+    public moveCalls = 0;
+    public moveLog: Array<{ sourcePath: string; destinationPath: string; overwrite: boolean }> = [];
 
     constructor(root: MockSftpDirNode) {
         super();
@@ -77,6 +79,52 @@ export class InMemorySftpFileClient extends ISftpFileClient {
         if (node.binary) return node.binary;
         if (node.content !== undefined) return Buffer.from(node.content, 'utf8');
         throw new ProviderError(`Mock: file ${filePath} has no content`);
+    }
+
+    async move(sourcePath: string, destinationPath: string, overwrite = false): Promise<void> {
+        this.moveCalls++;
+        this.moveLog.push({ sourcePath, destinationPath, overwrite });
+        this.checkFailure('move', sourcePath);
+
+        const sourceNode = this.lookup(sourcePath);
+        if (!sourceNode || sourceNode.type !== 'file') {
+            throw new ProviderError(`Mock: source file not found for move: ${sourcePath}`);
+        }
+
+        // Resolve destination dir + filename
+        const destParts = destinationPath.split('/').filter(Boolean);
+        const destFileName = destParts[destParts.length - 1];
+        const destDirPath = '/' + destParts.slice(0, -1).join('/');
+        let destDir = this.lookup(destDirPath);
+
+        // Auto-create destination directory
+        if (!destDir || destDir.type !== 'dir') {
+            const allParts = destDirPath.split('/').filter(Boolean);
+            let cursor: MockSftpDirNode = this.root;
+            for (const seg of allParts) {
+                if (!cursor.children[seg]) {
+                    cursor.children[seg] = { type: 'dir', name: seg, children: {} };
+                }
+                const next: MockSftpNode = cursor.children[seg];
+                if (next.type !== 'dir') throw new ProviderError(`Mock: path conflict at ${seg}`);
+                cursor = next;
+            }
+            destDir = cursor;
+        }
+
+        if (!overwrite && (destDir as MockSftpDirNode).children[destFileName]) {
+            throw new ProviderError(`Mock: destination already exists: ${destinationPath}`);
+        }
+
+        // Move: copy to dest then remove from source
+        (destDir as MockSftpDirNode).children[destFileName] = { ...sourceNode, name: destFileName };
+
+        const sourceParts = sourcePath.split('/').filter(Boolean);
+        const sourceParentPath = '/' + sourceParts.slice(0, -1).join('/');
+        const sourceParentNode = this.lookup(sourceParentPath);
+        if (sourceParentNode && sourceParentNode.type === 'dir') {
+            delete sourceParentNode.children[sourceParts[sourceParts.length - 1]];
+        }
     }
 
     private checkFailure(op: string, path: string): void {

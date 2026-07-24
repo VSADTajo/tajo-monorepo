@@ -26,4 +26,15 @@ export abstract class ISftpFileClient {
 
     /** Downloads a binary file (e.g. raster) into memory as a Buffer. */
     abstract download(path: string): Promise<Buffer>;
+
+    /**
+     * Moves a file from `sourcePath` to `destinationPath` on the SFTP storage.
+     * Calls `POST /files/move` on ms-sftp-api.
+     * Throws `ProviderError` on any non-2xx response.
+     *
+     * @param sourcePath      Absolute path of the file to move.
+     * @param destinationPath Absolute path of the destination (including filename).
+     * @param overwrite       Whether to overwrite an existing file at the destination (default: false).
+     */
+    abstract move(sourcePath: string, destinationPath: string, overwrite?: boolean): Promise<void>;
 }

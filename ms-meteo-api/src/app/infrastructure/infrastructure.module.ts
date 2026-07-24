@@ -16,6 +16,7 @@ import { IRasterConverter } from '@domain/ports/raster-converter.port';
 import { IFileSystem } from '@domain/ports/file-system.port';
 import { IMeteoIngestRunRepository } from '@domain/ports/meteo-ingest-run-repository.port';
 import { IAemetClient } from '@domain/ports/aemet-client.port';
+import { IAerialPrecipitationSeriesRepository } from '@domain/ports/aerial-precipitation-series-repository.port';
 
 // Infrastructure Implementations
 import { NotificationService } from '@infrastructure/services/notification.service';
@@ -28,6 +29,7 @@ import { GdalRasterConverter } from '@infrastructure/gdal/gdal-raster-converter'
 import { NodeFileSystem } from '@infrastructure/file-system/node-file-system';
 import { MeteoIngestRunRepository } from '@infrastructure/persistence/meteo-ingest-run.repository';
 import { AemetClientService } from '@infrastructure/services/aemet-client.service';
+import { AerialPrecipitationSeriesRepository } from '@infrastructure/persistence/aerial-precipitation-series.repository';
 
 // Cache
 import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service';
@@ -36,9 +38,12 @@ import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service
 import { RedisConfigModule } from '@config/redis/redis-config.module';
 import { RabbitmqConfigModule } from '@config/rabbitmq/rabbitmq-config.module';
 import { MeteoConfigModule } from '@config/meteo/meteo-config.module';
+import { AerialPrecipitationConfigModule } from '@config/aerial-precipitation/aerial-precipitation-config.module';
 
 // Entities
 import { MeteoIngestRun } from '@domain/entities/meteo-ingest-run.entity';
+import { AerialPrecipitationSeries } from '@domain/entities/aerial-precipitation-series.entity';
+import { AerialPrecipitationEvent } from '@domain/entities/aerial-precipitation-event.entity';
 
 @Module({
     imports: [
@@ -47,7 +52,8 @@ import { MeteoIngestRun } from '@domain/entities/meteo-ingest-run.entity';
         RedisConfigModule,
         RabbitmqConfigModule,
         MeteoConfigModule,
-        TypeOrmModule.forFeature([MeteoIngestRun]),
+        AerialPrecipitationConfigModule,
+        TypeOrmModule.forFeature([MeteoIngestRun, AerialPrecipitationSeries, AerialPrecipitationEvent]),
     ],
     controllers: [],
     providers: [
@@ -61,6 +67,7 @@ import { MeteoIngestRun } from '@domain/entities/meteo-ingest-run.entity';
         { provide: IFileSystem, useClass: NodeFileSystem },
         { provide: IMeteoIngestRunRepository, useClass: MeteoIngestRunRepository },
         { provide: IAemetClient, useClass: AemetClientService },
+        { provide: IAerialPrecipitationSeriesRepository, useClass: AerialPrecipitationSeriesRepository },
         CachingQueryBus,
     ],
     exports: [
@@ -74,8 +81,10 @@ import { MeteoIngestRun } from '@domain/entities/meteo-ingest-run.entity';
         IFileSystem,
         IMeteoIngestRunRepository,
         IAemetClient,
+        IAerialPrecipitationSeriesRepository,
         CachingQueryBus,
         MeteoConfigModule,
+        AerialPrecipitationConfigModule,
     ],
 })
 export class InfrastructureModule {}

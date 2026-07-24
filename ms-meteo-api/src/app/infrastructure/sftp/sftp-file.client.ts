@@ -70,6 +70,14 @@ export class SftpFileClient extends ISftpFileClient {
         }
     }
 
+    async move(sourcePath: string, destinationPath: string, overwrite = false): Promise<void> {
+        try {
+            await this.http.post('/files/move', { sourcePath, destinationPath, overwrite });
+        } catch (error) {
+            this.handleError(error, `move(${sourcePath} -> ${destinationPath})`);
+        }
+    }
+
     private handleError(error: unknown, context: string): never {
         if (error instanceof AxiosError) {
             const status = error.response?.status;

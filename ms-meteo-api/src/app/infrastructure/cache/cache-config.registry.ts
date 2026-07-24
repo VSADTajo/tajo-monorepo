@@ -31,6 +31,31 @@ export const MeteoAccumuladoCacheKeys = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// Aerial Precipitation cache keys
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Cache key builders for the aerial-precipitation domain.
+ *
+ * CACHE_REGISTRY entries for the three query classes are added alongside their
+ * query handlers in Phase 2 (T046, T055, T064) once the per-query TTLs are
+ * driven from AerialPrecipitationConfigService.
+ */
+export const AerialPrecipitationCacheKeys = {
+    /** Key for the paginated filtered-list query. `params` is a deterministic serialisation of the filter object. */
+    list: (params: string) => `aerial-precipitation:list:v1:${params}`,
+
+    /** Key for the "latest per polygon" query. `params` includes layer/provider/accumulation/stat. */
+    latest: (params: string) => `aerial-precipitation:latest:v1:${params}`,
+
+    /** Key for the by-location query. */
+    byLocation: (locationId: string, params: string) => `aerial-precipitation:by-location:v1:${locationId}:${params}`,
+
+    /** Pattern used for bulk invalidation at the end of every ingest run. */
+    pattern: () => 'aerial-precipitation:*',
+};
+
+// ─────────────────────────────────────────────────────────────
 // Cache Registry — maps query class names to cache config
 // ─────────────────────────────────────────────────────────────
 
@@ -56,6 +81,57 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         {
             ttl: 60,
             key: () => MeteoProvidersCacheKeys.all(),
+        },
+    ],
+    [
+        'GetAerialPrecipitationLatestQuery',
+        {
+            ttl: 300, // latestCacheTtlSeconds default; overridden at runtime by config if needed
+            key: (q: any) => {
+                const f = q?.filters ?? {};
+                const stat = f.stat ?? '_';
+                const includeEvents = q?.includeEvents ? 'true' : 'false';
+                return AerialPrecipitationCacheKeys.latest(
+                    `${f.layer}:${f.provider}:${f.accumulation}:${stat}:${includeEvents}`,
+                );
+            },
+        },
+    ],
+    [
+        'ListAerialPrecipitationQuery',
+        {
+            ttl: 60, // listCacheTtlSeconds default
+            key: (q: any) => {
+                const params = JSON.stringify({
+                    layer: q?.filters?.layer,
+                    provider: q?.filters?.provider,
+                    locationId: q?.filters?.locationId,
+                    accumulation: q?.filters?.accumulation,
+                    stat: q?.filters?.stat,
+                    from: q?.filters?.fromForecastDate,
+                    to: q?.filters?.toForecastDate,
+                    includeEvents: q?.filters?.includeEvents,
+                    page: q?.page,
+                    limit: q?.limit,
+                });
+                return AerialPrecipitationCacheKeys.list(params);
+            },
+        },
+    ],
+    [
+        'GetAerialPrecipitationByLocationQuery',
+        {
+            ttl: 60, // listCacheTtlSeconds default
+            key: (q: any) => {
+                const params = JSON.stringify({
+                    provider: q?.filters?.provider,
+                    accumulation: q?.filters?.accumulation,
+                    from: q?.filters?.fromForecastDate,
+                    to: q?.filters?.toForecastDate,
+                    includeEvents: q?.filters?.includeEvents,
+                });
+                return AerialPrecipitationCacheKeys.byLocation(q?.locationId ?? '', params);
+            },
         },
     ],
 ]);

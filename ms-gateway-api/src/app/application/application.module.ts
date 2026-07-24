@@ -13,6 +13,7 @@ import { NotificationsProxyController } from '@api/controllers/notifications-pro
 import { MeteoProxyController } from '@api/controllers/meteo-proxy.controller';
 import { PermissionProxyController } from '@api/controllers/permission-proxy.controller';
 import { GroupProxyController } from '@api/controllers/group-proxy.controller';
+import { AerialPrecipitationProxyController } from '@api/controllers/aerial-precipitation-proxy.controller';
 
 @Module({
     imports: [InfrastructureModule],
@@ -26,6 +27,7 @@ import { GroupProxyController } from '@api/controllers/group-proxy.controller';
         HydroProxyController,
         NotificationsProxyController,
         MeteoProxyController,
+        AerialPrecipitationProxyController,
     ],
     providers: [],
 })

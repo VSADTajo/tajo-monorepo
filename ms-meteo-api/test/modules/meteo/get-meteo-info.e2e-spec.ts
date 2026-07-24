@@ -79,7 +79,10 @@ describe('GET /meteo/info (e2e)', () => {
             entities: [MeteoIngestRun],
             controllers: [MeteoController],
             providers: [
-                { provide: PinoLogger, useValue: { log: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } },
+                {
+                    provide: PinoLogger,
+                    useValue: { log: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+                },
                 { provide: Logger, useValue: { log: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } },
                 { provide: ConfigService, useValue: { getOrThrow: jest.fn() } },
                 { provide: MeteoConfigService, useValue: meteoConfigStub },
