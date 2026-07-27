@@ -44,7 +44,7 @@ export default registerAs<AerialPrecipitationConfig>('aerial-precipitation', () 
         process.env.AERIAL_PRECIP_FILE_PREFIXES || 'tagus_eps_Pareal_,tagus_harmonie_Pareal_,tagus_saih_Pareal_';
 
     return {
-        sftpDirectory: process.env.AERIAL_PRECIP_SFTP_DIRECTORY || '/tagus/pareal',
+        sftpDirectory: process.env.AERIAL_PRECIP_SFTP_DIRECTORY || 'tajo/pareal',
         pollIntervalMs: Number(process.env.AERIAL_PRECIP_POLL_INTERVAL_MS) || 300000,
         filePrefixes: prefixesRaw
             .split(',')

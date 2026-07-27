@@ -211,7 +211,7 @@ New env vars (loaded via `@nestjs/config` + `AerialPrecipitationConfigService`):
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `AERIAL_PRECIP_SFTP_DIRECTORY` | `/tagus/pareal` | Root directory in the SFTP server where the FEWS JSONs land |
+| `AERIAL_PRECIP_SFTP_DIRECTORY` | `tajo/pareal` | SFTP directory (relative to ms-sftp-api STORAGE_BASE_PATH) where the FEWS precipitation JSONs land |
 | `AERIAL_PRECIP_POLL_INTERVAL_MS` | `300000` | How often the poller scheduler runs (5 min) |
 | `AERIAL_PRECIP_FILE_PREFIXES` | `tagus_eps_Pareal_,tagus_harmonie_Pareal_,tagus_saih_Pareal_` | Comma-separated list of accepted file-name prefixes |
 | `AERIAL_PRECIP_RETENTION_DAYS` | `30` | How many days of forecast snapshots to keep |

@@ -49,13 +49,13 @@ describe('SftpFileClient.move()', () => {
         mockPost.mockResolvedValueOnce({ status: 200, data: {} });
 
         await expect(
-            client.move('/tagus/pareal/file.json', '/tagus/pareal/historial/file.json', true),
+            client.move('tajo/pareal/file.json', 'tajo/pareal/historial/file.json', true),
         ).resolves.toBeUndefined();
 
         expect(mockPost).toHaveBeenCalledTimes(1);
         expect(mockPost).toHaveBeenCalledWith('/files/move', {
-            sourcePath: '/tagus/pareal/file.json',
-            destinationPath: '/tagus/pareal/historial/file.json',
+            sourcePath: 'tajo/pareal/file.json',
+            destinationPath: 'tajo/pareal/historial/file.json',
             overwrite: true,
         });
     });
