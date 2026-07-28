@@ -237,14 +237,14 @@ The existing `SFTP_API_URL` (already in ms-meteo-api) is reused.
 Per file discovered by `listDirectory(sftpDirectory)`:
 
 1. If name does NOT start with one of the whitelisted prefixes OR does NOT end with `.json` → **skip silently**.
-2. `readText(path)` → parse JSON. On JSON parse error → move to `historial/{basename}.failed.<epochMs>` and continue with next file.
+2. `readText(path)` → parse JSON. On JSON parse error → move to `corrupted/{basename}.<epochMs>` and continue with next file.
 3. Iterate `data.timeSeries[]`:
    - Parse `header.parameterId` with `ParameterIdValueObject`. On invalid pattern → log warning + skip that series.
    - Build `AerialPrecipitationSeries` entity with derived fields. Call `series.validate()`.
    - Build events, filtering out those where value is `missVal` OR flag indicates non-approved (only `flag === '2'` is kept).
    - Repository upserts.
 4. If steps 3 completed without a fatal DB error → move source file to `historial/{basename}`.
-5. If any step 3 error is fatal (e.g., DB constraint / connection lost mid-file): the file's transactional unit rolls back for the affected series, the file is moved to `historial/{basename}.failed.<epochMs>` with the reason in a sibling `.err.txt`.
+5. If any step 3 error is fatal (e.g., DB constraint / connection lost mid-file): the file's transactional unit rolls back for the affected series, the file is moved to `corrupted/{basename}.<epochMs>` with the reason in a sibling `.err.txt`.
 6. After all files processed: if `persistedSeriesCount > 0` → `cacheService.delByPattern('aerial-precipitation:*')`.
 7. Persist a summary row in `MeteoIngestRun` (reusing existing entity) with counts + timings.
 

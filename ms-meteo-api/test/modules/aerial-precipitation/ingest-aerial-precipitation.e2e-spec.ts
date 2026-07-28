@@ -192,10 +192,10 @@ describe('Ingest Aerial Precipitation (e2e)', () => {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // T033 — Malformed JSON → moved to historial/<name>.failed.<ts>
+    // T033 — Malformed JSON → moved to <dir>/corrupted/<name>.<ts>
     // ─────────────────────────────────────────────────────────────
 
-    it('T033: malformed JSON — moves to historial with .failed suffix, continues with other files', async () => {
+    it('T033: malformed JSON — moves to corrupted/ with timestamp suffix, continues with other files', async () => {
         const MALFORMED = 'tagus_eps_Pareal_malformed.json';
         ctx.sftpClient.setRoot(
             buildSftpTree(SFTP_DIR, {
@@ -211,13 +211,15 @@ describe('Ingest Aerial Precipitation (e2e)', () => {
         expect(result.filesFailed).toBe(1);
         expect(result.seriesPersisted).toBeGreaterThan(0);
 
-        // The failed file must be moved to historial/ with .failed. in the name
-        const failedMove = ctx.sftpClient.moveLog.find((m) => m.destinationPath.includes('.failed.'));
+        // The failed file must be moved to <dir>/corrupted/<name>.<ts>
+        const failedMove = ctx.sftpClient.moveLog.find((m) => m.destinationPath.includes('/corrupted/'));
         expect(failedMove).toBeDefined();
         expect(failedMove!.sourcePath).toContain(MALFORMED);
+        // Timestamp suffix present (numeric epoch millis)
+        expect(failedMove!.destinationPath).toMatch(/\/corrupted\/.+\.\d{13,}$/);
 
-        // The valid file was also moved (to plain historial/)
-        const successMove = ctx.sftpClient.moveLog.find((m) => !m.destinationPath.includes('.failed.'));
+        // The valid file was also moved (to <dir>/historial/)
+        const successMove = ctx.sftpClient.moveLog.find((m) => m.destinationPath.includes('/historial/'));
         expect(successMove).toBeDefined();
     });
 

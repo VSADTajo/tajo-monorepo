@@ -355,13 +355,15 @@ export class PollAerialPrecipitationHandler implements ICommandHandler<
     }
 
     private async moveToFailed(sftpDirectory: string, sourcePath: string, baseName: string): Promise<void> {
-        const historialDir = `${sftpDirectory}/historial`;
-        const destPath = `${historialDir}/${baseName}.failed.${Date.now()}`;
+        // Aligns with model-api convention: bad files land in <dir>/corrupted/<name>.
+        // Timestamp-suffixed to avoid collisions if the same filename gets re-uploaded broken.
+        const corruptedDir = `${sftpDirectory}/corrupted`;
+        const destPath = `${corruptedDir}/${baseName}.${Date.now()}`;
         try {
             await this.sftpClient.move(sourcePath, destPath, true);
         } catch (err) {
             this.logger.warn({
-                msg: 'aerial-precipitation: failed to move failed file',
+                msg: 'aerial-precipitation: failed to move corrupted file',
                 sourcePath,
                 destPath,
                 error: (err as Error).message,

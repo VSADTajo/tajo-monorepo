@@ -28,7 +28,7 @@ The feature is a fully server-side aggregate; it does not touch existing simulat
 - Then the file's series are parsed, persisted with derived provider/layer/stat/accumulation fields, and the source file is moved to the `historial/` subfolder
 
 **Edge Cases:**
-- File is malformed / not valid JSON → the file is archived into `historial/` with a `.failed.<epochMs>` suffix so that (a) it is not re-attempted, (b) the failure is auditable, and (c) it does not pollute the active directory. The run continues with the remaining files.
+- File is malformed / not valid JSON → the file is archived into `corrupted/` with a `.<epochMs>` suffix (mirroring the existing `ms-model-api` ingest convention) so that (a) it is not re-attempted, (b) the failure is auditable, and (c) it does not pollute the active directory. The run continues with the remaining files.
 - File contains a series with `parameterId` that does not match the known pattern (`P.areal.{provider}.{layer}[.{stat}][.{accum}]`) → the series is skipped and a warning is logged; other series in the same file are processed normally.
 - Event value equals `missVal` (`-999.0`) or has a non-approved flag → the event is filtered out (not persisted).
 - Ingest runs concurrently on the same file (e.g., a slow previous run) → only one instance ever persists (idempotent by natural key + advisory lock or equivalent).
@@ -150,7 +150,7 @@ The feature is a fully server-side aggregate; it does not touch existing simulat
 | FR-004 | The system MUST filter out events whose value equals `missVal` and MUST filter out events whose `flag` indicates non-approved data. | P1 |
 | FR-005 | Persistence MUST be idempotent by the natural key `(locationId, parameterId, forecastDate)`: re-processing the same file leaves the same rows unchanged; a new file with same natural key REPLACES the events atomically. | P1 |
 | FR-006 | On successful processing the source file MUST be moved to a `historial/` subfolder under the configured SFTP directory. | P1 |
-| FR-007 | A file that fails to parse or fails to persist MUST NOT block the rest of the run. The failure MUST be logged with the file path and error. The failed file MUST be archived into `historial/` with a `.failed.<epochMs>` suffix so it is never re-attempted automatically and remains available for post-mortem. | P1 |
+| FR-007 | A file that fails to parse or fails to persist MUST NOT block the rest of the run. The failure MUST be logged with the file path and error. The failed file MUST be archived into `corrupted/` with a `.<epochMs>` suffix (mirroring the existing model-api convention) so it is never re-attempted automatically and remains available for post-mortem. | P1 |
 | FR-008 | Forecast snapshots MUST be retained for a configurable window (env-driven, default 30 days). A scheduled cleanup MUST run daily and MUST delete every series whose `forecastDate` is older than `NOW - retentionDays` together with its events, in one transactional unit per series. | P1 |
 | FR-009 | The system MUST expose a paginated list query filterable by `layer`, `provider`, `locationId` (single or list), `accumulation`, `stat`, `fromForecastDate`, `toForecastDate`, and `includeEvents` (bool). | P1 |
 | FR-010 | The system MUST expose a "latest per polygon" query filterable by `layer`, `provider`, `accumulation` (and optionally `stat`), returning one series per polygon with the highest `forecastDate` available. | P1 |
@@ -179,7 +179,7 @@ The feature is a fully server-side aggregate; it does not touch existing simulat
 - [ ] The API documentation exposed by the gateway lists every query parameter with example values and shows a full example response including a real threshold snapshot when applicable.
 - [ ] Running the retention cleanup on a database seeded with forecasts older than the retention window removes exactly those series (and their events) and leaves everything within the window untouched.
 - [ ] After an ingest run persists at least one series, an immediate re-query returns the freshly ingested data — no stale cache hit is served.
-- [ ] A JSON file that cannot be parsed appears in `historial/` with a `.failed.<epochMs>` suffix and does not re-appear in subsequent poll cycles.
+- [ ] A JSON file that cannot be parsed appears in `corrupted/` with a `.<epochMs>` suffix and does not re-appear in subsequent poll cycles.
 
 ---
 
