@@ -5,19 +5,30 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import logging
 import re
-from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import pytz
 
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_PATH = Path("config/reservoir_parameters.json")
+DEFAULT_LOG_PATH = Path("logs/volume_calculator.log")
+DEFAULT_LOG_MAX_BYTES = 5 * 1024 * 1024
+DEFAULT_LOG_BACKUP_COUNT = 5
+DEFAULT_LOG_LEVEL = "INFO"
+LOG_LEVEL_CHOICES = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 TEST_RESERVOIRS = ("E_08", "E_09")
 PIPELINE_CHOICES = ("harmonie", "eps")
+FLOW_VALUE_TYPES = ("average", "instantaneous")
+DEFAULT_FLOW_VALUE_TYPE = "instantaneous"
 Q_OUT_SIGNAL = "q.out.for"
 HARMONIE_FORECAST_SIGNALS = (Q_OUT_SIGNAL, "q.in.for.harmonie")
 FORECAST_SIGNALS = HARMONIE_FORECAST_SIGNALS
@@ -50,6 +61,9 @@ WISKI_HEADER_FIELDS = {
     "Latitud",
 }
 
+LOGGER = logging.getLogger(__name__)
+LOGGER.addHandler(logging.NullHandler())
+
 
 class ReservoirConfigurationError(ValueError):
     """Raised when the reservoir configuration cannot resolve a requested signal."""
@@ -57,6 +71,71 @@ class ReservoirConfigurationError(ValueError):
 
 class ReservoirDataError(ValueError):
     """Raised when the requested reservoir time series cannot be found or parsed."""
+
+
+def configure_logging(
+    log_file: str | Path = DEFAULT_LOG_PATH,
+    max_bytes: int = DEFAULT_LOG_MAX_BYTES,
+    backup_count: int = DEFAULT_LOG_BACKUP_COUNT,
+    level: str | int = DEFAULT_LOG_LEVEL,
+) -> Path:
+    """Configure module logging to a rotating file and return the resolved path."""
+    if max_bytes <= 0:
+        raise ReservoirConfigurationError("log max_bytes must be greater than 0.")
+    if backup_count < 0:
+        raise ReservoirConfigurationError("log backup_count cannot be negative.")
+
+    log_level = _coerce_log_level(level)
+    log_path = _resolve_log_path(log_file)
+    if log_path.exists() and log_path.is_dir():
+        raise ReservoirConfigurationError(f"Log path {log_path} is a directory.")
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    for handler in list(LOGGER.handlers):
+        if getattr(handler, "_volume_calculator_handler", False):
+            LOGGER.removeHandler(handler)
+            handler.close()
+
+    handler = RotatingFileHandler(
+        log_path,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding="utf-8",
+    )
+    handler.setLevel(log_level)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+    )
+    handler._volume_calculator_handler = True
+
+    LOGGER.setLevel(log_level)
+    LOGGER.propagate = False
+    LOGGER.addHandler(handler)
+    return log_path
+
+
+def _resolve_log_path(log_file: str | Path) -> Path:
+    if isinstance(log_file, str) and not log_file.strip():
+        raise ReservoirConfigurationError("log_file must be a non-empty path.")
+
+    log_path = Path(log_file).expanduser()
+    if log_path.is_absolute():
+        return log_path.resolve()
+
+    return (PROJECT_ROOT / log_path).resolve()
+
+
+def _coerce_log_level(level: str | int) -> int:
+    if isinstance(level, int):
+        return level
+
+    normalized = str(level).upper()
+    if normalized not in LOG_LEVEL_CHOICES:
+        raise ReservoirConfigurationError(
+            f"Unsupported log level {level!r}; expected one of {LOG_LEVEL_CHOICES}."
+        )
+
+    return int(getattr(logging, normalized))
 
 
 @dataclass(frozen=True)
@@ -120,6 +199,7 @@ def build_reservoir_signal_dataframe(
     reservoirs: Sequence[str] | None,
     signals: Sequence[str],
     base_path: str | Path | None = None,
+    api_payloads: Mapping[str, Any] | None = None,
 ):
     """Return a pandas DataFrame with one row per reservoir timestamp.
 
@@ -134,6 +214,11 @@ def build_reservoir_signal_dataframe(
     root = Path(base_path) if base_path is not None else config_file.parent.parent
     config = load_reservoir_config(config_file)
     normalized_reservoirs = resolve_requested_reservoirs(config, reservoirs)
+    LOGGER.debug(
+        "Building signal dataframe reservoirs=%s signals=%s",
+        list(normalized_reservoirs),
+        list(signals),
+    )
     value_columns = [signal_to_column_name(signal) for signal in signals]
     if len(value_columns) != len(set(value_columns)):
         raise ReservoirConfigurationError(
@@ -151,11 +236,17 @@ def build_reservoir_signal_dataframe(
             source_key, source = resolve_signal_data_source(config, signal)
             payloads = payload_cache.setdefault(
                 source_key,
-                load_signal_payloads(root, source),
+                load_signal_payloads(root, source, api_payloads=api_payloads),
             )
             value_column = signal_to_column_name(signal)
             series_payload = find_optional_time_series(payloads, reservoir_id, parameter_id)
             if series_payload is None:
+                LOGGER.warning(
+                    "Missing time series reservoir=%s signal=%s parameter_id=%s",
+                    reservoir_id,
+                    signal,
+                    parameter_id,
+                )
                 signal_frame = pd.DataFrame(
                     {
                         "reservoir": pd.Series(dtype="object"),
@@ -168,7 +259,11 @@ def build_reservoir_signal_dataframe(
                     series_payload,
                     name=f"{reservoir_id}:{signal}",
                 )
-                signal_frame = series.rename(value_column).rename_axis("timestamp").reset_index()
+                signal_frame = (
+                    series.rename(value_column)
+                    .rename_axis("timestamp")
+                    .reset_index()
+                )
                 signal_frame.insert(0, "reservoir", reservoir_id)
 
             if reservoir_frame is None:
@@ -198,6 +293,8 @@ def build_forecast_dataframe(
     config_path: str | Path = DEFAULT_CONFIG_PATH,
     reservoirs: Sequence[str] | None = None,
     base_path: str | Path | None = None,
+    api_payloads: Mapping[str, Any] | None = None,
+    flow_value_type: str = DEFAULT_FLOW_VALUE_TYPE,
 ):
     """Return the simplified harmonie forecast DataFrame."""
     dataframe = build_reservoir_signal_dataframe(
@@ -205,14 +302,20 @@ def build_forecast_dataframe(
         reservoirs=reservoirs,
         signals=FORECAST_SIGNALS,
         base_path=base_path,
+        api_payloads=api_payloads,
     )
-    return add_accumulated_forecast_columns(dataframe, FORECAST_SIGNALS)
+    return add_accumulated_forecast_columns(
+        dataframe,
+        FORECAST_SIGNALS,
+        flow_value_type=flow_value_type,
+    )
 
 
 def build_observed_volume_dataframe(
     config_path: str | Path = DEFAULT_CONFIG_PATH,
     reservoirs: Sequence[str] | None = None,
     base_path: str | Path | None = None,
+    api_payloads: Mapping[str, Any] | None = None,
 ):
     """Return the observed-volume DataFrame with the value column ``v.obs``."""
     return build_reservoir_signal_dataframe(
@@ -220,6 +323,7 @@ def build_observed_volume_dataframe(
         reservoirs=reservoirs,
         signals=OBSERVED_VOLUME_SIGNALS,
         base_path=base_path,
+        api_payloads=api_payloads,
     )
 
 
@@ -228,6 +332,8 @@ def build_pipeline_forecast_dataframe(
     reservoirs: Sequence[str] | None = None,
     pipeline: str = "harmonie",
     base_path: str | Path | None = None,
+    api_payloads: Mapping[str, Any] | None = None,
+    flow_value_type: str = DEFAULT_FLOW_VALUE_TYPE,
 ):
     """Return the forecast DataFrame for the selected execution pipeline."""
     config_file = resolve_config_path(config_path)
@@ -239,8 +345,13 @@ def build_pipeline_forecast_dataframe(
         reservoirs=normalized_reservoirs,
         signals=signals,
         base_path=base_path,
+        api_payloads=api_payloads,
     )
-    return add_accumulated_forecast_columns(dataframe, signals)
+    return add_accumulated_forecast_columns(
+        dataframe,
+        signals,
+        flow_value_type=flow_value_type,
+    )
 
 
 def run_reservoir_pipeline(
@@ -248,6 +359,8 @@ def run_reservoir_pipeline(
     reservoirs: Sequence[str] | None = None,
     pipeline: str = "harmonie",
     base_path: str | Path | None = None,
+    api_payloads: Mapping[str, Any] | None = None,
+    flow_value_type: str = DEFAULT_FLOW_VALUE_TYPE,
 ) -> ReservoirPipelineResult:
     """Build the observed-volume and forecast DataFrames for one pipeline."""
     config_file = resolve_config_path(config_path)
@@ -259,18 +372,35 @@ def run_reservoir_pipeline(
         normalized_reservoirs,
         pipeline,
     )
+    LOGGER.info(
+        "Starting reservoir pipeline pipeline=%s reservoir_count=%s flow_value_type=%s",
+        pipeline,
+        len(normalized_reservoirs),
+        flow_value_type,
+    )
+    LOGGER.debug(
+        "Pipeline reservoirs=%s forecast_signals=%s",
+        list(normalized_reservoirs),
+        list(forecast_signals),
+    )
     observed_volume = build_observed_volume_dataframe(
         config_file,
         reservoirs=normalized_reservoirs,
         base_path=root,
+        api_payloads=api_payloads,
     )
     forecast = build_reservoir_signal_dataframe(
         config_file,
         reservoirs=normalized_reservoirs,
         signals=forecast_signals,
         base_path=root,
+        api_payloads=api_payloads,
     )
-    forecast = add_accumulated_forecast_columns(forecast, forecast_signals)
+    forecast = add_accumulated_forecast_columns(
+        forecast,
+        forecast_signals,
+        flow_value_type=flow_value_type,
+    )
     t0 = resolve_forecast_t0(forecast)
     observed_volume_at_t0 = find_observed_volume_at_t0(
         observed_volume,
@@ -281,6 +411,13 @@ def run_reservoir_pipeline(
         forecast,
         forecast_signals,
         observed_volume_at_t0,
+    )
+    LOGGER.info(
+        "Finished reservoir pipeline pipeline=%s t0=%s observed_rows=%s forecast_rows=%s",
+        pipeline,
+        t0,
+        observed_volume.shape[0],
+        forecast.shape[0],
     )
 
     return ReservoirPipelineResult(
@@ -353,9 +490,14 @@ def find_observed_volume_at_t0(observed_volume, reservoirs: Sequence[str], t0):
     return pd.DataFrame(rows, columns=columns)
 
 
-def add_accumulated_forecast_columns(forecast, forecast_signals: Sequence[str]):
+def add_accumulated_forecast_columns(
+    forecast,
+    forecast_signals: Sequence[str],
+    flow_value_type: str = DEFAULT_FLOW_VALUE_TYPE,
+):
     """Add cumulative hm3 columns per reservoir from m3/s forecast signals."""
     pd = _import_pandas()
+    flow_value_type = validate_flow_value_type(flow_value_type)
     dataframe = forecast.copy()
     accumulated_columns = [
         signal_to_accumulated_column_name(signal_to_column_name(signal))
@@ -376,22 +518,52 @@ def add_accumulated_forecast_columns(forecast, forecast_signals: Sequence[str]):
 
         dataframe[accumulated_column] = pd.Series(index=dataframe.index, dtype="float64")
         for _, reservoir_frame in dataframe.groupby("reservoir", sort=False):
-            dataframe.loc[reservoir_frame.index, accumulated_column] = _accumulate_flow_as_hm3(
-                reservoir_frame[value_column],
-                reservoir_frame["timestamp"],
+            dataframe.loc[reservoir_frame.index, accumulated_column] = (
+                _accumulate_flow_as_hm3(
+                    reservoir_frame[value_column],
+                    reservoir_frame["timestamp"],
+                    flow_value_type=flow_value_type,
+                )
             )
 
     return dataframe
 
 
-def _accumulate_flow_as_hm3(flow, timestamps):
+def _accumulate_flow_as_hm3(
+    flow,
+    timestamps,
+    flow_value_type: str = DEFAULT_FLOW_VALUE_TYPE,
+):
     """Integrate m3/s values into cumulative hm3 from the first timestamp."""
+    flow_value_type = validate_flow_value_type(flow_value_type)
     if not flow.notna().any():
         return flow
 
     elapsed_seconds = timestamps.diff().dt.total_seconds().fillna(0)
-    increments = flow.fillna(0).astype(float) * elapsed_seconds * M3_TO_HM3
+    if flow_value_type == "average":
+        effective_flow = flow.fillna(0).astype(float)
+    else:
+        numeric_flow = flow.astype(float)
+        previous_flow = numeric_flow.shift(1)
+        effective_flow = numeric_flow + 0.5 * (previous_flow - numeric_flow)
+        effective_flow = effective_flow.where(
+            numeric_flow.notna() & previous_flow.notna(),
+            0,
+        )
+
+    increments = effective_flow * elapsed_seconds * M3_TO_HM3
     return increments.cumsum()
+
+
+def validate_flow_value_type(flow_value_type: str) -> str:
+    """Validate how m3/s values represent each interval."""
+    if flow_value_type not in FLOW_VALUE_TYPES:
+        raise ReservoirConfigurationError(
+            f"Unsupported flow_value_type {flow_value_type!r}; "
+            f"expected one of {FLOW_VALUE_TYPES}."
+        )
+
+    return flow_value_type
 
 
 def add_forecast_balance_columns(
@@ -423,7 +595,9 @@ def add_forecast_balance_columns(
 
         balance_column = signal_to_balance_column_name(value_column)
         balance = (
-            initial_volume + dataframe[accumulated_column] - dataframe[q_out_accumulated_column]
+            initial_volume
+            + dataframe[accumulated_column]
+            - dataframe[q_out_accumulated_column]
         )
         dataframe[balance_column] = pd.to_numeric(balance, errors="coerce").clip(lower=0)
 
@@ -728,7 +902,8 @@ def resolve_signal_parameter_id(
 
     if not isinstance(value, str) or not value.strip():
         raise ReservoirConfigurationError(
-            f"Expected parameterId for {normalized_reservoir_id}.{signal} to be a non-empty string."
+            f"Expected parameterId for {normalized_reservoir_id}.{signal} "
+            "to be a non-empty string."
         )
 
     return value.strip()
@@ -737,17 +912,32 @@ def resolve_signal_parameter_id(
 def load_signal_payloads(
     base_path: str | Path,
     source: Mapping[str, Any],
+    api_payloads: Mapping[str, Any] | None = None,
 ) -> list[Mapping[str, Any]]:
     """Load payloads for a configured source."""
     source_format = _required_value(source, "format", "source")
     source_timezone = resolve_source_timezone(source)
     origin = _required_mapping(source, "origin", "source")
     origin_type = _required_value(origin, "type", "source.origin")
-    if origin_type != "file_pattern":
-        raise ReservoirConfigurationError(
-            f"Only file_pattern origins are supported for now; got {origin_type!r}."
-        )
 
+    if origin_type == "file_pattern":
+        return load_file_pattern_payloads(base_path, source_format, source_timezone, origin)
+
+    if origin_type == "api_argument":
+        return load_api_argument_payloads(api_payloads, source_format, source_timezone, origin)
+
+    raise ReservoirConfigurationError(
+        f"Unsupported source origin type {origin_type!r}; expected 'file_pattern' or 'api_argument'."
+    )
+
+
+def load_file_pattern_payloads(
+    base_path: str | Path,
+    source_format: str,
+    source_timezone: str,
+    origin: Mapping[str, Any],
+) -> list[Mapping[str, Any]]:
+    """Load source payloads from files matched by a configured pattern."""
     file_pattern = _required_value(origin, "file_pattern", "source.origin")
     paths = resolve_file_pattern(base_path, file_pattern)
     if not paths:
@@ -755,6 +945,14 @@ def load_signal_payloads(
             f"No files matched source pattern {file_pattern!r} "
             f"from base path {Path(base_path).resolve()}."
         )
+
+    LOGGER.info(
+        "Loading source payloads origin_type=file_pattern format=%s timezone=%s files=%s pattern=%s",
+        source_format,
+        source_timezone,
+        len(paths),
+        file_pattern,
+    )
 
     if source_format == "json":
         return [load_time_series_payload(path, source_timezone) for path in paths]
@@ -765,6 +963,83 @@ def load_signal_payloads(
     raise ReservoirConfigurationError(
         f"Unsupported source format {source_format!r}; expected 'json' or 'wiski_csv'."
     )
+
+
+def load_api_argument_payloads(
+    api_payloads: Mapping[str, Any] | None,
+    source_format: str,
+    source_timezone: str,
+    origin: Mapping[str, Any],
+) -> list[Mapping[str, Any]]:
+    """Load source payloads from API responses passed as function arguments."""
+    if source_format != "json":
+        raise ReservoirConfigurationError(
+            f"api_argument origins only support JSON payloads for now; got {source_format!r}."
+        )
+
+    api_argument = _required_value(origin, "api_argument", "source.origin")
+    if not isinstance(api_argument, str) or not api_argument.strip():
+        raise ReservoirConfigurationError(
+            "Expected source.origin.api_argument to be a non-empty string "
+            "when source.origin.type is 'api_argument'."
+        )
+
+    api_argument = api_argument.strip()
+    if api_payloads is None or api_argument not in api_payloads:
+        raise ReservoirConfigurationError(
+            f"Source origin requires api_payloads[{api_argument!r}] because "
+            "source.origin.type is 'api_argument'."
+        )
+
+    payloads = normalize_api_argument_payloads(api_payloads[api_argument], api_argument)
+    LOGGER.info(
+        "Loading source payloads origin_type=api_argument format=%s timezone=%s api_argument=%s payloads=%s",
+        source_format,
+        source_timezone,
+        api_argument,
+        len(payloads),
+    )
+    return [
+        annotate_payload_timezone(deepcopy(payload), source_timezone)
+        for payload in payloads
+    ]
+
+
+def normalize_api_argument_payloads(
+    raw_payload: Any,
+    api_argument: str,
+) -> list[Mapping[str, Any]]:
+    """Return one or more JSON payload objects passed through an API argument."""
+    if isinstance(raw_payload, bytes | bytearray):
+        raw_payload = raw_payload.decode("utf-8")
+
+    if isinstance(raw_payload, str):
+        try:
+            raw_payload = json.loads(raw_payload)
+        except json.JSONDecodeError as exc:
+            raise ReservoirDataError(
+                f"api_payloads[{api_argument!r}] is not valid JSON text."
+            ) from exc
+
+    if isinstance(raw_payload, Mapping):
+        payloads = [raw_payload]
+    elif isinstance(raw_payload, Sequence) and not isinstance(raw_payload, str | bytes | bytearray):
+        payloads = list(raw_payload)
+    else:
+        raise ReservoirDataError(
+            f"api_payloads[{api_argument!r}] must be a JSON object or a list of JSON objects."
+        )
+
+    if not payloads:
+        raise ReservoirDataError(f"api_payloads[{api_argument!r}] contains no payloads.")
+
+    for index, payload in enumerate(payloads):
+        if not isinstance(payload, Mapping):
+            raise ReservoirDataError(
+                f"api_payloads[{api_argument!r}][{index}] must be a JSON object."
+            )
+
+    return payloads
 
 
 def resolve_source_timezone(source: Mapping[str, Any]) -> str:
@@ -1084,7 +1359,10 @@ def summarize_dataframe(dataframe) -> list[dict[str, Any]]:
     return summary
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    return_json: bool = False,
+) -> int | dict[str, Any]:
     parser = argparse.ArgumentParser(
         description="Run a reservoir pipeline and build its pandas DataFrames."
     )
@@ -1108,6 +1386,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Execution pipeline to run.",
     )
     parser.add_argument(
+        "--flow-value-type",
+        choices=FLOW_VALUE_TYPES,
+        default=DEFAULT_FLOW_VALUE_TYPE,
+        help="How forecast flow values represent intervals before accumulation.",
+    )
+    parser.add_argument(
         "--test",
         action="store_true",
         help="Run only TEST_RESERVOIRS instead of all configured reservoirs.",
@@ -1115,9 +1399,50 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--summary",
         action="store_true",
-        help="Print dataframe summaries instead of the v.balance JSON payload.",
+        help="Print dataframe summaries.",
+    )
+    parser.add_argument(
+        "--print-json",
+        action="store_true",
+        help="Print the v.balance JSON payload to stdout.",
+    )
+    parser.add_argument(
+        "--log-file",
+        type=Path,
+        default=DEFAULT_LOG_PATH,
+        help="Rotating log file path. Relative paths are resolved from the project root.",
+    )
+    parser.add_argument(
+        "--log-max-bytes",
+        type=int,
+        default=DEFAULT_LOG_MAX_BYTES,
+        help="Maximum bytes per log file before rotation.",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=LOG_LEVEL_CHOICES,
+        default=DEFAULT_LOG_LEVEL,
+        help="Minimum severity written to the rotating log file.",
     )
     args = parser.parse_args(argv)
+
+    try:
+        log_path = configure_logging(
+            args.log_file,
+            max_bytes=args.log_max_bytes,
+            backup_count=DEFAULT_LOG_BACKUP_COUNT,
+            level=args.log_level,
+        )
+    except ReservoirConfigurationError as exc:
+        parser.exit(1, f"{exc}\n")
+
+    LOGGER.info(
+        "Logging configured file=%s max_bytes=%s backup_count=%s level=%s",
+        log_path,
+        args.log_max_bytes,
+        DEFAULT_LOG_BACKUP_COUNT,
+        args.log_level,
+    )
 
     if args.reservoirs:
         reservoirs = args.reservoirs
@@ -1130,8 +1455,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.config,
             reservoirs=reservoirs,
             pipeline=args.pipeline,
+            flow_value_type=args.flow_value_type,
         )
     except (ModuleNotFoundError, ReservoirConfigurationError, ReservoirDataError) as exc:
+        LOGGER.exception("Pipeline failed")
         parser.exit(1, f"{exc}\n")
 
     if args.summary:
@@ -1141,14 +1468,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         print_dataframe_summary("Observed volume", result.observed_volume)
         print_observed_volume_at_t0(result.observed_volume_at_t0)
         print_dataframe_summary("Forecast", result.forecast)
+
+    payload = None
+    if args.print_json or return_json:
+        payload = build_balance_time_series_payload(result)
+
+    if args.print_json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+    if args.summary and args.print_json:
+        output_format = "summary,json"
+    elif args.summary:
+        output_format = "summary"
+    elif args.print_json:
+        output_format = "json"
     else:
-        print(
-            json.dumps(
-                build_balance_time_series_payload(result),
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
+        output_format = "none"
+
+    LOGGER.info(
+        "Pipeline output generated format=%s return_json=%s",
+        output_format,
+        return_json,
+    )
+    if return_json:
+        return payload if payload is not None else build_balance_time_series_payload(result)
 
     return 0
 
@@ -1198,7 +1541,9 @@ def _resolve_existing_file(path: str | Path, description: str) -> Path:
     if requested.is_absolute():
         if requested.is_file():
             return requested.resolve()
-        raise ReservoirConfigurationError(f"Could not find {description} file {requested}.")
+        raise ReservoirConfigurationError(
+            f"Could not find {description} file {requested}."
+        )
 
     bases = (Path.cwd(), PROJECT_ROOT)
     checked: list[Path] = []
@@ -1210,7 +1555,8 @@ def _resolve_existing_file(path: str | Path, description: str) -> Path:
 
     checked_paths = ", ".join(str(candidate) for candidate in checked)
     raise ReservoirConfigurationError(
-        f"Could not find {description} file {requested!s}. Checked: {checked_paths}."
+        f"Could not find {description} file {requested!s}. "
+        f"Checked: {checked_paths}."
     )
 
 

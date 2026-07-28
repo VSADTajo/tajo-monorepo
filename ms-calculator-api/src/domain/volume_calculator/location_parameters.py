@@ -41,11 +41,15 @@ def iter_location_parameter_pairs(
 
     for index, series in enumerate(time_series):
         if not isinstance(series, Mapping):
-            raise TimeSeriesFormatError(f"Expected timeSeries[{index}] to be an object.")
+            raise TimeSeriesFormatError(
+                f"Expected timeSeries[{index}] to be an object."
+            )
 
         header = series.get("header")
         if not isinstance(header, Mapping):
-            raise TimeSeriesFormatError(f"Expected timeSeries[{index}].header to be an object.")
+            raise TimeSeriesFormatError(
+                f"Expected timeSeries[{index}].header to be an object."
+            )
 
         location_id = _required_header_value(header, "locationId", index)
         parameter_id = _required_header_value(header, "parameterId", index)
@@ -103,12 +107,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         nargs="?",
         type=Path,
         help=(
-            "Output CSV path. Defaults to '<input>.location_parameters.csv' next to the input file."
+            "Output CSV path. Defaults to '<input>.location_parameters.csv' next to "
+            "the input file."
         ),
     )
     args = parser.parse_args(argv)
 
-    output_csv = args.output_csv or args.input_json.with_suffix(".location_parameters.csv")
+    output_csv = args.output_csv or args.input_json.with_suffix(
+        ".location_parameters.csv"
+    )
     row_count = extract_location_parameters(args.input_json, output_csv)
     print(f"Wrote {row_count} location/parameter pairs to {output_csv}")
     return 0
@@ -125,3 +132,7 @@ def _required_header_value(
             f"Expected timeSeries[{time_series_index}].header.{key} to be present."
         )
     return str(value)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
