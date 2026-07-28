@@ -157,7 +157,12 @@ export class PollAerialPrecipitationHandler implements ICommandHandler<
 
                 let rawText: string;
                 try {
-                    rawText = await this.sftpClient.readText(sourcePath);
+                    // Use download() instead of readText() — EPS Pareal files can exceed
+                    // the sftp-api /files/read size limit (they hit 413 in prod at ~4-5MB).
+                    // download() returns a raw Buffer with no size guardrail; we decode
+                    // as UTF-8 since FEWS JSON is text.
+                    const buf = await this.sftpClient.download(sourcePath);
+                    rawText = buf.toString('utf8');
                 } catch (readErr) {
                     this.logger.warn({
                         msg: 'aerial-precipitation: failed to read file, skipping',
