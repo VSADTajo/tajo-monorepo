@@ -75,6 +75,23 @@ class TestCalculatorPipelineContract:
             f"TimeSeries mismatch.\nResult:  {sorted(result_pairs)}\nGolden: {sorted(golden_pairs)}"
         )
 
+        # Compare event values byte-identical per (locationId, parameterId).
+        # This is the real contract guard: a change in the volume_calculator math
+        # (e.g. average vs instantaneous integration) MUST turn this test red.
+        def events_by_series(time_series: list[dict[str, object]]) -> dict[tuple[str, str], list]:
+            return {
+                (ts["header"]["locationId"], ts["header"]["parameterId"]): ts["events"]
+                for ts in time_series
+            }
+
+        result_events = events_by_series(result.timeSeries)
+        golden_events = events_by_series(golden["timeSeries"])
+        for key in sorted(golden_events):
+            assert result_events[key] == golden_events[key], (
+                f"Event values changed for {key}.\n"
+                f"Result: {result_events[key]}\nGolden: {golden_events[key]}"
+            )
+
     async def test_output_series_count_is_12(self, frozen_clock: MagicMock) -> None:
         """2 reservoirs x 6 columns = 12 balance series."""
         from src.api.schemas.simulation_input import SimulationOutputPayload
