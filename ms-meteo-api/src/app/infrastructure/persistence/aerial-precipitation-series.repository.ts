@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Logger } from 'nestjs-pino';
 
 import {
@@ -12,6 +12,101 @@ import {
 import { AerialPrecipitationSeries } from '@domain/entities/aerial-precipitation-series.entity';
 import { AerialPrecipitationEvent } from '@domain/entities/aerial-precipitation-event.entity';
 import { RepositoryError } from '@domain/errors/repository.error';
+
+// ─── Raw event shape returned by the JSON subqueries ─────────────────────────
+
+interface RawEventJson {
+    seriesId: string;
+    eventDate: string;
+    value: number;
+    flag: number;
+}
+
+/** Shape of the raw row returned by getRawAndEntities when aggregate subqueries are active. */
+interface RawSeriesRow {
+    s_id: string;
+    max_event: RawEventJson | null;
+    last_event: RawEventJson | null;
+    [key: string]: unknown;
+}
+
+/**
+ * Attaches scalar SQL subqueries that compute the max and last events for each
+ * series row WITHOUT loading the full events relation.
+ *
+ * - `max_event`: the event with the highest value (ties broken by earliest eventDate).
+ * - `last_event`: the chronologically latest event.
+ *
+ * Both subqueries exclude missVal rows (value <> s."missVal").
+ *
+ * After calling this helper use `getRawAndEntities()` and pass the result to
+ * `mergeAggregatesOntoEntities()`.
+ */
+function addAggregateSubqueries(qb: SelectQueryBuilder<AerialPrecipitationSeries>): void {
+    qb.addSelect(
+        `(SELECT row_to_json(e.*) FROM aerial_precipitation_events e
+          WHERE e."seriesId" = s.id AND e.value <> s."missVal"
+          ORDER BY e.value DESC, e."eventDate" ASC LIMIT 1)`,
+        'max_event',
+    ).addSelect(
+        `(SELECT row_to_json(e.*) FROM aerial_precipitation_events e
+          WHERE e."seriesId" = s.id AND e.value <> s."missVal"
+          ORDER BY e."eventDate" DESC LIMIT 1)`,
+        'last_event',
+    );
+}
+
+/**
+ * Merges the raw `max_event` / `last_event` JSON columns (produced by
+ * `addAggregateSubqueries`) onto each entity instance as transient fields.
+ *
+ * When a `leftJoinAndSelect` is active, TypeORM emits one raw row per
+ * joined child — i.e., multiple raw rows per entity. We therefore build a
+ * Map keyed by series id (`s_id` column) and assign aggregates by id, not by
+ * positional index.
+ */
+function mergeAggregatesOntoEntities(
+    entities: AerialPrecipitationSeries[],
+    raw: RawSeriesRow[],
+): AerialPrecipitationSeries[] {
+    // Build a lookup: seriesId → first raw row that carries the aggregates.
+    // All raw rows for the same series carry identical aggregate values, so the
+    // first one is sufficient.
+    const aggregateBySeriesId = new Map<string, RawSeriesRow>();
+    for (const r of raw) {
+        const id = r.s_id;
+        if (id && !aggregateBySeriesId.has(id)) {
+            aggregateBySeriesId.set(id, r);
+        }
+    }
+
+    for (const entity of entities) {
+        const r = aggregateBySeriesId.get(entity.id);
+        if (!r) continue;
+
+        const rawMax = r.max_event;
+        const rawLast = r.last_event;
+
+        entity.maxEvent = rawMax
+            ? new AerialPrecipitationEvent({
+                  seriesId: rawMax.seriesId,
+                  eventDate: new Date(rawMax.eventDate),
+                  value: Number(rawMax.value),
+                  flag: Number(rawMax.flag),
+              })
+            : null;
+
+        entity.lastEvent = rawLast
+            ? new AerialPrecipitationEvent({
+                  seriesId: rawLast.seriesId,
+                  eventDate: new Date(rawLast.eventDate),
+                  value: Number(rawLast.value),
+                  flag: Number(rawLast.flag),
+              })
+            : null;
+    }
+    return entities;
+}
 
 /** Postgres advisory lock seed string — must match the value in the port comment. */
 const ADVISORY_LOCK_KEY = 'aerial-precip-poll';
@@ -162,7 +257,9 @@ export class AerialPrecipitationSeriesRepository extends IAerialPrecipitationSer
                 qb.andWhere('s.stat IS NULL');
             }
 
-            return qb.getMany();
+            addAggregateSubqueries(qb);
+            const { entities, raw } = await qb.getRawAndEntities();
+            return mergeAggregatesOntoEntities(entities, raw);
         } catch (error) {
             this.logger.error({
                 msg: 'Failed to findLatestPerLocation',
@@ -222,7 +319,11 @@ export class AerialPrecipitationSeriesRepository extends IAerialPrecipitationSer
 
             qb.orderBy('s."forecastDate"', 'DESC');
 
-            return qb.getMany();
+            // Always attach scalar aggregates so the mapper can compute max/last
+            // without loading the full events relation.
+            addAggregateSubqueries(qb);
+            const { entities, raw } = await qb.getRawAndEntities();
+            return mergeAggregatesOntoEntities(entities, raw);
         } catch (error) {
             this.logger.error({
                 msg: 'Failed to findByLocation',
@@ -258,13 +359,16 @@ export class AerialPrecipitationSeriesRepository extends IAerialPrecipitationSer
                 const ids = idRows.map((r) => r.s_id);
                 if (ids.length === 0) return [];
 
-                return this.seriesRepo
+                const eventsQb = this.seriesRepo
                     .createQueryBuilder('s')
                     .whereInIds(ids)
                     .leftJoinAndSelect('s.events', 'events')
                     .orderBy('s."forecastDate"', 'DESC')
-                    .addOrderBy('events.eventDate', 'ASC')
-                    .getMany();
+                    .addOrderBy('events.eventDate', 'ASC');
+
+                addAggregateSubqueries(eventsQb);
+                const { entities: evEntities, raw: evRaw } = await eventsQb.getRawAndEntities();
+                return mergeAggregatesOntoEntities(evEntities, evRaw);
             }
 
             const qb = this.buildFilteredQuery(filters);
@@ -272,7 +376,9 @@ export class AerialPrecipitationSeriesRepository extends IAerialPrecipitationSer
                 .skip((page - 1) * limit)
                 .take(limit);
 
-            return qb.getMany();
+            addAggregateSubqueries(qb);
+            const { entities, raw } = await qb.getRawAndEntities();
+            return mergeAggregatesOntoEntities(entities, raw);
         } catch (error) {
             this.logger.error({
                 msg: 'Failed to listFiltered aerial precipitation series',

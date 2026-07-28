@@ -218,4 +218,71 @@ describe('Latest Aerial Precipitation (e2e)', () => {
         expect(Array.isArray(seriesWith.events)).toBe(true);
         expect(seriesWith.events.length).toBeGreaterThan(0);
     });
+
+    // ─────────────────────────────────────────────────────────────
+    // T046 — summary mode: max/last carry correct values without events
+    // ─────────────────────────────────────────────────────────────
+
+    it('T046: summary mode (includeEvents=false) — max.value and last.eventDate are correct, events key absent', async () => {
+        const locationId = 'Cuenca.NAM.E_46';
+        const forecastDate = new Date('2026-07-14T00:00:00Z');
+
+        const series = buildSeriesEntity({
+            locationId,
+            parameterId: 'P.areal.harmonie.subcNAM.24H',
+            forecastDate,
+            provider: 'harmonie',
+            layer: 'subcNAM',
+            stat: null,
+            accumulation: '24h',
+            missVal: -999,
+        });
+
+        // Seed 3 events with distinct values and dates.
+        // max by value should be event B (12.5 mm).
+        // last by date should be event C (03:00).
+        await repo.upsertWithEvents(series, [
+            buildEventEntity({
+                seriesId: 'placeholder',
+                eventDate: new Date('2026-07-14T01:00:00Z'),
+                value: 5.0,
+                flag: 2,
+            }),
+            buildEventEntity({
+                seriesId: 'placeholder',
+                eventDate: new Date('2026-07-14T02:00:00Z'),
+                value: 12.5, // <-- highest value
+                flag: 2,
+            }),
+            buildEventEntity({
+                seriesId: 'placeholder',
+                eventDate: new Date('2026-07-14T03:00:00Z'), // <-- latest date
+                value: 3.0,
+                flag: 2,
+            }),
+        ]);
+
+        // Request WITHOUT includeEvents (default summary mode)
+        const { body } = await getLatest({
+            layer: 'subcNAM',
+            provider: 'harmonie',
+            accumulation: '24h',
+        }).expect(HttpStatus.OK);
+
+        const s = (body.series as any[]).find((item: any) => item.locationId === locationId);
+        expect(s).toBeDefined();
+
+        // events key must be absent in summary mode
+        expect(s.events).toBeUndefined();
+
+        // max must reflect the highest-value event (12.5 mm at 02:00)
+        expect(s.max).not.toBeNull();
+        expect(s.max.value).toBe(12.5);
+        expect(new Date(s.max.eventDate).toISOString()).toBe('2026-07-14T02:00:00.000Z');
+
+        // last must reflect the chronologically latest event (03:00, 3.0 mm)
+        expect(s.last).not.toBeNull();
+        expect(s.last.value).toBe(3.0);
+        expect(new Date(s.last.eventDate).toISOString()).toBe('2026-07-14T03:00:00.000Z');
+    });
 });

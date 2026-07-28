@@ -95,6 +95,14 @@ export class AerialPrecipitationSeries extends BaseAuditEntity implements IValid
     @OneToMany(() => AerialPrecipitationEvent, (event) => event.series)
     events?: AerialPrecipitationEvent[];
 
+    // ─── Transient aggregate fields (not persisted) ───────────────
+    // Populated by the repository via SQL subquery aggregates when
+    // events are NOT eagerly loaded (summary mode). The mapper reads
+    // these first and falls back to iterating series.events when present.
+
+    maxEvent?: AerialPrecipitationEvent | null;
+    lastEvent?: AerialPrecipitationEvent | null;
+
     // ─── Audit columns (BaseAuditEntity override) ─────────────────
 
     @CreateDateColumn()

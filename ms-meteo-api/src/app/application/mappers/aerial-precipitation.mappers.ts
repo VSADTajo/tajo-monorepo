@@ -40,7 +40,12 @@ import {
  * - `last`: chronologically latest event.
  * - `events`: only included when `includeEvents === true`.
  *
- * When the series has no loaded events both `max` and `last` are `null`.
+ * Resolution order for `max` / `last`:
+ * 1. Prefer `series.maxEvent` / `series.lastEvent` (transient fields set by the
+ *    repository via SQL subquery aggregates — always present in summary mode).
+ * 2. Fall back to iterating `series.events` (present when `includeEvents=true`
+ *    and the relation was eagerly loaded).
+ * 3. If neither is available, both fields are `null`.
  */
 export function serializeSeries(
     series: AerialPrecipitationSeries,
@@ -51,7 +56,12 @@ export function serializeSeries(
     let maxPoint: AerialPrecipitationEventPointDto | null = null;
     let lastPoint: AerialPrecipitationEventPointDto | null = null;
 
-    if (events.length > 0) {
+    // Prefer transient aggregate fields injected by the repository.
+    if (series.maxEvent !== undefined) {
+        maxPoint = series.maxEvent ? toEventPointDto(series.maxEvent) : null;
+        lastPoint = series.lastEvent ? toEventPointDto(series.lastEvent) : null;
+    } else if (events.length > 0) {
+        // Fallback: compute from the eagerly-loaded events array.
         // max: highest value, ties → earliest eventDate
         const maxEvent = events.reduce((best, e) => {
             if (e.value > best.value) return e;
