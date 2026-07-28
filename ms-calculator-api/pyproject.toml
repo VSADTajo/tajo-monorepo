@@ -38,6 +38,10 @@ include = ["src*"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Vendored verbatim from VSADTajo/tajo-volume_calculator — keep byte-identical
+# to upstream, so it is not linted (mypy already excludes it below).
+extend-exclude = ["src/domain/volume_calculator/"]
+force-exclude = true
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "C4", "RUF"]
