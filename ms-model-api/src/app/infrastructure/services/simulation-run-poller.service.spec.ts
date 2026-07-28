@@ -58,8 +58,8 @@ function buildSimulationRun(overrides: Partial<SimulationRun> = {}): SimulationR
 function buildTimeSeries(overrides: Partial<NormalizedTimeSeriesResult> = {}): NormalizedTimeSeriesResult {
     return new NormalizedTimeSeriesResult({
         locationId: 'E_08',
-        parameterId: 'I.mk11.forecast',
-        moduleInstanceId: 'Flood_Forecasting',
+        parameterId: 'I.mk11.forecast.web',
+        moduleInstanceId: 'RunMIKE11_Forecast_TajoJar_web',
         stationName: 'Station 8',
         lat: 40.0,
         lon: -3.0,
@@ -212,7 +212,7 @@ describe('SimulationRunPollerService.pollOnce()', () => {
         expect(wiskiEntry.header.locationId).toBe('E_08');
 
         // Normalized entries must be re-shaped into { header, events } with proper date/time split
-        const forecastEntry = payload.timeSeries.find((s: any) => s.header.parameterId === 'I.mk11.forecast');
+        const forecastEntry = payload.timeSeries.find((s: any) => s.header.parameterId === 'I.mk11.forecast.web');
         expect(forecastEntry).toBeDefined();
         expect(forecastEntry.header.locationId).toBe('E_08');
 
@@ -288,5 +288,30 @@ describe('SimulationRunPollerService.pollOnce()', () => {
         const [exchange, routingKey] = mockMessageBroker.publishToTopic.mock.calls[0];
         expect(exchange).toBe(Topics.MODEL_EVENTS.exchange);
         expect(routingKey).toBe(Topics.MODEL_EVENTS.routingKeys.TIMESERIES_INGESTED);
+    });
+
+    it('(h) should forward a null forecastDate to the calculator instead of throwing', async () => {
+        mockAppConfig.useCalculatorPipeline = true;
+        const run = buildSimulationRun();
+        // FEWS omits forecastDate for series no module produced — it reaches here as null.
+        const timeSeries = [buildTimeSeries({ forecastDate: null })];
+
+        mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
+        mockSimulationResultFetcher.fetchFromFolder.mockResolvedValue({
+            timeSeries,
+            processedFileName: 'result.json',
+        });
+        mockSimulationResultFetcher.fetchVobsSeries.mockResolvedValue(null);
+        mockSimulationRunRepository.update.mockResolvedValue(run);
+        mockMessageBroker.publishToTopic.mockResolvedValue(undefined);
+
+        await service.pollOnce();
+
+        const [, , payload] = mockMessageBroker.publishToTopic.mock.calls[0];
+        const entry = payload.timeSeries[0];
+        expect(entry.header.forecastDate).toBeNull();
+        // The mandatory dates must still be shaped as { date, time } dicts
+        expect(entry.header.startDate).toEqual({ date: '2026-06-19', time: '00:00:00' });
+        expect(run.status).toBe(SimulationRunStatus.COMPLETED);
     });
 });

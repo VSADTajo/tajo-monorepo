@@ -114,3 +114,174 @@ describe('SimulationResultFetcherService.fetchVobsSeries()', () => {
         expect(mockLogger.warn).toHaveBeenCalledTimes(1);
     });
 });
+
+// ─────────────────────────────────────────────────────────────
+// fetchFromFolder
+// ─────────────────────────────────────────────────────────────
+
+const OUTPUT_FOLDER = 'tajo/SIMULATIONS/sim-abc/output';
+const RESULT_FILE = {
+    name: 'tagus_Q_mod_202607271100.json',
+    path: `${OUTPUT_FOLDER}/tagus_Q_mod_202607271100.json`,
+    isDirectory: false,
+};
+
+/**
+ * Builds a FEWS PI-JSON series. FEWS only emits the five "execution" fields
+ * (forecastDate, moduleInstanceId, creationDate, creationTime, approvedDate)
+ * for series a module actually produced — series outside the running model
+ * carry none of them and are filled entirely with missVal.
+ */
+function buildSeries(options: {
+    locationId: string;
+    parameterId: string;
+    withForecastDate: boolean;
+    values: string[];
+}) {
+    const header: Record<string, unknown> = {
+        type: 'instantaneous',
+        locationId: options.locationId,
+        parameterId: options.parameterId,
+        timeStep: { unit: 'second', multiplier: '900' },
+        startDate: { date: '2026-07-27', time: '11:00:00' },
+        endDate: { date: '2026-07-30', time: '11:00:00' },
+        missVal: '-999.0',
+        stationName: `${options.locationId} STATION`,
+        lat: '40.4',
+        lon: '-2.7',
+        x: '521205.76',
+        y: '4482642.75',
+        z: '723.0',
+        units: 'm3/s',
+    };
+
+    if (options.withForecastDate) {
+        header.forecastDate = { date: '2026-07-27', time: '09:00:00' };
+        header.moduleInstanceId = 'RunMIKE11_Forecast_TajoJar_web';
+        header.creationDate = '2026-07-27';
+        header.creationTime = '11:14:12';
+        header.approvedDate = { date: '2026-07-27', time: '11:18:18' };
+    }
+
+    const events = options.values.map((value, index) => ({
+        date: '2026-07-27',
+        time: `${String(11 + index).padStart(2, '0')}:00:00`,
+        value,
+        flag: value === '-999.0' ? '8' : '2',
+    }));
+
+    return { header, events };
+}
+
+// Mirrors the real 27-jul file: a produced series, an unmodelled one with no
+// execution metadata at all, and a processed-but-empty one (E_44 / E_65 case).
+const PRODUCED_SERIES = buildSeries({
+    locationId: 'E_09',
+    parameterId: 'Q.mk11.forecast.web',
+    withForecastDate: true,
+    values: ['5.559', '5.557'],
+});
+const UNMODELLED_SERIES = buildSeries({
+    locationId: 'E_17',
+    parameterId: 'I.mk11.forecast.web',
+    withForecastDate: false,
+    values: ['-999.0', '-999.0'],
+});
+const PROCESSED_EMPTY_SERIES = buildSeries({
+    locationId: 'E_44',
+    parameterId: 'Q.salida.forecast',
+    withForecastDate: true,
+    values: ['-999.0', '-999.0'],
+});
+
+function mockSftpResponses(payload: unknown): void {
+    mockedAxios.get = jest.fn().mockImplementation((url: string) => {
+        if (url.includes('/files/download')) {
+            return Promise.resolve({ data: payload });
+        }
+        return Promise.resolve({ data: { files: [RESULT_FILE] } });
+    });
+    mockedAxios.post = jest.fn().mockResolvedValue({ data: {} });
+}
+
+describe('SimulationResultFetcherService.fetchFromFolder()', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should parse a file whose series lack forecastDate instead of treating it as corrupted', async () => {
+        mockSftpResponses({ version: '1.34', timeZone: '0.0', timeSeries: [PRODUCED_SERIES, UNMODELLED_SERIES] });
+
+        const service = buildService({});
+        const result = await service.fetchFromFolder(OUTPUT_FOLDER);
+
+        expect(result).not.toBeNull();
+        const movedToCorrupted = (mockedAxios.post as jest.Mock).mock.calls.some((call) =>
+            String(call[1]?.destinationPath).includes('/corrupted/'),
+        );
+        expect(movedToCorrupted).toBe(false);
+    });
+
+    it('should keep only series carrying at least one real value', async () => {
+        mockSftpResponses({
+            version: '1.34',
+            timeZone: '0.0',
+            timeSeries: [PRODUCED_SERIES, UNMODELLED_SERIES, PROCESSED_EMPTY_SERIES],
+        });
+
+        const service = buildService({});
+        const result = await service.fetchFromFolder(OUTPUT_FOLDER);
+
+        expect(result?.timeSeries).toHaveLength(1);
+        expect(result?.timeSeries[0].locationId).toBe('E_09');
+    });
+
+    it('should report how many empty series were discarded', async () => {
+        mockSftpResponses({
+            version: '1.34',
+            timeZone: '0.0',
+            timeSeries: [PRODUCED_SERIES, UNMODELLED_SERIES, PROCESSED_EMPTY_SERIES],
+        });
+
+        const service = buildService({});
+        const result = await service.fetchFromFolder(OUTPUT_FOLDER);
+
+        expect(result?.skippedEmptySeries).toBe(2);
+    });
+
+    it('should move a successfully parsed file to historial/', async () => {
+        mockSftpResponses({ version: '1.34', timeZone: '0.0', timeSeries: [PRODUCED_SERIES, UNMODELLED_SERIES] });
+
+        const service = buildService({});
+        await service.fetchFromFolder(OUTPUT_FOLDER);
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            expect.stringContaining('/files/move'),
+            expect.objectContaining({ destinationPath: `${OUTPUT_FOLDER}/historial/${RESULT_FILE.name}` }),
+            expect.anything(),
+        );
+    });
+
+    it('should still move a genuinely malformed file to corrupted/', async () => {
+        mockSftpResponses({ version: '1.34', timeZone: '0.0' }); // no timeSeries at all
+
+        const service = buildService({});
+
+        await expect(service.fetchFromFolder(OUTPUT_FOLDER)).rejects.toThrow();
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            expect.stringContaining('/files/move'),
+            expect.objectContaining({ destinationPath: `${OUTPUT_FOLDER}/corrupted/${RESULT_FILE.name}` }),
+            expect.anything(),
+        );
+    });
+
+    it('should return null when the output folder holds no JSON file yet', async () => {
+        mockedAxios.get = jest.fn().mockResolvedValue({ data: { files: [] } });
+        mockedAxios.post = jest.fn();
+
+        const service = buildService({});
+
+        await expect(service.fetchFromFolder(OUTPUT_FOLDER)).resolves.toBeNull();
+        expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+});
