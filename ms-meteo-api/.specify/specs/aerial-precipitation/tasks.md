@@ -79,7 +79,7 @@ All paths are relative to the monorepo root unless noted.
 
 - [x] **T050 [TEST]** — E2E `by-location-aerial-precipitation.e2e-spec.ts`: seed a polygon with series across `obs/harmonie/ens Med`. `GET /aerial-precipitation/by-location/Cuenca.NAM.E_08` returns groups keyed by `(provider, accumulation, stat)`.
 - [x] **T051 [TEST]** — Invalid locationId format → 400.
-- [x] **T052 [TEST]** — Well-formed locationId with no data → 404.
+- [x] **T052 [TEST]** — Well-formed locationId with no data → 200 with empty groups.
 - [x] **T053 [TEST]** — Historical fan: `?fromForecastDate=X&toForecastDate=Y` returns every matching snapshot per group (not just latest).
 - [x] **T054 [TEST]** — `includeEvents=true` behaves as in US5.
 - [x] **T055** — Implement `GetAerialPrecipitationByLocationQuery` + Handler + Mapper + cache registry entry. Makes T050–T054 pass.

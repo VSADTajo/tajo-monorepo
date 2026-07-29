@@ -82,8 +82,7 @@ The feature is a fully server-side aggregate; it does not touch existing simulat
 - Then the response contains all active series (default: only the latest `forecastDate` per `(provider, accumulation, stat)`) with their headers and summary metrics
 
 **Edge Cases:**
-- `locationId` is unknown → 404.
-- `locationId` exists but has zero series ingested → 200 with an empty list.
+- `locationId` is unknown or has zero series ingested → 200 with an empty list (`groups: []`), never 404. The service cannot distinguish "unknown polygon" from "no data yet", and clients treat both the same.
 - Client wants the full historical forecast fan → passes `?fromForecastDate=X` and/or `?toForecastDate=Y`; the endpoint then returns every matching snapshot (not only the latest per group).
 
 ---

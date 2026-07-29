@@ -13,10 +13,8 @@ import {
     AerialPrecipitationLatestResult,
     AerialPrecipitationByLocationResult,
 } from '@domain/results/aerial-precipitation-series.result';
-import { ApiError } from '@domain/errors/api.error';
 import { EntityError } from '@domain/errors/entity.error';
 import { LocationIdValueObject } from '@domain/value-objects/location-id.value-object';
-import { HttpStatus } from '@nestjs/common';
 
 // ─────────────────────────────────────────────────────────────
 // GetAerialPrecipitationLatest
@@ -131,13 +129,9 @@ export class GetAerialPrecipitationByLocationHandler implements IQueryHandler<
 
         const series = await this.repo.findByLocation(query.locationId, query.filters);
 
-        if (series.length === 0) {
-            throw new ApiError(
-                HttpStatus.NOT_FOUND,
-                `No aerial precipitation series found for locationId '${query.locationId}'`,
-            );
-        }
-
+        // No data is a valid, non-error outcome: return the same shape with an
+        // empty series (→ groups: []) instead of a 404, so clients don't have to
+        // special-case "no data" vs "has data".
         this.logger.debug({
             msg: 'GetAerialPrecipitationByLocationQuery',
             locationId: query.locationId,

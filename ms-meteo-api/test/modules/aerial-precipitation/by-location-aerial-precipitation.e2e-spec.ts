@@ -122,11 +122,15 @@ describe('By-Location Aerial Precipitation (e2e)', () => {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // T052 — Well-formed locationId with no data → 404
+    // T052 — Well-formed locationId with no data → 200 with empty groups
     // ─────────────────────────────────────────────────────────────
 
-    it('T052: well-formed locationId with no data — returns 404', async () => {
-        await getByLocation('Cuenca.NAM.E_99').expect(HttpStatus.NOT_FOUND);
+    it('T052: well-formed locationId with no data — returns 200 with empty groups', async () => {
+        const { body } = await getByLocation('Cuenca.NAM.E_99').expect(HttpStatus.OK);
+
+        expect(body.locationId).toBe('Cuenca.NAM.E_99');
+        expect(Array.isArray(body.groups)).toBe(true);
+        expect(body.groups.length).toBe(0);
     });
 
     // ─────────────────────────────────────────────────────────────

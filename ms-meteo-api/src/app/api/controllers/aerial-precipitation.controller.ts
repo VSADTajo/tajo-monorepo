@@ -94,7 +94,6 @@ export class AerialPrecipitationController {
         },
         errors: [
             { status: 400, description: 'Invalid locationId format' },
-            { status: 404, description: 'No series found for this locationId' },
             { status: 500, description: 'Internal server error' },
         ],
     })
