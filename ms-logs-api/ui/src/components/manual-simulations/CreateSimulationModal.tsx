@@ -355,8 +355,9 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
                                 <div className="mt-1.5 flex items-start justify-between gap-3">
                                     <p className="text-[10px] text-amber-300/80 flex items-start gap-1.5">
                                         <FlaskConical size={11} className="shrink-0 mt-px" />
-                                        No se ejecuta el modelo: se usa un resultado de referencia. Los embalses
-                                        precargados son los que ese resultado sí trae con datos.
+                                        Recorre el flujo directo completo contra un FEWS simulado: se envia el
+                                        input, se lanza la tarea y se leen los resultados de referencia. Los
+                                        embalses precargados son los que ese resultado si trae con datos.
                                     </p>
                                     <button
                                         type="button"

@@ -245,7 +245,7 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                                         {sim.modmeteo ?? '-'}
                                         {sim.modelSource === 'MOCK' && (
                                             <span
-                                                title="Resultado de referencia — el modelo no se ejecutó"
+                                                title="Flujo directo contra un FEWS simulado — resultado de referencia"
                                                 className="px-1.5 py-0.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-300 text-[10px] font-medium"
                                             >
                                                 Mock

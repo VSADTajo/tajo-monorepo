@@ -103,11 +103,11 @@ export class SimulationRunPollerService implements OnModuleInit {
 
     private async processSingleRun(run: SimulationRun): Promise<void> {
         try {
-            // A run launched through the FEWS REST API is followed by task id: its
+            // A run launched through the PI REST service is followed by task id: its
             // results never land in the output folder, so watching it would wait
             // forever. Everything after the fetch is identical for all modes.
             const result = run.fewsTaskId
-                ? await this.fewsResultFetcherService.fetchByTask(run.fewsTaskId)
+                ? await this.fewsResultFetcherService.fetchByTask(run.fewsTaskId, run.modelSource)
                 : await this.simulationResultFetcherService.fetchFromFolder(run.outputFolder);
 
             if (!result) {

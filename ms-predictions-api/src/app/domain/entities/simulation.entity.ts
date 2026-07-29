@@ -9,11 +9,13 @@ import type { Maneuver } from './maneuver.entity';
 
 /**
  * Where a manual simulation expects its model output from.
- *   SFTP — the real flow: FEWS leaves the result in the output folder.
- *   MOCK — a known-good reference output is seeded, so the whole pipeline can
- *          be exercised without depending on FEWS.
+ *   SFTP — the real file flow: FEWS reads the input folder on its own schedule
+ *          and leaves the result in the output folder.
  *   FEWS_API — the input is pushed to the FEWS PI REST service and the workflow
  *          is launched there, instead of leaving a file for someone to import.
+ *   MOCK — the FEWS_API flow pointed at a local fake PI REST service. It runs the
+ *          same requests against a stand-in, so the direct integration can be
+ *          exercised without depending on their FEWS being reachable.
  */
 export enum ModelSource {
     SFTP = 'SFTP',
@@ -59,10 +61,7 @@ export class Simulation extends BaseAuditEntity implements IValidable {
     @Column('varchar', { length: 100, nullable: true })
     modmeteo: string | null;
 
-    /**
-     * Where the model output comes from: SFTP (the real flow) or MOCK (a
-     * reference output seeded so the pipeline can run without FEWS).
-     */
+    /** Where the model output comes from — see {@link ModelSource}. */
     @Column('varchar', { length: 20, nullable: false, default: ModelSource.SFTP })
     modelSource: ModelSource;
 

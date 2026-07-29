@@ -3,6 +3,9 @@ import { BaseAuditEntity } from '@app/infrastructure/persistence/base-entity';
 import { IValidable } from '@domain/types/validable.type';
 import { EntityError } from '@domain/errors/entity.error';
 import { SimulationRunStatus } from '@domain/types/simulation-run-status.enum';
+import { DEFAULT_MODEL_SOURCE } from '@domain/types/model-source.type';
+// Type-only: a decorated property's type must not be emitted as a runtime import.
+import type { ModelSource } from '@domain/types/model-source.type';
 
 @Entity('simulation_runs')
 export class SimulationRun extends BaseAuditEntity implements IValidable {
@@ -33,12 +36,23 @@ export class SimulationRun extends BaseAuditEntity implements IValidable {
     errorMessage: string | null;
 
     /**
-     * Task id returned by FEWS when the run was launched through the REST API.
-     * Null for the SFTP and MOCK flows, where the result arrives as a file and
-     * there is no task to follow.
+     * Task id returned by the PI REST service when the run was launched through
+     * it. Null for the SFTP flow, where the result arrives as a file and there is
+     * no task to follow.
      */
     @Column('varchar', { length: 200, nullable: true })
     fewsTaskId: string | null;
+
+    /**
+     * Which model source this run was launched against.
+     *
+     * Recorded because following a task means going back to the very same PI REST
+     * service it was launched on, and the real FEWS and the local fake are
+     * different services. Also makes the row self-describing: you can tell from
+     * the database alone whether a result came from the model or from the mock.
+     */
+    @Column('varchar', { length: 20, nullable: false, default: DEFAULT_MODEL_SOURCE })
+    modelSource: ModelSource;
 
     validate(): void {
         if (!this.simulationId) {

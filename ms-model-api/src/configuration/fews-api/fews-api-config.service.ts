@@ -41,4 +41,12 @@ export class FewsApiConfigService {
     public get requestTimeoutMs(): number {
         return this.configService.getOrThrow('fews-api.requestTimeoutMs', { infer: true });
     }
+
+    public get mockBaseUrl(): string {
+        return this.configService.getOrThrow('fews-api.mockBaseUrl', { infer: true });
+    }
+
+    public get mockRunningMs(): number {
+        return this.configService.getOrThrow('fews-api.mockRunningMs', { infer: true });
+    }
 }
