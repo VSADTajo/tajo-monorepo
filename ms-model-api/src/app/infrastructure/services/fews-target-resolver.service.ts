@@ -3,11 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { FewsApiConfigService } from '@config/fews-api/fews-api-config.service';
 import { FewsTarget } from '@domain/types/fews-target.type';
 import { ModelSource } from '@domain/types/model-source.type';
-import {
-    MOCK_FEWS_FILTER_ID,
-    MOCK_FEWS_SERVICE_PATH,
-    MOCK_FEWS_WORKFLOW_ID,
-} from '@infrastructure/services/mock-fews.constants';
+import { MOCK_FEWS_FILTER_ID, MOCK_FEWS_SERVICE_PATH, MOCK_FEWS_WORKFLOW_ID } from '@common/mock-fews.constants';
 
 /**
  * Decides which PI REST service a run talks to.

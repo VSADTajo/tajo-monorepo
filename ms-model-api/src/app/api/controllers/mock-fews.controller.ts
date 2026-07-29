@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 
-import { MOCK_FEWS_ROUTE } from '@infrastructure/services/mock-fews.constants';
+import { MOCK_FEWS_ROUTE } from '@common/mock-fews.constants';
 import { MockFewsTaskStoreService } from '@infrastructure/services/mock-fews-task-store.service';
 
 /**

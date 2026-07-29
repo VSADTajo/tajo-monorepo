@@ -1,9 +1,11 @@
 /**
- * Wiring shared between the fake PI REST service and the resolver that points
- * the MOCK source at it.
+ * Wiring shared between the fake PI REST service, the resolver that points the
+ * MOCK source at it, and the client whitelist that has to let it through.
  *
- * The route prefix lives here rather than being typed twice so the controller
- * and the client can never drift apart: if this changes, both move together.
+ * The route prefix lives here rather than being typed three times so those three
+ * can never drift apart: if this changes, they all move together. It sits in
+ * `common/` because it is genuinely cross-cutting — the api layer serves it, the
+ * infrastructure layer calls it, and a middleware exempts it.
  * The filter and workflow ids are fixed values instead of environment variables
  * on purpose — MOCK has to work with no configuration at all, otherwise it stops
  * being the thing you reach for to check the pipeline quickly.

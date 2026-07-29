@@ -1,4 +1,5 @@
 import { Controller, Get, INestApplication, Query } from '@nestjs/common';
+import { NextFunction, Request, Response } from 'express';
 import { Test } from '@nestjs/testing';
 import { Logger } from 'nestjs-pino';
 import { AddressInfo } from 'net';
@@ -12,7 +13,8 @@ import { FewsApiConfigService } from '@config/fews-api/fews-api-config.service';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
 import { AppConfigService } from '@config/app/app-config.service';
 import { ENVIRONMENT } from '@config/app/app-config.type';
-import { MOCK_FEWS_SERVICE_PATH } from './mock-fews.constants';
+import { MOCK_FEWS_SERVICE_PATH } from '@common/mock-fews.constants';
+import { ClientWhitelistMiddleware } from '@common/middleware/client-whitelist.middleware';
 import { buildManualSimulationFile } from './__fixtures__/manual-simulation-input.fixture';
 
 /**
@@ -118,6 +120,25 @@ describe('MOCK source — full round trip over HTTP', () => {
         }).compile();
 
         app = bootModule.createNestApplication();
+
+        // The real app applies this to every route, and it only lets the gateway
+        // through. Without it here the suite passed while production answered 403
+        // to every call the client made — the mock was unreachable and no test
+        // said so. Any global middleware the app installs has to be installed
+        // here too, or this stops being a round trip and becomes a controller
+        // test.
+        //
+        // `/files` is exempt: it stands in for ms-sftp-api, a different service
+        // that in production is not behind this middleware. Everything the client
+        // itself calls goes through the real thing.
+        const whitelist = new ClientWhitelistMiddleware();
+        app.use((req: Request, res: Response, next: NextFunction) => {
+            if (req.path.startsWith('/files')) {
+                return next();
+            }
+            return whitelist.use(req, res, next);
+        });
+
         await app.init();
         await app.listen(0);
 
