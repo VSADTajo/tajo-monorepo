@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { SimulationFileStatus } from '@domain/results/simulation-files.result';
+// Type-only: it is a plain union used in a decorated signature, and with
+// isolatedModules + emitDecoratorMetadata a value import fails to compile.
+import type { SimulationFileStatus } from '@domain/results/simulation-files.result';
+// ModelSource is an enum, so it must stay a value import — @ApiProperty reads it.
 import { ModelSource } from '@domain/entities/simulation.entity';
 import {
     ArrayMinSize,

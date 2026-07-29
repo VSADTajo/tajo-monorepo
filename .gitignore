@@ -11,3 +11,6 @@ tmp/
 .vscode/
 .claude/settings.local.json
 tajo-volume_calculator/
+
+# TypeScript incremental build cache — never versioned
+*.tsbuildinfo
