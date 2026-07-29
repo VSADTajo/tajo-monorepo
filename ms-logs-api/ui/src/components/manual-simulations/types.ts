@@ -34,13 +34,30 @@ export interface Maneuver {
 }
 
 /** A maneuver being edited in the create form (no backend id yet). */
+/**
+ * How the operator defines the outflow of a maneuver.
+ *  - FLAT : one constant value; the backend fills the 15-minute grid with it.
+ *  - CURVE: the full series, passed through verbatim as the station events.
+ */
+export type ManeuverMode = 'FLAT' | 'CURVE';
+
 export interface ManeuverDraft {
     /** Client-only stable id for React keys. Never sent to the backend. */
     id: string;
     reservoirCode: string;
+    mode: ManeuverMode;
     outputFlowValue: string; // kept as string while editing; coerced to number on submit
+    /** Raw pasted curve, parsed on submit. Only used in CURVE mode. */
+    seriesText: string;
     startDate: string; // '' or 'YYYY-MM-DDTHH:mm'
     endDate: string;
+}
+
+/** One point of a pasted curve, in the shape the backend validates. */
+export interface ManeuverSeriesPointInput {
+    date: string; // YYYY-MM-DD
+    time: string; // HH:MM:SS
+    value: number;
 }
 
 /** Inline maneuver payload sent to the backend. */
@@ -49,6 +66,8 @@ export interface ManeuverInput {
     outputFlowValue: number;
     startDate?: string; // ISO 8601
     endDate?: string; // ISO 8601
+    /** When present the backend uses it verbatim and ignores outputFlowValue. */
+    series?: ManeuverSeriesPointInput[];
 }
 
 // ── Create simulation ─────────────────────────────────────────

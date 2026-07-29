@@ -4,7 +4,18 @@ import { AlertCircle, FlaskConical, Loader2, Plus, Rocket, Trash2, X } from 'luc
 import SearchableSelect from '../hydro/SearchableSelect';
 import { createManualSimulation, listReservoirs } from './api';
 import { useModalDismiss } from './useModalDismiss';
-import { MODMETEO_OPTIONS, type ManeuverDraft, type ManeuverInput, type ManualSimulation, type ModmeteoChoice } from './types';
+import { parseManeuverSeries, sortSeries } from './maneuverSeries';
+import {
+    MODMETEO_OPTIONS,
+    type ManeuverDraft,
+    type ManeuverInput,
+    type ManeuverMode,
+    type ManualSimulation,
+    type ModmeteoChoice,
+} from './types';
+
+const inputClass =
+    'w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500/70 focus:ring-2 focus:ring-blue-500/20 transition';
 
 interface CreateSimulationModalProps {
     onClose: () => void;
@@ -15,7 +26,15 @@ let maneuverSeq = 0;
 
 function emptyManeuver(): ManeuverDraft {
     maneuverSeq += 1;
-    return { id: `m-${maneuverSeq}`, reservoirCode: '', outputFlowValue: '', startDate: '', endDate: '' };
+    return {
+        id: `m-${maneuverSeq}`,
+        reservoirCode: '',
+        mode: 'FLAT',
+        outputFlowValue: '',
+        seriesText: '',
+        startDate: '',
+        endDate: '',
+    };
 }
 
 /** 'YYYY-MM-DDTHH:mm' (datetime-local) → ISO 8601. Empty → undefined. */
@@ -35,6 +54,74 @@ function getApiErrorMessage(error: unknown): string {
     }
     if (error instanceof Error) return error.message;
     return 'No se pudo crear la simulación';
+}
+
+/** Switches one maneuver between a single flow value and a pasted curve. */
+function ModeToggle({ mode, onChange }: { mode: ManeuverMode; onChange: (mode: ManeuverMode) => void }) {
+    const options: { value: ManeuverMode; label: string; title: string }[] = [
+        { value: 'FLAT', label: 'Fijo', title: 'Un caudal constante durante toda la ventana' },
+        { value: 'CURVE', label: 'Curva', title: 'Serie completa pegada desde una planilla' },
+    ];
+
+    return (
+        <div className="inline-flex rounded-md border border-slate-700/60 overflow-hidden">
+            {options.map((option) => (
+                <button
+                    key={option.value}
+                    type="button"
+                    title={option.title}
+                    onClick={() => onChange(option.value)}
+                    className={`px-2 py-0.5 text-[10px] font-medium transition ${
+                        mode === option.value
+                            ? 'bg-indigo-500/20 text-indigo-300'
+                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+                    }`}
+                >
+                    {option.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+/**
+ * Paste area for a full curve. A 3-day series at 15-minute steps is 289 points,
+ * so this is meant for pasting from a spreadsheet, not typing. Feedback is live:
+ * how many points were understood and which lines were not.
+ */
+function CurveInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+    const { points, invalidLines } = useMemo(() => parseManeuverSeries(value), [value]);
+    const hasContent = value.trim().length > 0;
+
+    return (
+        <div>
+            <textarea
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                rows={4}
+                spellCheck={false}
+                placeholder={'2026-07-27 11:00:00;12.5\n2026-07-27 11:15:00;12.4'}
+                className={`${inputClass} font-mono !text-[11px] leading-relaxed resize-y`}
+            />
+            <div className="mt-1 flex items-center gap-2 text-[10px]">
+                {!hasContent ? (
+                    <span className="text-slate-600">Pegá fecha, hora y caudal — un punto por línea</span>
+                ) : (
+                    <>
+                        <span className={points.length > 0 ? 'text-emerald-400' : 'text-slate-500'}>
+                            {points.length} punto{points.length === 1 ? '' : 's'}
+                        </span>
+                        {invalidLines.length > 0 && (
+                            <span className="text-red-400">
+                                · {invalidLines.length} línea{invalidLines.length === 1 ? '' : 's'} sin interpretar
+                                {` (${invalidLines.slice(0, 3).join(', ')}${invalidLines.length > 3 ? '…' : ''})`}
+                            </span>
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
 }
 
 export default function CreateSimulationModal({ onClose, onCreated }: CreateSimulationModalProps) {
@@ -91,6 +178,42 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
                 setValidationError(`${label}: seleccioná un embalse.`);
                 return null;
             }
+
+            const startIso = toIso(m.startDate);
+            const endIso = toIso(m.endDate);
+            if (startIso && endIso && new Date(endIso) < new Date(startIso)) {
+                setValidationError(`${label}: la fecha de fin no puede ser anterior a la de inicio.`);
+                return null;
+            }
+
+            if (m.mode === 'CURVE') {
+                const { points, invalidLines } = parseManeuverSeries(m.seriesText);
+                if (invalidLines.length > 0) {
+                    setValidationError(
+                        `${label}: no se entienden las líneas ${invalidLines.slice(0, 5).join(', ')}` +
+                            `${invalidLines.length > 5 ? '…' : ''}. Formato: 2026-07-27 11:00:00;12.5`,
+                    );
+                    return null;
+                }
+                if (points.length === 0) {
+                    setValidationError(`${label}: pegá la curva o cambiá a caudal fijo.`);
+                    return null;
+                }
+                if (points.some((p) => p.value < 0)) {
+                    setValidationError(`${label}: la curva no puede tener caudales negativos.`);
+                    return null;
+                }
+                result.push({
+                    reservoirCode: m.reservoirCode,
+                    // Ignored by the backend when `series` is present, but the field is required.
+                    outputFlowValue: points[0].value,
+                    series: sortSeries(points),
+                    ...(startIso ? { startDate: startIso } : {}),
+                    ...(endIso ? { endDate: endIso } : {}),
+                });
+                continue;
+            }
+
             const flow = Number(m.outputFlowValue);
             if (m.outputFlowValue === '' || !Number.isFinite(flow)) {
                 setValidationError(`${label}: el caudal es obligatorio y debe ser un número válido.`);
@@ -98,12 +221,6 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
             }
             if (flow < 0) {
                 setValidationError(`${label}: el caudal no puede ser negativo.`);
-                return null;
-            }
-            const startIso = toIso(m.startDate);
-            const endIso = toIso(m.endDate);
-            if (startIso && endIso && new Date(endIso) < new Date(startIso)) {
-                setValidationError(`${label}: la fecha de fin no puede ser anterior a la de inicio.`);
                 return null;
             }
             result.push({
@@ -129,8 +246,6 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
 
     const submitting = mutation.isPending;
     const errorMessage = validationError ?? (mutation.isError ? getApiErrorMessage(mutation.error) : null);
-    const inputClass =
-        'w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-blue-500/70 focus:ring-2 focus:ring-blue-500/20 transition';
 
     return (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-overlay-in">
@@ -248,21 +363,36 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] uppercase tracking-wide text-slate-500 mb-1">Caudal</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    step="any"
-                                                    value={m.outputFlowValue}
-                                                    onChange={(e) => updateManeuver(index, { outputFlowValue: e.target.value })}
-                                                    placeholder="12.5"
-                                                    className={`${inputClass} !pr-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+                                            <div className="flex items-center justify-between mb-1">
+                                                <label className="block text-[10px] uppercase tracking-wide text-slate-500">
+                                                    {m.mode === 'FLAT' ? 'Caudal' : 'Curva'}
+                                                </label>
+                                                <ModeToggle
+                                                    mode={m.mode}
+                                                    onChange={(mode) => updateManeuver(index, { mode })}
                                                 />
-                                                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-500">
-                                                    m³/s
-                                                </span>
                                             </div>
+                                            {m.mode === 'FLAT' ? (
+                                                <div className="relative">
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        step="any"
+                                                        value={m.outputFlowValue}
+                                                        onChange={(e) => updateManeuver(index, { outputFlowValue: e.target.value })}
+                                                        placeholder="12.5"
+                                                        className={`${inputClass} !pr-12 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+                                                    />
+                                                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-500">
+                                                        m³/s
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <CurveInput
+                                                    value={m.seriesText}
+                                                    onChange={(seriesText) => updateManeuver(index, { seriesText })}
+                                                />
+                                            )}
                                         </div>
                                         <div>
                                             <label className="block text-[10px] uppercase tracking-wide text-slate-500 mb-1">
