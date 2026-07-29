@@ -3,6 +3,7 @@ import { Logger } from 'nestjs-pino';
 import { FewsResultFetcherService } from './fews-result-fetcher.service';
 import { FewsTaskClientService, FewsTaskStatus, TaskOutcome } from './fews-task-client.service';
 import { FewsTargetResolverService } from './fews-target-resolver.service';
+import { SimulationOutputArchiverService } from './simulation-output-archiver.service';
 import { ProviderError } from '@domain/errors/provider.error';
 import { FewsTarget } from '@domain/types/fews-target.type';
 
@@ -52,6 +53,12 @@ const mockClient = {
     getTimeSeries: jest.fn(),
 };
 
+const OUTPUT_FOLDER = 'tajo/SIMULATIONS/sim-1/output';
+
+const mockArchiver = {
+    archive: jest.fn().mockResolvedValue('tajo/SIMULATIONS/sim-1/output/historial/fews-taskrun-RUN-1.json'),
+};
+
 const mockResolver = {
     resolve: jest.fn((source: string) => (source === 'MOCK' ? MOCK_TARGET : REAL_TARGET)),
 };
@@ -61,6 +68,7 @@ function buildService(): FewsResultFetcherService {
         mockLogger,
         mockClient as unknown as FewsTaskClientService,
         mockResolver as unknown as FewsTargetResolverService,
+        mockArchiver as unknown as SimulationOutputArchiverService,
     );
 }
 
@@ -77,23 +85,23 @@ describe('FewsResultFetcherService.fetchByTask()', () => {
     it('should return the parsed series once the task completed', async () => {
         mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.COMPLETED));
 
-        const result = await buildService().fetchByTask('TASK-1', 'FEWS_API');
+        const result = await buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER);
 
         expect(result?.timeSeries.length).toBe(1);
-        expect(result?.processedFileName).toBe('fews-taskrun-RUN-1');
+        expect(result?.processedFileName).toBe('fews-taskrun-RUN-1.json');
     });
 
     it('should return null while the task is still running so the poller retries', async () => {
         mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.RUNNING, ''));
 
-        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API')).resolves.toBeNull();
+        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER)).resolves.toBeNull();
         expect(mockClient.getTimeSeries).not.toHaveBeenCalled();
     });
 
     it('should read a partly successful run rather than discard it', async () => {
         mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.PARTLY_SUCCESSFUL));
 
-        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API')).resolves.not.toBeNull();
+        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER)).resolves.not.toBeNull();
     });
 
     it('should fail loudly when the task failed instead of waiting forever', async () => {
@@ -101,19 +109,25 @@ describe('FewsResultFetcherService.fetchByTask()', () => {
         // until the timeout with nothing explaining why.
         mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.FAILED, ''));
 
-        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API')).rejects.toBeInstanceOf(ProviderError);
+        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER)).rejects.toBeInstanceOf(
+            ProviderError,
+        );
     });
 
     it('should fail on a terminated task', async () => {
         mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.TERMINATED, ''));
 
-        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API')).rejects.toBeInstanceOf(ProviderError);
+        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER)).rejects.toBeInstanceOf(
+            ProviderError,
+        );
     });
 
     it('should not assume success on an unrecognised status', async () => {
         mockClient.getTaskStatus.mockResolvedValue({ status: 'Z' as FewsTaskStatus, description: '', taskRunId: '' });
 
-        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API')).rejects.toBeInstanceOf(ProviderError);
+        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER)).rejects.toBeInstanceOf(
+            ProviderError,
+        );
     });
 
     it('should fail when a finished task reports no taskRunId', async () => {
@@ -121,13 +135,15 @@ describe('FewsResultFetcherService.fetchByTask()', () => {
         // results are addressed by it — there is nothing to poll for.
         mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.COMPLETED, ''));
 
-        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API')).rejects.toBeInstanceOf(ProviderError);
+        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER)).rejects.toBeInstanceOf(
+            ProviderError,
+        );
     });
 
     it('should follow a MOCK run against the mock target', async () => {
         mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.COMPLETED));
 
-        await buildService().fetchByTask('mock-task-1', 'MOCK');
+        await buildService().fetchByTask('mock-task-1', 'MOCK', OUTPUT_FOLDER);
 
         expect(mockClient.getTaskStatus).toHaveBeenCalledWith(MOCK_TARGET, 'mock-task-1');
         expect(mockClient.getTimeSeries).toHaveBeenCalledWith(MOCK_TARGET, 'RUN-1');
@@ -136,8 +152,38 @@ describe('FewsResultFetcherService.fetchByTask()', () => {
     it('should follow a FEWS_API run against the real target', async () => {
         mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.COMPLETED));
 
-        await buildService().fetchByTask('TASK-1', 'FEWS_API');
+        await buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER);
 
         expect(mockClient.getTaskStatus).toHaveBeenCalledWith(REAL_TARGET, 'TASK-1');
+    });
+
+    it('should archive the model response where the SFTP flow leaves it', async () => {
+        // The operator's way of confirming the model answered is seeing the file.
+        // The direct flow gets no file, so we keep the document the API returned.
+        mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.COMPLETED));
+
+        const result = await buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER);
+
+        expect(mockArchiver.archive).toHaveBeenCalledWith(OUTPUT_FOLDER, 'fews-taskrun-RUN-1.json', PI_JSON_RESULT);
+        expect(result?.processedFileName).toBe('fews-taskrun-RUN-1.json');
+    });
+
+    it('should still return the results when archiving fails', async () => {
+        // Archiving costs the audit trail, never the run: the results are already
+        // in hand by the time it is attempted.
+        mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.COMPLETED));
+        mockArchiver.archive.mockResolvedValueOnce(null);
+
+        const result = await buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER);
+
+        expect(result?.timeSeries.length).toBe(1);
+    });
+
+    it('should not archive anything while the task is still running', async () => {
+        mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.RUNNING, ''));
+
+        await buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER);
+
+        expect(mockArchiver.archive).not.toHaveBeenCalled();
     });
 });

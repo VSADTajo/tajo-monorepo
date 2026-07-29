@@ -9,6 +9,7 @@ import { MockFewsTaskStoreService } from './mock-fews-task-store.service';
 import { FewsTaskClientService, FewsTaskStatus } from './fews-task-client.service';
 import { FewsResultFetcherService } from './fews-result-fetcher.service';
 import { FewsTargetResolverService } from './fews-target-resolver.service';
+import { SimulationOutputArchiverService } from './simulation-output-archiver.service';
 import { FewsApiConfigService } from '@config/fews-api/fews-api-config.service';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
 import { AppConfigService } from '@config/app/app-config.service';
@@ -74,6 +75,13 @@ const REFERENCE_OUTPUT = {
 };
 
 const REFERENCE_PATH = 'tajo/reference/Q_mod_output_202607270600.web.json';
+const OUTPUT_FOLDER = 'tajo/SIMULATIONS/sim-1/output';
+
+/**
+ * Archiving is stubbed here: this suite is about the client reaching the fake over
+ * real HTTP, and its own contract is covered in fews-result-fetcher.service.spec.
+ */
+const archiver = { archive: jest.fn().mockResolvedValue(null) } as unknown as SimulationOutputArchiverService;
 
 /** Stands in for the ms-sftp-api download endpoint the fake reads the reference from. */
 @Controller('files')
@@ -162,7 +170,7 @@ describe('MOCK source — full round trip over HTTP', () => {
 
         client = new FewsTaskClientService(mockLogger, fewsConfig);
         resolver = new FewsTargetResolverService(fewsConfig);
-        fetcher = new FewsResultFetcherService(mockLogger, client, resolver);
+        fetcher = new FewsResultFetcherService(mockLogger, client, resolver, archiver);
     }, 30_000);
 
     afterAll(async () => {
@@ -207,7 +215,7 @@ describe('MOCK source — full round trip over HTTP', () => {
             description: 'Manual simulation round-trip',
         });
 
-        const result = await fetcher.fetchByTask(taskId, 'MOCK');
+        const result = await fetcher.fetchByTask(taskId, 'MOCK', OUTPUT_FOLDER);
 
         expect(result).not.toBeNull();
         expect(result!.timeSeries.length).toBe(2);

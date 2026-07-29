@@ -423,7 +423,7 @@ describe('SimulationRunPollerService.pollOnce()', () => {
 
         // The source travels with the run: results have to be read from the very
         // same PI REST service the task was launched on.
-        expect(mockFewsResultFetcher.fetchByTask).toHaveBeenCalledWith('TASK-77', 'FEWS_API');
+        expect(mockFewsResultFetcher.fetchByTask).toHaveBeenCalledWith('TASK-77', 'FEWS_API', run.outputFolder);
         expect(mockSimulationResultFetcher.fetchFromFolder).not.toHaveBeenCalled();
         expect(run.status).toBe(SimulationRunStatus.COMPLETED);
     });

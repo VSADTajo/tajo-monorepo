@@ -6,6 +6,7 @@ import { ModelSource } from '@domain/types/model-source.type';
 import { SimulationFetchResult } from '@infrastructure/services/simulation-result-fetcher.service';
 import { FewsTaskClientService } from '@infrastructure/services/fews-task-client.service';
 import { FewsTargetResolverService } from '@infrastructure/services/fews-target-resolver.service';
+import { SimulationOutputArchiverService } from '@infrastructure/services/simulation-output-archiver.service';
 import { mapPiJsonToNormalized } from '@infrastructure/services/pi-json.mapper';
 
 /**
@@ -24,6 +25,7 @@ export class FewsResultFetcherService {
         private readonly logger: Logger,
         private readonly fewsTaskClient: FewsTaskClientService,
         private readonly targetResolver: FewsTargetResolverService,
+        private readonly outputArchiver: SimulationOutputArchiverService,
     ) {}
 
     /**
@@ -31,7 +33,11 @@ export class FewsResultFetcherService {
      * Every other non-usable outcome throws: a run that will never produce results
      * has to be reported as failed rather than left waiting forever.
      */
-    async fetchByTask(taskId: string, modelSource: ModelSource): Promise<SimulationFetchResult | null> {
+    async fetchByTask(
+        taskId: string,
+        modelSource: ModelSource,
+        outputFolder: string,
+    ): Promise<SimulationFetchResult | null> {
         const target = this.targetResolver.resolve(modelSource);
         const outcome = await this.fewsTaskClient.getTaskStatus(target, taskId);
 
@@ -67,6 +73,13 @@ export class FewsResultFetcherService {
             this.logger.warn({ msg: message, entity: 'FewsResultFetcher', ...context }),
         );
 
+        const processedFileName = `fews-taskrun-${outcome.taskRunId}.json`;
+
+        // Leave the answer where the SFTP flow leaves it, so the operator can see
+        // and download what the model replied in either mode. Deliberately after
+        // the mapping: only a response we could actually read is worth keeping.
+        await this.outputArchiver.archive(outputFolder, processedFileName, piJson);
+
         this.logger.log({
             msg: 'Fetched simulation results from the PI REST service',
             entity: 'FewsResultFetcher',
@@ -80,7 +93,7 @@ export class FewsResultFetcherService {
 
         return {
             timeSeries: mapped.series,
-            processedFileName: `fews-taskrun-${outcome.taskRunId}`,
+            processedFileName,
             skippedEmptySeries: mapped.skippedEmptySeries,
             skippedInvalidSeries: mapped.skippedInvalidSeries,
         };

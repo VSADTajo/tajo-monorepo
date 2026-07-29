@@ -340,12 +340,12 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                                     folder="output"
                                     downloadingName={downloadingName}
                                     onDownload={handleDownload}
-                                    // In the direct flow the result arrives over the PI REST API, so this
-                                    // folder stays empty by design. Without saying so, a finished run looks
-                                    // like the model never answered.
+                                    // In the direct flow the answer arrives over the PI REST API and is
+                                    // archived here afterwards, so an empty folder no longer means "the
+                                    // model did not reply" — it means the copy could not be written.
                                     emptyHint={
                                         isDirectSource(sim.modelSource)
-                                            ? 'El modelo respondió por la API, no por archivo: en el flujo directo esta carpeta queda vacía. Los resultados están en las previsiones.'
+                                            ? 'El modelo respondió por la API y la respuesta se archiva acá. Si está vacío, no se pudo guardar la copia: los resultados igual se procesaron.'
                                             : undefined
                                     }
                                 />
