@@ -317,6 +317,12 @@ services:
             DB_DATABASE: ${DB_MODEL_DATABASE:-model_db}
             SFTP_API_BASE_URL: http://ms-sftp-api:3003
             USE_CALCULATOR_PIPELINE: ${USE_CALCULATOR_PIPELINE:-true}
+            # Observed reservoir volume (v.obs) that the calculator needs as the
+            # balance's initial volume. Kept in its own folder: the CSV_FILE
+            # provider moves tajo/Tagus_FlowCast.csv to historial/ once ingested,
+            # which would race this lookup.
+            VOBS_CSV_SFTP_PATH: ${VOBS_CSV_SFTP_PATH:-tajo/wiski/Tagus_FlowCast.csv}
+            VOBS_CSV_TIMEZONE: ${VOBS_CSV_TIMEZONE:-Europe/Madrid}
         expose:
             - '3008'
         depends_on:
