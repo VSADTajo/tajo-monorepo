@@ -235,4 +235,52 @@ describe('parseWiskiCsv()', () => {
         expect(events[0].date).toBe('2026-06-01');
         expect(events[0].time).toBe('10:00:00');
     });
+
+    // ── English header exports ────────────────────────────────────────────────
+    //
+    // The real Tagus_FlowCast.csv exports we receive use English header keys and
+    // a "Key:<TAB>Value" layout — not the Spanish "Clave: Valor" of the samples
+    // above. Both must parse: a wrong locale silently yielded zero series.
+
+    // Verbatim shape of a real export block (tab-separated, colon-terminated key).
+    const ENGLISH_BLOCK = [
+        'Station Site:\tENTREPEÑAS',
+        'Station Name:\tENTREPEÑAS',
+        'Station Number:\tE_01',
+        'LocalX:\t521205.76',
+        'LocalY:\t4482642.75',
+        'Parameter Name:\tVolumen Embalse',
+        'Time series Name:\tVICT01.Validado',
+        'Time series Unit:\thm³',
+        'Longitude:\t-2.749758',
+        'Latitude:\t40.494215',
+        '26/04/2026;20:00:00;123.45',
+        '26/04/2026;20:15:00;123.50',
+    ].join('\n');
+
+    it('should parse blocks whose header keys are in English', () => {
+        const results = parseWiskiCsv(ENGLISH_BLOCK, { sourceTimezone: 'UTC' });
+
+        expect(results).toHaveLength(1);
+        expect(results[0].header.locationId).toBe('E_01');
+        expect(results[0].header.parameterId).toBe('VICT01.Validado');
+        expect(results[0].header.stationName).toBe('ENTREPEÑAS');
+        expect(results[0].events).toHaveLength(2);
+        expect(results[0].events[0].value).toBe('123.45');
+    });
+
+    it('should keep parsing the Spanish header layout', () => {
+        const results = parseWiskiCsv(SINGLE_BLOCK_UTC, { sourceTimezone: 'UTC' });
+
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].header.locationId).toBe('E_08');
+    });
+
+    it('should tolerate a colon-terminated key followed by a tab', () => {
+        // "Station Number:\tE_01" — the colon belongs to the key, not the value.
+        const results = parseWiskiCsv(ENGLISH_BLOCK, { sourceTimezone: 'UTC' });
+
+        expect(results[0].header.locationId).toBe('E_01');
+        expect(results[0].header.locationId).not.toContain(':');
+    });
 });

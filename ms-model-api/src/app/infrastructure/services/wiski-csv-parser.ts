@@ -22,18 +22,33 @@ import {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Maps Spanish WISKI header keys to our normalized field names. */
+/**
+ * Maps WISKI header keys to our normalized field names.
+ *
+ * WISKI exports the same file in either locale, and the real Tagus_FlowCast.csv
+ * we receive uses the English keys. Accept both: a locale mismatch used to yield
+ * zero series without any error, which is indistinguishable from an empty file.
+ */
 const WISKI_HEADER_FIELDS: Record<string, string> = {
+    // Spanish
     'Número de la estación': 'locationId',
     'Nombre de la serie temporal': 'parameterId',
     'Nombre de la estación': 'stationName',
     'Unidad de la serie temporal': 'units',
+    Longitud: 'lon',
+    Latitud: 'lat',
+    // English
+    'Station Number': 'locationId',
+    'Time series Name': 'parameterId',
+    'Station Name': 'stationName',
+    'Time series Unit': 'units',
+    Longitude: 'lon',
+    Latitude: 'lat',
+    // Locale-independent
     LocalX: 'x',
     LocalY: 'y',
     GlobalX: 'lon',
     GlobalY: 'lat',
-    Longitud: 'lon',
-    Latitud: 'lat',
 };
 
 const DEFAULT_TIME_STEP = { unit: 'hour', multiplier: 1 };
@@ -115,16 +130,22 @@ export function parseWiskiCsv(csvText: string, options?: WiskiParseOptions): Wis
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Removes the trailing colon WISKI appends to header keys ("Station Number:"). */
+function stripTrailingColon(key: string): string {
+    return key.endsWith(':') ? key.slice(0, -1).trim() : key;
+}
+
 /**
  * Try to parse a WISKI header line.
  * Supports both colon-separated ("Key: Value") and tab-separated ("Key\tValue").
  * Returns null if the line is not a header.
  */
 function tryParseHeaderLine(line: string): { key: string; value: string } | null {
-    // Tab-separated header
+    // Tab-separated header. Real exports write "Station Number:<TAB>E_01", so the
+    // colon belongs to the key and has to be trimmed before the lookup.
     const tabIdx = line.indexOf('\t');
     if (tabIdx > 0) {
-        const key = line.substring(0, tabIdx).trim();
+        const key = stripTrailingColon(line.substring(0, tabIdx).trim());
         const value = line.substring(tabIdx + 1).trim();
         if (key && value) return { key, value };
     }
