@@ -14,6 +14,15 @@ export type ModmeteoChoice = 'HARMONIE' | 'EPS' | 'BOTH';
  */
 export type ModelSource = 'SFTP' | 'MOCK' | 'FEWS_API';
 
+/**
+ * The two sources that reach the model through the PI REST service. They never
+ * leave a file in the output folder, so an empty folder is the expected outcome
+ * rather than a sign the model did not answer.
+ */
+export function isDirectSource(source: ModelSource): boolean {
+    return source === 'FEWS_API' || source === 'MOCK';
+}
+
 export const MODEL_SOURCE_OPTIONS: { value: ModelSource; label: string; hint: string }[] = [
     { value: 'SFTP', label: 'SFTP', hint: 'Flujo real: FEWS deja el resultado en la carpeta de salida' },
     { value: 'MOCK', label: 'Mock', hint: 'Mismo flujo directo contra un FEWS simulado, sin depender del suyo' },

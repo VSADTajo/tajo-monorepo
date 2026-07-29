@@ -25,25 +25,29 @@ const DEMO_RESERVOIRS = {
 const CURVE_POINTS = 12;
 const STEP_MINUTES = 15;
 
-function pad(value: number): string {
-    return String(value).padStart(2, '0');
-}
-
-/** Formats a Date as the "YYYY-MM-DD HH:MM:SS" the curve parser reads. */
+/**
+ * Formats a Date as the "YYYY-MM-DD HH:MM:SS" the curve parser reads — in UTC.
+ *
+ * UTC is not a detail: the backend parses these stamps as `<date>T<time>Z` and
+ * the generated file declares `timeZone: "0.0"`. Writing them with local getters
+ * shifted the whole curve by the browser's offset, which on a UTC-3 machine put
+ * it three hours before the simulation's forecast date — the curve landed
+ * entirely outside the forecast window and could not influence the run.
+ */
 function formatPoint(date: Date): string {
-    const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
-    return `${day} ${time}`;
+    const iso = date.toISOString();
+    return `${iso.slice(0, 10)} ${iso.slice(11, 19)}`;
 }
 
 /**
  * Builds a curve starting at the next quarter-hour, so the dates always look
- * current instead of frozen at whenever this was written.
+ * current instead of frozen at whenever this was written. Rounded in UTC for the
+ * same reason the stamps are written in UTC.
  */
 function buildDemoCurve(base: number, now: Date): string {
     const start = new Date(now);
-    start.setSeconds(0, 0);
-    start.setMinutes(Math.ceil(start.getMinutes() / STEP_MINUTES) * STEP_MINUTES);
+    start.setUTCSeconds(0, 0);
+    start.setUTCMinutes(Math.ceil(start.getUTCMinutes() / STEP_MINUTES) * STEP_MINUTES);
 
     const lines: string[] = [];
     for (let i = 0; i < CURVE_POINTS; i += 1) {

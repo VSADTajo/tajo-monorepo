@@ -15,7 +15,7 @@ import {
 import { downloadSimulationFile, finalizeSimulation, getManualSimulationById, listSimulationFiles } from './api';
 import { formatIsoDate, formatSimDate } from '../predictions-data/format';
 import type { SftpFileMeta, SimulationFileStatus, SimulationFolder } from '../predictions-data/types';
-import { isTerminalStatus } from './types';
+import { isDirectSource, isTerminalStatus } from './types';
 import { statusBadgeClass, statusDescription, statusLabel } from './status';
 import { useModalDismiss } from './useModalDismiss';
 
@@ -47,6 +47,8 @@ interface FileListProps {
     folder: SimulationFolder;
     downloadingName: string | null;
     onDownload: (folder: SimulationFolder, name: string) => void;
+    /** Shown instead of "sin archivos" when an empty folder is the expected outcome. */
+    emptyHint?: string;
 }
 
 /**
@@ -84,7 +86,7 @@ function FileStatusBadge({ status }: { status: SimulationFileStatus }) {
     );
 }
 
-function FileList({ title, icon, files, folder, downloadingName, onDownload }: FileListProps) {
+function FileList({ title, icon, files, folder, downloadingName, onDownload, emptyHint }: FileListProps) {
     return (
         <div>
             <div className="flex items-center gap-2 mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
@@ -95,8 +97,12 @@ function FileList({ title, icon, files, folder, downloadingName, onDownload }: F
                 </span>
             </div>
             {files.length === 0 ? (
-                <p className="text-xs text-slate-600 border border-dashed border-slate-700/60 rounded-lg px-4 py-4 text-center">
-                    Sin archivos todavía
+                <p
+                    className={`text-xs border border-dashed rounded-lg px-4 py-4 text-center ${
+                        emptyHint ? 'text-slate-400 border-slate-600/60' : 'text-slate-600 border-slate-700/60'
+                    }`}
+                >
+                    {emptyHint ?? 'Sin archivos todavía'}
                 </p>
             ) : (
                 <div className="border border-slate-700/50 rounded-lg overflow-hidden divide-y divide-slate-700/40">
@@ -316,7 +322,11 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                             {/* SFTP files */}
                             <div className="space-y-4">
                                 <FileList
-                                    title="Input · enviado al modelo"
+                                    title={
+                                        isDirectSource(sim.modelSource)
+                                            ? 'Input · enviado al modelo por API'
+                                            : 'Input · enviado al modelo'
+                                    }
                                     icon={<FolderInput size={13} className="text-emerald-400" />}
                                     files={files?.input ?? []}
                                     folder="input"
@@ -330,6 +340,14 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                                     folder="output"
                                     downloadingName={downloadingName}
                                     onDownload={handleDownload}
+                                    // In the direct flow the result arrives over the PI REST API, so this
+                                    // folder stays empty by design. Without saying so, a finished run looks
+                                    // like the model never answered.
+                                    emptyHint={
+                                        isDirectSource(sim.modelSource)
+                                            ? 'El modelo respondió por la API, no por archivo: en el flujo directo esta carpeta queda vacía. Los resultados están en las previsiones.'
+                                            : undefined
+                                    }
                                 />
                             </div>
                         </>
