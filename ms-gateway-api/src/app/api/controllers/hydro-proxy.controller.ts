@@ -27,6 +27,7 @@ import {
     UpdateResguardoRequestDto,
     UpdateResguardoResponseDto,
     GetDownstreamStationsResponseDto,
+    ImportStationsResponseDto,
 } from '@api/dtos/hydro-proxy.dtos';
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
@@ -497,6 +498,28 @@ export class HydroProxyController {
             method: 'GET',
             baseUrl: this.servicesConfig.hydroApiUrl,
             path: `/stations/${id}`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Post('stations/import')
+    @ApiEndpoint({
+        summary: 'Bulk import stations from a JSON payload',
+        response: { status: 200, type: ImportStationsResponseDto, description: 'Import summary (created/updated/skipped + errors)' },
+        errors: [
+            { status: 400, description: 'Invalid payload' },
+            { status: 404, description: 'Basin not found' },
+        ],
+    })
+    async importStations(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'POST',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: '/stations/import',
+            body: req.body,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,
