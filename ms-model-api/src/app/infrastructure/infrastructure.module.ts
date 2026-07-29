@@ -30,6 +30,7 @@ import { DataProviderFactoryService } from '@infrastructure/services/data-provid
 import { ProviderSchedulerService } from '@infrastructure/services/provider-scheduler.service';
 import { SimulationResultFetcherService } from '@infrastructure/services/simulation-result-fetcher.service';
 import { MockModelOutputService } from '@infrastructure/services/mock-model-output.service';
+import { FewsTaskClientService } from '@infrastructure/services/fews-task-client.service';
 import { SimulationDispatchedConsumerService } from '@infrastructure/services/simulation-dispatched-consumer.service';
 import { SimulationRunPollerService } from '@infrastructure/services/simulation-run-poller.service';
 
@@ -98,6 +99,7 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         ProviderSchedulerService,
         SimulationResultFetcherService,
         MockModelOutputService,
+        FewsTaskClientService,
         SimulationDispatchedConsumerService,
         SimulationRunPollerService,
     ],
