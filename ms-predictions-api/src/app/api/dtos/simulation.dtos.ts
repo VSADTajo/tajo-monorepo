@@ -422,9 +422,10 @@ export class CreateManualSimulationRequestDto {
 
     @ApiProperty({
         description:
-            'Where the model output should come from. SFTP is the real flow (FEWS leaves the result in the ' +
-            'output folder). MOCK seeds a known-good reference output so the whole pipeline can be exercised ' +
-            'without FEWS — useful for testing and demos.',
+            'Where the model output should come from. SFTP is the real file flow (FEWS reads the input folder ' +
+            'and leaves the result in the output folder). FEWS_API pushes the input to the FEWS PI REST service ' +
+            'and launches the workflow there. MOCK runs that same direct flow against a local fake PI REST ' +
+            'service, so the integration can be exercised without depending on FEWS being reachable.',
         enum: ModelSource,
         required: false,
         default: ModelSource.SFTP,

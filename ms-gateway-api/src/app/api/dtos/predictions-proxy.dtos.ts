@@ -375,6 +375,20 @@ export class CreateManualSimulationRequestDto {
 
     @ApiProperty({
         description:
+            'Where the model output comes from. SFTP is the real file flow. FEWS_API pushes the input to the ' +
+            'FEWS PI REST service and launches the workflow there. MOCK runs that same direct flow against a ' +
+            'local fake PI REST service, so it can be exercised without depending on FEWS.',
+        enum: ['SFTP', 'MOCK', 'FEWS_API'],
+        required: false,
+        default: 'SFTP',
+        example: 'SFTP',
+    })
+    @IsOptional()
+    @IsIn(['SFTP', 'MOCK', 'FEWS_API'])
+    modelSource?: 'SFTP' | 'MOCK' | 'FEWS_API';
+
+    @ApiProperty({
+        description:
             'IDs of existing reusable maneuvers to attach. Combine with `maneuvers`; at least one maneuver in total is required.',
         type: [String],
         required: false,
