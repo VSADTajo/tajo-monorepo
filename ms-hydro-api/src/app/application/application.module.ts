@@ -24,6 +24,7 @@ import {
     UpdateStationHandler,
     ToggleStationHandler,
     DeleteStationHandler,
+    ImportStationsHandler,
 } from '@application/commands/station.commands';
 import { ImportResguardosHandler, UpdateResguardoHandler } from '@application/commands/resguardo.commands';
 
@@ -72,6 +73,7 @@ import { ResguardoController } from '@api/controllers/resguardo.controller';
         GetSubBasinByIdHandler,
         ListSubBasinsHandler,
         CreateStationHandler,
+        ImportStationsHandler,
         UpdateStationThresholdHandler,
         GetStationByIdHandler,
         GetStationBySubBasinNameHandler,

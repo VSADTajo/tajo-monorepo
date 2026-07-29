@@ -3,6 +3,7 @@ import {
     Controller,
     Delete,
     Get,
+    HttpCode,
     HttpException,
     HttpStatus,
     Inject,
@@ -37,6 +38,8 @@ import {
     DeleteStationResponseDto,
     GetDownstreamStationsRequestDto,
     GetDownstreamStationsResponseDto,
+    ImportStationsRequestDto,
+    ImportStationsResponseDto,
 } from '@api/dtos/station.dtos';
 
 // Mappers
@@ -52,6 +55,7 @@ import {
     ToggleStationMapper,
     DeleteStationMapper,
     GetDownstreamStationsMapper,
+    ImportStationsMapper,
 } from '@application/mappers/station.mappers';
 
 // Results
@@ -97,6 +101,39 @@ export class StationController {
                 throw new HttpException(error.message, error.statusCode);
             }
             this.logger.error(`Error creating station: ${error}`);
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Post('import')
+    @HttpCode(HttpStatus.OK)
+    @ApiEndpoint({
+        summary: 'Bulk import stations from a JSON payload ({ basinId, items: [...] })',
+        body: ImportStationsRequestDto,
+        response: {
+            status: 200,
+            type: ImportStationsResponseDto,
+            description: 'Import summary: created/updated/skipped counts + per-item errors',
+        },
+        errors: [
+            { status: 400, description: 'Validation error (invalid payload)' },
+            { status: 404, description: 'Basin not found' },
+        ],
+    })
+    async importStations(@Body() dto: ImportStationsRequestDto): Promise<ImportStationsResponseDto> {
+        this.logger.log(`Import stations request: ${dto.items?.length ?? 0} items under basin ${dto.basinId}`);
+        const command = ImportStationsMapper.toCommand(dto);
+        try {
+            const result = await this.commandBus.execute(command);
+            return ImportStationsMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof EntityError) {
+                throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+            }
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error(`Error importing stations: ${error}`);
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
