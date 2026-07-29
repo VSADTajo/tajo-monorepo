@@ -42,6 +42,15 @@ class EnvVariablesValidator {
     @IsInt()
     @Min(0)
     FEWS_REQUEST_TIMEOUT_MS: number;
+
+    @IsOptional()
+    @IsString()
+    MOCK_FEWS_BASE_URL: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    MOCK_FEWS_RUNNING_MS: number;
 }
 
 export default registerAs<FewsApiConfig>('fews-api', () => {
@@ -57,5 +66,7 @@ export default registerAs<FewsApiConfig>('fews-api', () => {
         taskTimeoutMs: Number(process.env.FEWS_TASK_TIMEOUT_MS) || 30 * 60 * 1000,
         taskPollIntervalMs: Number(process.env.FEWS_TASK_POLL_INTERVAL_MS) || 15_000,
         requestTimeoutMs: Number(process.env.FEWS_REQUEST_TIMEOUT_MS) || 60_000,
+        mockBaseUrl: process.env.MOCK_FEWS_BASE_URL || `http://127.0.0.1:${Number(process.env.APP_PORT) || 3000}`,
+        mockRunningMs: Number(process.env.MOCK_FEWS_RUNNING_MS) || 0,
     };
 });

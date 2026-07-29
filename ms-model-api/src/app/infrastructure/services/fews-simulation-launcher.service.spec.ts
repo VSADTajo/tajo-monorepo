@@ -3,8 +3,10 @@ import { Logger } from 'nestjs-pino';
 
 import { FewsSimulationLauncherService } from './fews-simulation-launcher.service';
 import { FewsTaskClientService } from './fews-task-client.service';
+import { FewsTargetResolverService } from './fews-target-resolver.service';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
 import { ProviderError } from '@domain/errors/provider.error';
+import { FewsTarget } from '@domain/types/fews-target.type';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -19,14 +21,38 @@ const mockLogger = {
 const OUTPUT_FOLDER = 'tajo/SIMULATIONS/sim-1/output';
 const INPUT_FOLDER = 'tajo/SIMULATIONS/sim-1/input';
 
+const REAL_TARGET: FewsTarget = {
+    baseUrl: 'https://fews.example.org/FewsWebServices',
+    servicePath: '/rest/fewspiservice/v1',
+    filterId: 'TAJO_WEB',
+    workflowId: 'Jarama_Henares_Forecast',
+    username: '',
+    password: '',
+};
+
+const MOCK_TARGET: FewsTarget = {
+    ...REAL_TARGET,
+    baseUrl: 'http://127.0.0.1:3008',
+    servicePath: '/mock-fews/rest/fewspiservice/v1',
+};
+
 const mockClient = {
     postTimeSeries: jest.fn(),
     runTask: jest.fn(),
 };
 
+const mockResolver = {
+    resolve: jest.fn((source: string) => (source === 'MOCK' ? MOCK_TARGET : REAL_TARGET)),
+};
+
 function buildService(): FewsSimulationLauncherService {
     const sftpConfig = { baseUrl: 'http://ms-sftp-api:3003' } as unknown as SftpApiConfigService;
-    return new FewsSimulationLauncherService(mockLogger, sftpConfig, mockClient as unknown as FewsTaskClientService);
+    return new FewsSimulationLauncherService(
+        mockLogger,
+        sftpConfig,
+        mockClient as unknown as FewsTaskClientService,
+        mockResolver as unknown as FewsTargetResolverService,
+    );
 }
 
 /** input/ holds the generated file; download returns its content. */
@@ -47,7 +73,7 @@ describe('FewsSimulationLauncherService.launch()', () => {
     it('should send the generated input to FEWS and launch the workflow', async () => {
         mockSftp([{ name: 'Q_mod_input_202607291200.json' }]);
 
-        const taskId = await buildService().launch('sim-1', OUTPUT_FOLDER);
+        const taskId = await buildService().launch('sim-1', OUTPUT_FOLDER, 'FEWS_API');
 
         expect(mockClient.postTimeSeries).toHaveBeenCalledTimes(1);
         expect(mockClient.runTask).toHaveBeenCalledTimes(1);
@@ -57,7 +83,7 @@ describe('FewsSimulationLauncherService.launch()', () => {
     it('should read the input from the simulation input folder', async () => {
         mockSftp([{ name: 'Q_mod_input_202607291200.json' }]);
 
-        await buildService().launch('sim-1', OUTPUT_FOLDER);
+        await buildService().launch('sim-1', OUTPUT_FOLDER, 'FEWS_API');
 
         const listCall = (mockedAxios.get as jest.Mock).mock.calls.find((c) => !String(c[0]).includes('download'));
         expect(listCall[1].params.directory).toBe(INPUT_FOLDER);
@@ -66,9 +92,9 @@ describe('FewsSimulationLauncherService.launch()', () => {
     it('should describe the run with the simulation id so it is traceable inside FEWS', async () => {
         mockSftp([{ name: 'Q_mod_input_202607291200.json' }]);
 
-        await buildService().launch('sim-1', OUTPUT_FOLDER);
+        await buildService().launch('sim-1', OUTPUT_FOLDER, 'FEWS_API');
 
-        const params = mockClient.runTask.mock.calls[0][0];
+        const params = mockClient.runTask.mock.calls[0][1];
         expect(params.description).toContain('sim-1');
         expect(params.startTime).toBeInstanceOf(Date);
         expect(params.endTime.getTime()).toBeGreaterThan(params.startTime.getTime());
@@ -77,7 +103,7 @@ describe('FewsSimulationLauncherService.launch()', () => {
     it('should fail when the simulation has no input file to send', async () => {
         mockSftp([]);
 
-        await expect(buildService().launch('sim-1', OUTPUT_FOLDER)).rejects.toBeInstanceOf(ProviderError);
+        await expect(buildService().launch('sim-1', OUTPUT_FOLDER, 'FEWS_API')).rejects.toBeInstanceOf(ProviderError);
         expect(mockClient.runTask).not.toHaveBeenCalled();
     });
 
@@ -85,7 +111,20 @@ describe('FewsSimulationLauncherService.launch()', () => {
         mockSftp([{ name: 'Q_mod_input_202607291200.json' }]);
         mockClient.postTimeSeries.mockRejectedValue(new ProviderError('boom'));
 
-        await expect(buildService().launch('sim-1', OUTPUT_FOLDER)).rejects.toBeInstanceOf(ProviderError);
+        await expect(buildService().launch('sim-1', OUTPUT_FOLDER, 'FEWS_API')).rejects.toBeInstanceOf(ProviderError);
         expect(mockClient.runTask).not.toHaveBeenCalled();
+    });
+
+    it('should drive the same requests for MOCK, only against the mock target', async () => {
+        // The point of the MOCK source: not a shortcut, the same launch executed
+        // against a different PI REST service.
+        mockSftp([{ name: 'Q_mod_input_202607291200.json' }]);
+
+        await buildService().launch('sim-1', OUTPUT_FOLDER, 'MOCK');
+
+        expect(mockClient.postTimeSeries).toHaveBeenCalledTimes(1);
+        expect(mockClient.runTask).toHaveBeenCalledTimes(1);
+        expect(mockClient.postTimeSeries.mock.calls[0][0]).toBe(MOCK_TARGET);
+        expect(mockClient.runTask.mock.calls[0][0]).toBe(MOCK_TARGET);
     });
 });

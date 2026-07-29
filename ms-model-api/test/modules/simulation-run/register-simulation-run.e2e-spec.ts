@@ -61,7 +61,7 @@ describe('RegisterSimulationRun (e2e)', () => {
         const simulationId = '11111111-1111-1111-1111-111111111111';
         const outputFolder = '/simulations/test/output/';
 
-        const result = await commandBus.execute(new RegisterSimulationRunCommand({ simulationId, outputFolder }));
+        const result = await commandBus.execute(new RegisterSimulationRunCommand({ simulationId, outputFolder, modelSource: 'SFTP' }));
 
         expect(result.simulationId).toBe(simulationId);
         expect(result.outputFolder).toBe(outputFolder);
@@ -82,9 +82,9 @@ describe('RegisterSimulationRun (e2e)', () => {
         const simulationId = '22222222-2222-2222-2222-222222222222';
         const outputFolder = '/simulations/test/output/';
 
-        const firstResult = await commandBus.execute(new RegisterSimulationRunCommand({ simulationId, outputFolder }));
+        const firstResult = await commandBus.execute(new RegisterSimulationRunCommand({ simulationId, outputFolder, modelSource: 'SFTP' }));
 
-        const secondResult = await commandBus.execute(new RegisterSimulationRunCommand({ simulationId, outputFolder }));
+        const secondResult = await commandBus.execute(new RegisterSimulationRunCommand({ simulationId, outputFolder, modelSource: 'SFTP' }));
 
         // Same id — no duplicate created
         expect(secondResult.id).toBe(firstResult.id);

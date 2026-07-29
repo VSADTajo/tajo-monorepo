@@ -4,14 +4,14 @@ import axios, { AxiosRequestConfig } from 'axios';
 
 import { ProviderError } from '@domain/errors/provider.error';
 import { FewsApiConfigService } from '@config/fews-api/fews-api-config.service';
+import { FewsTarget } from '@domain/types/fews-target.type';
 
 /**
  * Task run states reported by FEWS.
  *
- * Taken from the PI REST service (see the fews-py-wrapper docs): the public
- * reference is a SPA we could not read, so anything not listed here is treated
- * as unknown and never as success — guessing a state would be the same mistake
- * that made us read a valid result file as corrupted.
+ * Taken verbatim from the published OpenAPI description of `GET /taskrunstatus`
+ * (Delft-FEWS Web Services REST API v1). Anything outside this list is treated
+ * as unknown and never as success.
  */
 export enum FewsTaskStatus {
     INVALID = 'I',
@@ -39,6 +39,12 @@ const TERMINAL_FAILURES: FewsTaskStatus[] = [FewsTaskStatus.FAILED, FewsTaskStat
 /** States where the run is still in flight. */
 const IN_FLIGHT: FewsTaskStatus[] = [FewsTaskStatus.PENDING, FewsTaskStatus.RUNNING];
 
+/**
+ * Diagnostic levels of a PI Diag document. FEWS answers an import with one of
+ * these documents per line; only the first two mean the import did not happen.
+ */
+const DIAG_LEVEL_ERROR = 1;
+
 export interface RunTaskParams {
     startTime: Date;
     endTime: Date;
@@ -51,19 +57,57 @@ export interface TaskOutcome {
     taskRunId: string;
 }
 
+interface DiagLine {
+    level: number;
+    description: string;
+}
+
 /** FEWS wants second precision without milliseconds: 2026-07-27T09:00:00Z. */
 function toFewsTime(date: Date): string {
     return `${date.toISOString().split('.')[0]}Z`;
 }
 
 /**
+ * Pulls the lines out of a PI Diag document.
+ *
+ * Deliberately a regex rather than an XML parser: the document is a flat list of
+ * self-closing `<line level="n" description="..."/>` elements, and adding an XML
+ * dependency to read four attributes is not worth it. Real quotes inside a
+ * description arrive escaped, so the attribute match cannot run past its value.
+ */
+function parseDiagLines(document: string): DiagLine[] {
+    const lines: DiagLine[] = [];
+    const pattern = /<line\s+level="(\d+)"\s+description="([^"]*)"/g;
+
+    let match = pattern.exec(document);
+    while (match !== null) {
+        lines.push({ level: Number(match[1]), description: match[2] });
+        match = pattern.exec(document);
+    }
+
+    return lines;
+}
+
+/** Reads the "N time series rejected" counter FEWS reports on every import. */
+function countRejectedSeries(lines: DiagLine[]): number {
+    for (const line of lines) {
+        const match = /(\d+)\s+time series rejected/i.exec(line.description);
+        if (match) {
+            return Number(match[1]);
+        }
+    }
+
+    return 0;
+}
+
+/**
  * Talks to the Delft-FEWS PI REST web service: push the input series, launch the
  * workflow, follow the task run, and read the results back.
  *
- * Endpoint paths come from configuration rather than being hard-coded, because
- * the authoritative reference could not be read programmatically; the defaults
- * match what the official Python wrapper and our existing provider use, and a
- * mismatch is fixed with an env var instead of a release.
+ * Every call takes its {@link FewsTarget} as an argument instead of reading the
+ * configuration itself. That is what lets the MOCK source run this exact code
+ * against a local fake: the mock is a different target, not a different code
+ * path, so a green mock check is evidence about the real integration.
  */
 @Injectable()
 export class FewsTaskClientService {
@@ -73,36 +117,45 @@ export class FewsTaskClientService {
         private readonly config: FewsApiConfigService,
     ) {}
 
-    private endpoint(resource: string): string {
-        return `${this.config.baseUrl}${this.config.servicePath}/${resource}`;
+    private endpoint(target: FewsTarget, resource: string): string {
+        return `${target.baseUrl}${target.servicePath}/${resource}`;
     }
 
     /** Basic auth only when credentials were provided; otherwise the field is omitted. */
-    private requestOptions(params: Record<string, string | number>): AxiosRequestConfig {
+    private requestOptions(target: FewsTarget, params: Record<string, string | number>): AxiosRequestConfig {
         const options: AxiosRequestConfig = {
             params,
             timeout: this.config.requestTimeoutMs,
         };
-        if (this.config.username) {
-            options.auth = { username: this.config.username, password: this.config.password };
+        if (target.username) {
+            options.auth = { username: target.username, password: target.password };
         }
         return options;
     }
 
-    /** Uploads the simulation input under the configured filter. */
-    async postTimeSeries(content: string): Promise<void> {
-        const filterId = this.config.filterId;
-        if (!filterId) {
+    /**
+     * Uploads the simulation input under the configured filter.
+     *
+     * The body is the PI-JSON document as `application/json`, which is what the
+     * API declares for this endpoint. FEWS answers with a PI Diag document that
+     * reports how many series it actually took — a 200 alone does not mean the
+     * import happened, so the diagnostics are inspected rather than discarded.
+     */
+    async postTimeSeries(target: FewsTarget, content: string): Promise<void> {
+        if (!target.filterId) {
             throw new ProviderError('FEWS_FILTER_ID is not configured — cannot post the simulation input');
         }
 
-        const url = this.endpoint('timeseries');
+        const url = this.endpoint(target, 'timeseries');
+        let diagnostics: string;
         try {
-            await axios.post(url, content, {
-                ...this.requestOptions({ filterId }),
-                headers: { 'Content-Type': 'application/xml' },
+            const response = await axios.post(url, content, {
+                ...this.requestOptions(target, { filterId: target.filterId }),
+                headers: { 'Content-Type': 'application/json' },
+                responseType: 'text',
+                transformResponse: [(data) => data],
             });
-            this.logger.log({ msg: 'Posted simulation input to FEWS', entity: 'FewsTaskClient', url, filterId });
+            diagnostics = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.logger.error({
@@ -113,55 +166,91 @@ export class FewsTaskClientService {
             });
             throw new ProviderError(`Failed to post time series to FEWS: ${message}`);
         }
+
+        const lines = parseDiagLines(diagnostics);
+        const errors = lines.filter((line) => line.level <= DIAG_LEVEL_ERROR);
+        const rejected = countRejectedSeries(lines);
+
+        if (errors.length > 0 || rejected > 0) {
+            const detail =
+                errors.length > 0 ? errors.map((line) => line.description).join(' | ') : `${rejected} series rejected`;
+            this.logger.error({
+                msg: 'FEWS accepted the request but rejected the import',
+                entity: 'FewsTaskClient',
+                url,
+                filterId: target.filterId,
+                rejected,
+                diagnostics,
+            });
+            throw new ProviderError(`FEWS rejected the simulation input: ${detail}`);
+        }
+
+        this.logger.log({
+            msg: 'Posted simulation input to FEWS',
+            entity: 'FewsTaskClient',
+            url,
+            filterId: target.filterId,
+            diagnosticLines: lines.length,
+        });
     }
 
     /** Launches the configured workflow. Returns the task id FEWS replies with. */
-    async runTask(params: RunTaskParams): Promise<string> {
-        const workflowId = this.config.workflowId;
-        if (!workflowId) {
+    async runTask(target: FewsTarget, params: RunTaskParams): Promise<string> {
+        if (!target.workflowId) {
             throw new ProviderError('FEWS_WORKFLOW_ID is not configured — cannot launch the model');
         }
 
-        const url = this.endpoint('runtask');
+        const url = this.endpoint(target, 'runtask');
         let taskId: string;
         try {
             const response = await axios.post(
                 url,
                 null,
-                this.requestOptions({
-                    workflowId,
+                this.requestOptions(target, {
+                    workflowId: target.workflowId,
                     startTime: toFewsTime(params.startTime),
                     endTime: toFewsTime(params.endTime),
                     description: params.description,
-                    // "all" mirrors the wrapper's default run option.
+                    // One of 'all' | 'alloneatatime' | 'allmostrecentonly'.
                     runOption: 'all',
                 }),
             );
+            // The endpoint answers text/plain with the task id as the whole body.
             taskId = String(response.data ?? '').trim();
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.logger.error({ msg: 'Failed to launch FEWS task', entity: 'FewsTaskClient', url, error: message });
-            throw new ProviderError(`Failed to launch FEWS workflow "${workflowId}": ${message}`);
+            throw new ProviderError(`Failed to launch FEWS workflow "${target.workflowId}": ${message}`);
         }
 
         if (!taskId) {
-            throw new ProviderError(`FEWS accepted the run request for "${workflowId}" but returned no task id`);
+            throw new ProviderError(`FEWS accepted the run request for "${target.workflowId}" but returned no task id`);
         }
 
-        this.logger.log({ msg: 'FEWS task launched', entity: 'FewsTaskClient', workflowId, taskId });
+        this.logger.log({ msg: 'FEWS task launched', entity: 'FewsTaskClient', workflowId: target.workflowId, taskId });
         return taskId;
     }
 
-    /** Reads a task run state once. */
-    async getTaskStatus(taskId: string): Promise<TaskOutcome> {
-        const url = this.endpoint('taskrunstatus');
+    /**
+     * Reads a task run state once.
+     *
+     * `documentFormat=PI_JSON` is required: without it the endpoint answers
+     * text/plain with the bare status letter, and the JSON envelope this method
+     * reads would never be there. The envelope is flat — `code`, `description`,
+     * `taskRunId` at the root, not nested under a `status` object.
+     */
+    async getTaskStatus(target: FewsTarget, taskId: string): Promise<TaskOutcome> {
+        const url = this.endpoint(target, 'taskrunstatus');
         try {
-            const response = await axios.get(url, this.requestOptions({ taskId, maxWaitMillis: 1000 }));
-            const status = response.data?.status ?? {};
+            const response = await axios.get(
+                url,
+                this.requestOptions(target, { taskId, maxWaitMillis: 1000, documentFormat: 'PI_JSON' }),
+            );
+            const body = (response.data ?? {}) as { code?: string; description?: string; taskRunId?: string };
             return {
-                status: String(status.code ?? '') as FewsTaskStatus,
-                description: String(status.description ?? ''),
-                taskRunId: String(status.taskRunId ?? ''),
+                status: String(body.code ?? '') as FewsTaskStatus,
+                description: String(body.description ?? ''),
+                taskRunId: String(body.taskRunId ?? ''),
             };
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -174,12 +263,12 @@ export class FewsTaskClientService {
      * Throws on failure, on an unknown state, and on timeout — never returns a
      * task whose results cannot be trusted.
      */
-    async waitForTask(taskId: string): Promise<TaskOutcome> {
+    async waitForTask(target: FewsTarget, taskId: string): Promise<TaskOutcome> {
         const deadline = Date.now() + this.config.taskTimeoutMs;
         let last: TaskOutcome | null = null;
 
         while (Date.now() < deadline) {
-            const outcome = await this.getTaskStatus(taskId);
+            const outcome = await this.getTaskStatus(target, taskId);
             last = outcome;
 
             if (USABLE_STATES.includes(outcome.status)) {
@@ -215,14 +304,14 @@ export class FewsTaskClientService {
     }
 
     /** Reads the results of a finished task run as PI-JSON. */
-    async getTimeSeries(taskRunId: string): Promise<unknown> {
-        const url = this.endpoint('timeseries');
+    async getTimeSeries(target: FewsTarget, taskRunId: string): Promise<unknown> {
+        const url = this.endpoint(target, 'timeseries');
         try {
             const response = await axios.get(
                 url,
-                this.requestOptions({
+                this.requestOptions(target, {
                     documentFormat: 'PI_JSON',
-                    filterId: this.config.filterId,
+                    filterId: target.filterId,
                     taskRunIds: taskRunId,
                 }),
             );
@@ -231,5 +320,18 @@ export class FewsTaskClientService {
             const message = error instanceof Error ? error.message : String(error);
             throw new ProviderError(`Failed to read FEWS results for task run "${taskRunId}": ${message}`);
         }
+    }
+
+    /** Classification helpers, exposed so callers do not re-implement the state table. */
+    static isUsable(status: FewsTaskStatus): boolean {
+        return USABLE_STATES.includes(status);
+    }
+
+    static isInFlight(status: FewsTaskStatus): boolean {
+        return IN_FLIGHT.includes(status);
+    }
+
+    static isTerminalFailure(status: FewsTaskStatus): boolean {
+        return TERMINAL_FAILURES.includes(status);
     }
 }

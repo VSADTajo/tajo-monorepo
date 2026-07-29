@@ -408,7 +408,7 @@ describe('SimulationRunPollerService.pollOnce()', () => {
 
     it('(l) should read results from FEWS when the run carries a task id', async () => {
         mockAppConfig.useCalculatorPipeline = true;
-        const run = buildSimulationRun({ fewsTaskId: 'TASK-77' });
+        const run = buildSimulationRun({ fewsTaskId: 'TASK-77', modelSource: 'FEWS_API' });
 
         mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
         mockFewsResultFetcher.fetchByTask.mockResolvedValue({
@@ -421,7 +421,9 @@ describe('SimulationRunPollerService.pollOnce()', () => {
 
         await service.pollOnce();
 
-        expect(mockFewsResultFetcher.fetchByTask).toHaveBeenCalledWith('TASK-77');
+        // The source travels with the run: results have to be read from the very
+        // same PI REST service the task was launched on.
+        expect(mockFewsResultFetcher.fetchByTask).toHaveBeenCalledWith('TASK-77', 'FEWS_API');
         expect(mockSimulationResultFetcher.fetchFromFolder).not.toHaveBeenCalled();
         expect(run.status).toBe(SimulationRunStatus.COMPLETED);
     });
@@ -439,7 +441,7 @@ describe('SimulationRunPollerService.pollOnce()', () => {
     });
 
     it('(n) should just retry while the FEWS task is still running', async () => {
-        const run = buildSimulationRun({ fewsTaskId: 'TASK-77' });
+        const run = buildSimulationRun({ fewsTaskId: 'TASK-77', modelSource: 'FEWS_API' });
 
         mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
         mockFewsResultFetcher.fetchByTask.mockResolvedValue(null);

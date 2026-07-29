@@ -5,21 +5,8 @@ import { Logger } from 'nestjs-pino';
 import { IMessageBroker } from '@domain/ports/message-broker.port';
 import { AttachFewsTaskCommand, RegisterSimulationRunCommand } from '@application/commands/simulation-run.commands';
 import { Queues, Topics } from '@infrastructure/messaging/messaging.registry';
-import { MockModelOutputService } from '@infrastructure/services/mock-model-output.service';
 import { FewsSimulationLauncherService } from '@infrastructure/services/fews-simulation-launcher.service';
-
-/**
- * Where the model output is expected to come from.
- *   SFTP — the real flow: FEWS drops the result in the output folder.
- *   MOCK — a reference output is seeded so the pipeline can be exercised end to
- *          end without FEWS.
- *   FEWS_API — the input is posted to the FEWS PI REST service and the workflow
- *          is launched there; the run is then followed by task id instead of by
- *          watching an output folder.
- */
-export type ModelSource = 'SFTP' | 'MOCK' | 'FEWS_API';
-
-const DEFAULT_MODEL_SOURCE: ModelSource = 'SFTP';
+import { DEFAULT_MODEL_SOURCE, isDirectSource, ModelSource } from '@domain/types/model-source.type';
 
 interface SimulationManualDispatchedPayload {
     simulationId: string;
@@ -35,7 +22,6 @@ export class SimulationDispatchedConsumerService implements OnModuleInit {
         private readonly logger: Logger,
         private readonly commandBus: CommandBus,
         private readonly messageBroker: IMessageBroker,
-        private readonly mockModelOutputService: MockModelOutputService,
         private readonly fewsSimulationLauncher: FewsSimulationLauncherService,
     ) {}
 
@@ -60,21 +46,19 @@ export class SimulationDispatchedConsumerService implements OnModuleInit {
                         new RegisterSimulationRunCommand({
                             simulationId: payload.simulationId,
                             outputFolder: payload.outputFolder,
+                            modelSource,
                         }),
                     );
 
-                    // MOCK stands in for FEWS by leaving a known-good result where the
-                    // model would have left it; from there the normal poller takes over.
-                    if (modelSource === 'MOCK') {
-                        await this.mockModelOutputService.seedOutput(payload.outputFolder);
-                    }
-
-                    // FEWS_API pushes the input and starts the workflow right away; the
-                    // task id is stored so the poller follows the run instead of a folder.
-                    if (modelSource === 'FEWS_API') {
+                    // FEWS_API and MOCK both push the input and start the workflow
+                    // through the PI REST service — the only difference between them
+                    // is which service that is. The task id is stored so the poller
+                    // follows the run instead of watching an output folder.
+                    if (isDirectSource(modelSource)) {
                         const taskId = await this.fewsSimulationLauncher.launch(
                             payload.simulationId,
                             payload.outputFolder,
+                            modelSource,
                         );
                         await this.commandBus.execute(
                             new AttachFewsTaskCommand({ simulationId: payload.simulationId, fewsTaskId: taskId }),

@@ -22,10 +22,11 @@ import { ListIngestionRunsHandler, GetIngestionRunByIdHandler } from '@applicati
 // Controllers
 import { ProviderConfigController } from '@api/controllers/provider-config.controller';
 import { IngestionRunController } from '@api/controllers/ingestion-run.controller';
+import { MockFewsController } from '@api/controllers/mock-fews.controller';
 
 @Module({
     imports: [CqrsModule, InfrastructureModule],
-    controllers: [ProviderConfigController, IngestionRunController],
+    controllers: [ProviderConfigController, IngestionRunController, MockFewsController],
     providers: [
         CreateProviderConfigHandler,
         UpdateProviderConfigHandler,

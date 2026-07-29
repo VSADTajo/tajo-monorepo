@@ -6,6 +6,7 @@ import { ISimulationRunRepository } from '@domain/ports/simulation-run-repositor
 import { SimulationRun } from '@domain/entities/simulation-run.entity';
 import { SimulationRunResult } from '@domain/results/simulation-run.result';
 import { SimulationRunStatus } from '@domain/types/simulation-run-status.enum';
+import { ModelSource } from '@domain/types/model-source.type';
 import { ApiError } from '@domain/errors/api.error';
 
 // ─────────────────────────────────────────────────────────────
@@ -15,6 +16,7 @@ import { ApiError } from '@domain/errors/api.error';
 export interface IRegisterSimulationRunCommand {
     simulationId: string;
     outputFolder: string;
+    modelSource: ModelSource;
 }
 
 export class RegisterSimulationRunCommand {
@@ -26,6 +28,10 @@ export class RegisterSimulationRunCommand {
 
     get outputFolder(): string {
         return this.parameters.outputFolder;
+    }
+
+    get modelSource(): ModelSource {
+        return this.parameters.modelSource;
     }
 }
 
@@ -63,6 +69,7 @@ export class RegisterSimulationRunHandler implements ICommandHandler<
         const run = new SimulationRun({
             simulationId: command.simulationId,
             outputFolder: command.outputFolder,
+            modelSource: command.modelSource,
             status: SimulationRunStatus.WAITING_RESULT,
             startedAt: new Date(),
             completedAt: null,

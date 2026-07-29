@@ -5,7 +5,8 @@ import { IMessageBroker, MessageHandler } from '../../domain/ports/message-broke
 import { RegisterSimulationRunCommand } from '../../application/commands/simulation-run.commands';
 import { SimulationDispatchedConsumerService } from './simulation-dispatched-consumer.service';
 import { Topics, Queues } from '../messaging/messaging.registry';
-import { MockModelOutputService } from './mock-model-output.service';
+import { FewsSimulationLauncherService } from './fews-simulation-launcher.service';
+import { AttachFewsTaskCommand } from '../../application/commands/simulation-run.commands';
 
 const mockLogger = {
     log: jest.fn(),
@@ -24,8 +25,8 @@ const mockMessageBroker = {
     publishToTopic: jest.fn(),
 };
 
-const mockMockModelOutput = {
-    seedOutput: jest.fn(),
+const mockLauncher = {
+    launch: jest.fn(),
 };
 
 describe('SimulationDispatchedConsumerService', () => {
@@ -37,7 +38,7 @@ describe('SimulationDispatchedConsumerService', () => {
             mockLogger as unknown as Logger,
             mockCommandBus as unknown as CommandBus,
             mockMessageBroker as unknown as IMessageBroker,
-            mockMockModelOutput as unknown as MockModelOutputService,
+            mockLauncher as unknown as FewsSimulationLauncherService,
         );
     });
 
@@ -84,6 +85,7 @@ describe('SimulationDispatchedConsumerService', () => {
         expect(executedCommand).toBeInstanceOf(RegisterSimulationRunCommand);
         expect(executedCommand.simulationId).toBe(payload.simulationId);
         expect(executedCommand.outputFolder).toBe(payload.outputFolder);
+        expect(executedCommand.modelSource).toBe('SFTP');
         expect(ack).toHaveBeenCalledTimes(1);
         expect(nack).not.toHaveBeenCalled();
     });
@@ -130,8 +132,11 @@ describe('SimulationDispatchedConsumerService', () => {
         return { ack, nack };
     }
 
-    it('should seed a reference output when the simulation runs in MOCK mode', async () => {
-        mockMockModelOutput.seedOutput.mockResolvedValue('tajo/SIMULATIONS/s1/output/mock.json');
+    it('should launch through the PI REST service in MOCK mode and attach the task id', async () => {
+        // MOCK is no longer a shortcut that drops a file: it launches for real
+        // against the fake service, so the run is followed by task id like any
+        // other direct run.
+        mockLauncher.launch.mockResolvedValue('mock-task-1');
 
         const { ack } = await dispatch({
             simulationId: 's1',
@@ -139,30 +144,47 @@ describe('SimulationDispatchedConsumerService', () => {
             modelSource: 'MOCK',
         });
 
-        expect(mockMockModelOutput.seedOutput).toHaveBeenCalledWith('tajo/SIMULATIONS/s1/output');
+        expect(mockLauncher.launch).toHaveBeenCalledWith('s1', 'tajo/SIMULATIONS/s1/output', 'MOCK');
+        const attached = mockCommandBus.execute.mock.calls
+            .map((call) => call[0])
+            .find((command) => command instanceof AttachFewsTaskCommand);
+        expect(attached?.fewsTaskId).toBe('mock-task-1');
         expect(ack).toHaveBeenCalled();
     });
 
-    it('should not seed anything in SFTP mode — the real model delivers the file', async () => {
+    it('should launch through the PI REST service in FEWS_API mode', async () => {
+        mockLauncher.launch.mockResolvedValue('TASK-9');
+
+        const { ack } = await dispatch({
+            simulationId: 's1',
+            outputFolder: 'tajo/SIMULATIONS/s1/output',
+            modelSource: 'FEWS_API',
+        });
+
+        expect(mockLauncher.launch).toHaveBeenCalledWith('s1', 'tajo/SIMULATIONS/s1/output', 'FEWS_API');
+        expect(ack).toHaveBeenCalled();
+    });
+
+    it('should not launch anything in SFTP mode — the real model delivers the file', async () => {
         const { ack } = await dispatch({
             simulationId: 's1',
             outputFolder: 'tajo/SIMULATIONS/s1/output',
             modelSource: 'SFTP',
         });
 
-        expect(mockMockModelOutput.seedOutput).not.toHaveBeenCalled();
+        expect(mockLauncher.launch).not.toHaveBeenCalled();
         expect(ack).toHaveBeenCalled();
     });
 
     it('should default to SFTP when the event carries no modelSource', async () => {
         const { ack } = await dispatch({ simulationId: 's1', outputFolder: 'tajo/SIMULATIONS/s1/output' });
 
-        expect(mockMockModelOutput.seedOutput).not.toHaveBeenCalled();
+        expect(mockLauncher.launch).not.toHaveBeenCalled();
         expect(ack).toHaveBeenCalled();
     });
 
-    it('should nack without requeue when seeding the mock output fails', async () => {
-        mockMockModelOutput.seedOutput.mockRejectedValue(new Error('no reference configured'));
+    it('should nack without requeue when the launch fails', async () => {
+        mockLauncher.launch.mockRejectedValue(new Error('FEWS rejected the simulation input'));
 
         const { ack, nack } = await dispatch({
             simulationId: 's1',

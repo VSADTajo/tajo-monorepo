@@ -40,7 +40,7 @@ describe('RegisterSimulationRunHandler', () => {
             id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         }));
 
-        const command = new RegisterSimulationRunCommand({ simulationId, outputFolder });
+        const command = new RegisterSimulationRunCommand({ simulationId, outputFolder, modelSource: 'SFTP' });
         const result = await handler.execute(command);
 
         expect(mockSimulationRunRepository.findBySimulationId).toHaveBeenCalledWith(simulationId);
@@ -72,7 +72,7 @@ describe('RegisterSimulationRunHandler', () => {
 
         mockSimulationRunRepository.findBySimulationId.mockResolvedValue(existingRun);
 
-        const command = new RegisterSimulationRunCommand({ simulationId, outputFolder });
+        const command = new RegisterSimulationRunCommand({ simulationId, outputFolder, modelSource: 'SFTP' });
         const result = await handler.execute(command);
 
         expect(mockSimulationRunRepository.findBySimulationId).toHaveBeenCalledWith(simulationId);

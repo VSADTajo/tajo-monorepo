@@ -29,7 +29,8 @@ import { CsvFileProviderService } from '@infrastructure/services/csv-file-provid
 import { DataProviderFactoryService } from '@infrastructure/services/data-provider-factory.service';
 import { ProviderSchedulerService } from '@infrastructure/services/provider-scheduler.service';
 import { SimulationResultFetcherService } from '@infrastructure/services/simulation-result-fetcher.service';
-import { MockModelOutputService } from '@infrastructure/services/mock-model-output.service';
+import { FewsTargetResolverService } from '@infrastructure/services/fews-target-resolver.service';
+import { MockFewsTaskStoreService } from '@infrastructure/services/mock-fews-task-store.service';
 import { FewsTaskClientService } from '@infrastructure/services/fews-task-client.service';
 import { FewsSimulationLauncherService } from '@infrastructure/services/fews-simulation-launcher.service';
 import { FewsResultFetcherService } from '@infrastructure/services/fews-result-fetcher.service';
@@ -100,7 +101,8 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         DataProviderFactoryService,
         ProviderSchedulerService,
         SimulationResultFetcherService,
-        MockModelOutputService,
+        FewsTargetResolverService,
+        MockFewsTaskStoreService,
         FewsTaskClientService,
         FewsSimulationLauncherService,
         FewsResultFetcherService,
@@ -122,6 +124,7 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         DataProviderFactoryService,
         ProviderSchedulerService,
         SimulationResultFetcherService,
+        MockFewsTaskStoreService,
     ],
 })
 export class InfrastructureModule {}
