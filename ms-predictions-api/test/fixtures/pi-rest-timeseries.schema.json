@@ -1,0 +1,676 @@
+{
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "title": "TimeSeriesResponse",
+  "description": "TimeSeries PI_JSON",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "PI Version"
+    },
+    "timeZone": {
+      "type": "string",
+      "description": "Time Zone of the timeSeries times"
+    },
+    "timeSeries": {
+      "type": "array",
+      "description": "Time series data represent data collected over a given period of time at a specific location",
+      "items": {
+        "$ref": "#/definitions/TimeSeriesResult"
+      }
+    },
+    "taskRunIds": {
+      "type": "array",
+      "description": "The task run ids of the available time series",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "TimeSeriesResult": {
+      "type": "object",
+      "title": "TimeSeriesResult",
+      "additionalProperties": false,
+      "properties": {
+        "header": {
+          "$ref": "#/definitions/Header"
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PropertiesPeriod"
+          }
+        },
+        "events": {
+          "type": "array",
+          "description": "Events",
+          "items": {
+            "$ref": "#/definitions/Event"
+          }
+        },
+        "domains": {
+          "type": "array",
+          "description": "Domains",
+          "items": {
+            "$ref": "#/definitions/Domains"
+          }
+        }
+      }
+    },
+    "Header": {
+      "type": "object",
+      "title": "Header",
+      "additionalProperties": false,
+      "description": "The header",
+      "required": [
+        "type",
+        "locationId",
+        "parameterId",
+        "startDate",
+        "endDate",
+        "missVal"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "TimeSeries type"
+        },
+        "moduleInstanceId": {
+          "type": "string",
+          "description": "Module Instance Id"
+        },
+        "locationId": {
+          "type": "string",
+          "description": "Location id"
+        },
+        "parameterId": {
+          "type": "string",
+          "description": "Parameter id"
+        },
+        "qualifierId": {
+          "type": "array",
+          "description": "Qualifier Id",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ensembleId": {
+          "type": "string",
+          "description": "Ensemble Id. Can be followed by either a ensembleMemberIndex or ensembleMemberId"
+        },
+        "ensembleMemberIndex": {
+          "type": "string",
+          "description": "Ensemble Member Index"
+        },
+        "ensembleMemberId": {
+          "type": "string",
+          "description": "Ensemble Member Id"
+        },
+        "timeStep": {
+          "$ref": "#/definitions/TimeStep"
+        },
+        "startDate": {
+          "$ref": "#/definitions/FewsDate"
+        },
+        "endDate": {
+          "$ref": "#/definitions/FewsDate"
+        },
+        "forecastDate": {
+          "$ref": "#/definitions/FewsDate"
+        },
+        "missVal": {
+          "type": "string",
+          "description": "Missing value"
+        },
+        "longName": {
+          "type": "string",
+          "description": "Long name"
+        },
+        "stationName": {
+          "type": "string",
+          "description": "Station name"
+        },
+        "lat": {
+          "type": "string",
+          "description": "Latitude"
+        },
+        "lon": {
+          "type": "string",
+          "description": "Longitude"
+        },
+        "x": {
+          "type": "string",
+          "description": "X"
+        },
+        "y": {
+          "type": "string",
+          "description": "Y"
+        },
+        "z": {
+          "type": "string",
+          "description": "Z"
+        },
+        "units": {
+          "type": "string",
+          "description": "Units"
+        },
+        "domainAxis": {
+          "type": "array",
+          "description": "Domain Axis",
+          "items": {
+            "$ref": "#/definitions/DomainAxis"
+          }
+        },
+        "sourceOrganisation": {
+          "type": "string",
+          "description": "Source Organisation"
+        },
+        "sourceSystem": {
+          "type": "string",
+          "description": "Source System"
+        },
+        "fileDescription": {
+          "type": "string",
+          "description": "File Descriptor"
+        },
+        "creationDate": {
+          "type": "string",
+          "description": "Creation date"
+        },
+        "creationTime": {
+          "type": "string",
+          "description": "Creation time"
+        },
+        "approvedDate": {
+          "$ref": "#/definitions/FewsDate"
+        },
+        "region": {
+          "type": "string",
+          "description": "Region"
+        },
+        "thresholds": {
+          "type": "array",
+          "description": "Thresholds",
+          "items": {
+            "$ref": "#/definitions/TimeSeriesThreshold"
+          }
+        },
+        "firstValueTime": {
+          "$ref": "#/definitions/FewsDate"
+        },
+        "lastValueTime": {
+          "$ref": "#/definitions/FewsDate"
+        },
+        "maxValue": {
+          "type": "string",
+          "description": "Max value"
+        },
+        "minValue": {
+          "type": "string",
+          "description": "Min value"
+        },
+        "valueCount": {
+          "type": "string",
+          "description": "Value count"
+        },
+        "maxWarningLevelName": {
+          "type": "string",
+          "description": "Max Warning Level Name"
+        },
+        "product": {
+          "$ref": "#/definitions/Product"
+        }
+      }
+    },
+    "DomainAxis": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "parameterId"
+      ],
+      "properties": {
+        "parameterId": {
+          "type": "string",
+          "description": "Parameter Id"
+        },
+        "units": {
+          "type": "string",
+          "description": "Units"
+        }
+      }
+    },
+    "FewsDate": {
+      "additionalProperties": false,
+      "type": "object",
+      "description": "Date",
+      "required": [
+        "date",
+        "time"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date"
+        },
+        "time": {
+          "type": "string",
+          "description": "Time"
+        }
+      }
+    },
+    "Product": {
+      "type": "object",
+      "description": "Date",
+      "required": [
+        "id",
+        "name",
+        "productDate",
+        "productTime",
+        "category"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Id"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name"
+        },
+        "productDate": {
+          "type": "string",
+          "description": "Product Date"
+        },
+        "productTime": {
+          "type": "string",
+          "description": "Product Time"
+        },
+        "category": {
+          "type": "object",
+          "required": [
+            "id",
+            "name"
+          ],
+          "description": "Category",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Id"
+            },
+            "name": {
+              "type": "string",
+              "description": "Name"
+            }
+          }
+        },
+        "productInfo": {
+          "type": "array",
+          "description": "Product Info",
+          "additionalProperties": false,
+          "items": {
+            "type": "object",
+            "required": [
+              "user",
+              "confidence",
+              "classification",
+              "comment"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "user": {
+                "type": "string",
+                "description": "User"
+              },
+              "confidence": {
+                "type": "string",
+                "description": "Confidence"
+              },
+              "classification": {
+                "type": "string",
+                "description": "Classification"
+              },
+              "comment": {
+                "type": "string",
+                "description": "Comment"
+              }
+            }
+          }
+        }
+      }
+    },
+    "Event": {
+      "type": "object",
+      "title": "TimeSeriesEvent",
+      "description": "Timeseries event",
+      "required": [
+        "date",
+        "time",
+        "value",
+        "flag"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date"
+        },
+        "time": {
+          "type": "string",
+          "description": "Time"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Start Date"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start Time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "End Date"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End Time"
+        },
+        "value": {
+          "type": "string",
+          "description": "Value"
+        },
+        "valueSource": {
+          "type": "string",
+          "enum": [
+            "MAN",
+            "MOD",
+            "CYC",
+            "PER"
+          ],
+          "description": "Value source. Possible values are: MAN (manual), MOD (modifier), CYC (cyclic) and PER (persistent)."
+        },
+        "minValue": {
+          "type": "string",
+          "description": "Minimum Value"
+        },
+        "maxValue": {
+          "type": "string",
+          "description": "Maximum Value"
+        },
+        "detection": {
+          "type": "string",
+          "enum": [
+            "<",
+            ">",
+            "~"
+          ],
+          "description": "Detection Symbol. One of < (below detection range), > (above detection range) or ~ (varying)"
+        },
+        "flag": {
+          "type": "string",
+          "enum": [
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14"
+          ],
+          "description": "Flag. Possible values are: 0=original reliable, 1=corrected reliable, 2=completed reliable, 3=original doubtful, 4=corrected doubtful, 5=completed doubtful, 6=original unreliable, 7=corrected unreliable, 8=completed unreliable, 9=original missing, 10=deleted, 11=set original reliable, 12=set original unreliable, 13=archive missing, 14=accumulation reset."
+        },
+        "flagSource": {
+          "type": "string",
+          "description": "Flag Source. Optional common values are: MAN=MANUAL, IMP=IMPORTED, MOD=MODIFIER, SN=SOFT_MIN, HN=HARD_MIN, SX=SOFT_MAX, HX=HARD_MAX, ROR=RATE_OF_RISE, ROF=RATE_OF_FALL, SR=SAME_READING, TS=TEMPORARY_SHIFT, SC=SERIES_COMPARISON, FC=FLAGS_COMPARISON, SH=SPATIAL_HOMOGENEITY, MK=MANN_KENDALL, SFP=START_FLAG_PERSISTENCY, SVP=SECONDARY_VALIDATION_FLAG_PERSISTENCY, CA=CONDITIONAL_AGGREGATION, OSC=OSCILLATION, null. But custom flag sources can also be configured in /RegionConfigFiles/CustomFlagSources.xml and used within timeseries."
+        },
+        "flagEdit": {
+          "enum": [
+            "Reliable",
+            "Doubtful",
+            "Unreliable",
+            "Persistent Unreliable",
+            "Accumulation Reset"
+          ],
+          "description": "Only used when editing timeseries. Original flag has to be be passed. Reliable: Change Flag to 0, 1, 2, with Flag Source MAN\nDoubtful: Change Flag to 3, 4, 5 with Flag Source MAN\nUnreliable: Change Flag to 6, 7, 8, with Flag Source MAN\nPersistent Unreliable: Change Flag to 6, 7, 8, with Flag Source SFP\nAccumulation Reset: Change Flag to 14, with Flag Source MAN"
+        },
+        "flagSourceColumn": {
+          "type": "object",
+          "description": "Flag Source Column"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "dried",
+            "inundated",
+            "ice"
+          ],
+          "description": "State. Possible values are: dried, inundated, ice"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Comment"
+        },
+        "user": {
+          "type": "string",
+          "description": "User"
+        }
+      }
+    },
+    "Domains": {
+      "type": "object",
+      "description": "Domains",
+      "additionalProperties": false,
+      "properties": {
+        "domainAxisValues": {
+          "type": "array",
+          "description": "Domain Axis Values",
+          "items": {
+            "$ref": "#/definitions/DomainAxisValue"
+          }
+        },
+        "events": {
+          "type": "array",
+          "description": "Domain Axis Events",
+          "items": {
+            "$ref": "#/definitions/DomainAxisEvent"
+          }
+        }
+      }
+    },
+    "DomainAxisValue": {
+      "type": "object",
+      "title": "DomainAxisValue",
+      "description": "Domain Axis Value",
+      "additionalProperties": false,
+      "properties": {
+        "parameterId": {
+          "type": "string",
+          "description": "Parameter Id"
+        },
+        "values": {
+          "title": "DomainAxisValueArray",
+          "description": "Domain Axis Value Array",
+          "type": "array",
+          "items": {
+            "title": "DomainAxisValueStringArray",
+            "description": "array of strings",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "DomainAxisEvent": {
+      "type": "object",
+      "title": "DomainAxisEvent",
+      "description": "Domain Axis Event Array",
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date"
+        },
+        "time": {
+          "type": "string",
+          "description": "Time"
+        },
+        "flag": {
+          "type": "string",
+          "description": "Flag"
+        },
+        "values": {
+          "title": "domainAxisEventValuesArray",
+          "description": "array of arrays",
+          "type": "array",
+          "items": {
+            "title": "domainAxisEventValuesStringArray",
+            "description": "array of strings",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "PropertiesPeriod": {
+      "type": "object",
+      "title": "PropertiesPeriod",
+      "description": "Properties for a period",
+      "required": [
+        "period",
+        "properties"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "period": {
+          "type": "object",
+          "required": [
+            "startDate",
+            "endDate"
+          ],
+          "properties": {
+            "startDate": {
+              "$ref": "#/definitions/FewsDate"
+            },
+            "endDate": {
+              "$ref": "#/definitions/FewsDate"
+            }
+          }
+        },
+        "properties": {
+          "type": "object"
+        }
+      }
+    },
+    "TimeStep": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Time step",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "unit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "type": "string",
+              "description": "Unit"
+            },
+            "multiplier": {
+              "type": "string",
+              "description": "Multiplier"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "times"
+          ],
+          "properties": {
+            "times": {
+              "type": "string",
+              "description": "Times"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "minutes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "minutes": {
+              "type": "string",
+              "description": "Minutes"
+            }
+          }
+        }
+      ]
+    },
+    "TimeSeriesThreshold": {
+      "type": "object",
+      "description": "Threshold",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Id"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name"
+        },
+        "label": {
+          "type": "string",
+          "description": "Label"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Comment"
+        },
+        "value": {
+          "type": "string",
+          "description": "Value"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type"
+        },
+        "groupId": {
+          "type": "string",
+          "description": "Group Id"
+        },
+        "groupName": {
+          "type": "string",
+          "description": "Group Name"
+        }
+      }
+    }
+  }
+}
