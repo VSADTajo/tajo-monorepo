@@ -6,7 +6,13 @@ import FormData from 'form-data';
 import { ISimulationSftpService } from '@domain/ports/simulation-sftp.port';
 import { ProviderError } from '@domain/errors/provider.error';
 import { ApiError } from '@domain/errors/api.error';
-import { SftpFileMeta, SimulationFileDownloadResult, SimulationFolder } from '@domain/results/simulation-files.result';
+import {
+    OUTPUT_SUBFOLDERS,
+    SftpFileMeta,
+    SimulationFileDownloadResult,
+    SimulationFileStatus,
+    SimulationFolder,
+} from '@domain/results/simulation-files.result';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
 
 const INTERNAL_CALLER_HEADER = { 'x-internal-caller': 'ms-predictions-api' };
@@ -111,8 +117,29 @@ export class SimulationSftpService implements ISimulationSftpService {
         folder: SimulationFolder,
         fileName: string,
     ): Promise<SimulationFileDownloadResult> {
-        const fullPath = `tajo/SIMULATIONS/${simulationId}/${folder}/${fileName}`;
+        const base = `tajo/SIMULATIONS/${simulationId}/${folder}`;
+        // Output files are listed from output/ and its sub-folders, so the download
+        // has to look in the same places or an already-processed file 404s.
+        const candidates =
+            folder === 'output' ? [base, ...Object.keys(OUTPUT_SUBFOLDERS).map((sub) => `${base}/${sub}`)] : [base];
 
+        for (const [index, directory] of candidates.entries()) {
+            const isLast = index === candidates.length - 1;
+            try {
+                return await this.downloadFrom(`${directory}/${fileName}`, fileName);
+            } catch (error) {
+                const isNotFound = error instanceof ApiError && error.statusCode === HttpStatus.NOT_FOUND;
+                if (isNotFound && !isLast) {
+                    continue;
+                }
+                throw error;
+            }
+        }
+
+        throw new ApiError(HttpStatus.NOT_FOUND, `File "${fileName}" not found in ${folder} folder`);
+    }
+
+    private async downloadFrom(fullPath: string, fileName: string): Promise<SimulationFileDownloadResult> {
         try {
             const response = await axios.get(`${this.sftpApiConfig.baseUrl}/files/download`, {
                 params: { path: fullPath },
@@ -128,12 +155,11 @@ export class SimulationSftpService implements ISimulationSftpService {
             });
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === HttpStatus.NOT_FOUND) {
-                throw new ApiError(HttpStatus.NOT_FOUND, `File "${fileName}" not found in ${folder} folder`);
+                throw new ApiError(HttpStatus.NOT_FOUND, `File "${fileName}" not found at "${fullPath}"`);
             }
             this.logger.error({
                 msg: 'Failed to download simulation file from SFTP API',
                 entity: 'Simulations',
-                simulationId,
                 path: fullPath,
                 error: String(error),
             });
@@ -141,9 +167,29 @@ export class SimulationSftpService implements ISimulationSftpService {
         }
     }
 
+    /**
+     * Lists a simulation folder. For `output` it also descends into the sub-folders
+     * ms-model-api moves results into (`historial/`, `corrupted/`), tagging each file
+     * with what happened to it — otherwise a result would vanish from the listing the
+     * moment it is processed, and a failed one would look like it never arrived.
+     */
     private async listFolder(simulationId: string, folder: SimulationFolder): Promise<SftpFileMeta[]> {
-        const directory = `tajo/SIMULATIONS/${simulationId}/${folder}`;
+        const root = await this.listDirectory(`tajo/SIMULATIONS/${simulationId}/${folder}`, 'pending');
 
+        if (folder !== 'output') {
+            return root;
+        }
+
+        const subFolders = await Promise.all(
+            Object.entries(OUTPUT_SUBFOLDERS).map(([name, status]) =>
+                this.listDirectory(`tajo/SIMULATIONS/${simulationId}/${folder}/${name}`, status),
+            ),
+        );
+
+        return [...root, ...subFolders.flat()];
+    }
+
+    private async listDirectory(directory: string, status: SimulationFileStatus): Promise<SftpFileMeta[]> {
         try {
             const response = await axios.get(`${this.sftpApiConfig.baseUrl}/files`, {
                 params: { directory },
@@ -157,6 +203,7 @@ export class SimulationSftpService implements ISimulationSftpService {
                     name: entry.name,
                     size: entry.size,
                     modifiedAt: entry.modifiedAt ?? null,
+                    status,
                 }));
         } catch (error) {
             // The folder may not exist yet (e.g. output/ before the model drops its result) — treat as empty.
@@ -166,7 +213,6 @@ export class SimulationSftpService implements ISimulationSftpService {
             this.logger.error({
                 msg: 'Failed to list simulation files from SFTP API',
                 entity: 'Simulations',
-                simulationId,
                 path: directory,
                 error: String(error),
             });

@@ -80,10 +80,17 @@ export interface ForecastResponse {
 
 export type SimulationFolder = 'input' | 'output';
 
+/**
+ * What happened to an output file. ms-model-api moves each result out of
+ * output/ once polled: to historial/ (parsed) or corrupted/ (unreadable).
+ */
+export type SimulationFileStatus = 'pending' | 'processed' | 'failed';
+
 export interface SftpFileMeta {
     name: string;
     size: number;
     modifiedAt: string | null;
+    status: SimulationFileStatus;
 }
 
 export interface SimulationFilesResponse {

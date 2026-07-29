@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+
+import { SimulationFileStatus } from '@domain/results/simulation-files.result';
 import {
     ArrayMinSize,
     IsArray,
@@ -571,13 +573,25 @@ export class SftpFileMetaDto {
         example: '2026-06-19T12:05:00.000Z',
     })
     modifiedAt: string | null;
+
+    @ApiProperty({
+        description:
+            'What happened to the file. Output files are moved out of output/ once polled: ' +
+            '"processed" (historial/) or "failed" (corrupted/). "pending" means not consumed yet.',
+        enum: ['pending', 'processed', 'failed'],
+        example: 'processed',
+    })
+    status: SimulationFileStatus;
 }
 
 export class SimulationFilesResponseDto {
     @ApiProperty({ description: 'Files in the simulation input folder', type: [SftpFileMetaDto] })
     input: SftpFileMetaDto[];
 
-    @ApiProperty({ description: 'Files in the simulation output folder', type: [SftpFileMetaDto] })
+    @ApiProperty({
+        description: 'Files in the simulation output folder, including those already processed or failed',
+        type: [SftpFileMetaDto],
+    })
     output: SftpFileMetaDto[];
 }
 

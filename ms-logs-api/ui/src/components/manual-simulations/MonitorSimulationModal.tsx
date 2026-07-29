@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { downloadSimulationFile, finalizeSimulation, getManualSimulationById, listSimulationFiles } from './api';
 import { formatIsoDate, formatSimDate } from '../predictions-data/format';
-import type { SftpFileMeta, SimulationFolder } from '../predictions-data/types';
+import type { SftpFileMeta, SimulationFileStatus, SimulationFolder } from '../predictions-data/types';
 import { isTerminalStatus } from './types';
 import { statusBadgeClass, statusDescription, statusLabel } from './status';
 import { useModalDismiss } from './useModalDismiss';
@@ -49,6 +49,41 @@ interface FileListProps {
     onDownload: (folder: SimulationFolder, name: string) => void;
 }
 
+/**
+ * Tells apart a result still waiting to be picked up from one already consumed —
+ * and, above all, makes a file that could not be parsed visible instead of
+ * letting it look like nothing ever arrived.
+ */
+const FILE_STATUS_STYLES: Record<SimulationFileStatus, { label: string; className: string; title: string }> = {
+    pending: {
+        label: 'Pendiente',
+        className: 'bg-slate-700/50 text-slate-300 border-slate-600/50',
+        title: 'Todavía no lo procesó el modelo',
+    },
+    processed: {
+        label: 'Procesado',
+        className: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+        title: 'Leído correctamente y archivado en historial/',
+    },
+    failed: {
+        label: 'Con error',
+        className: 'bg-red-500/10 text-red-300 border-red-500/30',
+        title: 'Llegó, pero no se pudo procesar (corrupted/)',
+    },
+};
+
+function FileStatusBadge({ status }: { status: SimulationFileStatus }) {
+    const style = FILE_STATUS_STYLES[status] ?? FILE_STATUS_STYLES.pending;
+    return (
+        <span
+            title={style.title}
+            className={`shrink-0 px-1.5 py-0.5 rounded-md border text-[10px] font-medium ${style.className}`}
+        >
+            {style.label}
+        </span>
+    );
+}
+
 function FileList({ title, icon, files, folder, downloadingName, onDownload }: FileListProps) {
     return (
         <div>
@@ -68,9 +103,10 @@ function FileList({ title, icon, files, folder, downloadingName, onDownload }: F
                     {files.map((file) => {
                         const isDownloading = downloadingName === `${folder}/${file.name}`;
                         return (
-                            <div key={file.name} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-800/40 transition">
+                            <div key={`${file.status}/${file.name}`} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-800/40 transition">
                                 <FileText size={13} className="text-slate-500 shrink-0" />
                                 <span className="flex-1 truncate text-xs text-slate-200" title={file.name}>{file.name}</span>
+                                <FileStatusBadge status={file.status} />
                                 <span className="text-[11px] text-slate-500 tabular-nums">{formatBytes(file.size)}</span>
                                 <span className="text-[11px] text-slate-600 w-32 text-right hidden sm:block">{formatIsoDate(file.modifiedAt)}</span>
                                 <button

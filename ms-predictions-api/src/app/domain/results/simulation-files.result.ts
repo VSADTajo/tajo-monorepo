@@ -3,11 +3,29 @@ export type SimulationFolder = 'input' | 'output';
 
 export const SIMULATION_FOLDERS: readonly SimulationFolder[] = ['input', 'output'];
 
+/**
+ * What happened to a model output file.
+ *
+ * ms-model-api moves each result out of `output/` as soon as it polls it:
+ * to `historial/` when it parses, to `corrupted/` when it does not. Listing
+ * only `output/` therefore shows the file just while nothing has been done
+ * with it, and hides it precisely once it has been processed — or failed.
+ */
+export type SimulationFileStatus = 'pending' | 'processed' | 'failed';
+
+/** Sub-folders ms-model-api moves processed output files into. */
+export const OUTPUT_SUBFOLDERS: Readonly<Record<string, SimulationFileStatus>> = {
+    historial: 'processed',
+    corrupted: 'failed',
+};
+
 /** A single file entry inside a simulation's SFTP folder. */
 export interface SftpFileMeta {
     name: string;
     size: number;
     modifiedAt: string | null;
+    /** Always 'pending' for input files; reflects the sub-folder for output ones. */
+    status: SimulationFileStatus;
 }
 
 /** Listing of the input and output files of a simulation. */
