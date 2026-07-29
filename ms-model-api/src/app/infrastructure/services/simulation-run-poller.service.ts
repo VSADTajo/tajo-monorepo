@@ -13,6 +13,15 @@ import { AppConfigService } from '@config/app/app-config.service';
 const DEFAULT_POLL_INTERVAL_MINUTES = 5;
 const MISS_VAL = '-999.0';
 
+/**
+ * FEWS emits the MIKE11 series of the web simulation manager with a ".web"
+ * suffix ("I.mk11.forecast.web"), but the calculator resolves its signals by
+ * exact parameterId as declared in its reservoir_parameters.json, which expects
+ * the unsuffixed name ("I.mk11.forecast" -> q.in.for.harmonie). Strip it here,
+ * at the boundary, so FEWS naming does not leak into the calculator's contract.
+ */
+const CALCULATOR_PARAMETER_SUFFIX = /\.web$/;
+
 interface CalculatorTimeSeriesEntry {
     header: {
         locationId: string;
@@ -199,7 +208,7 @@ export class SimulationRunPollerService implements OnModuleInit {
         const fromNormalized: CalculatorTimeSeriesEntry[] = normalizedSeries.map((series) => ({
             header: {
                 locationId: series.locationId,
-                parameterId: series.parameterId,
+                parameterId: this.toCalculatorParameterId(series.parameterId),
                 moduleInstanceId: series.moduleInstanceId,
                 stationName: series.stationName,
                 units: series.units,
@@ -260,6 +269,15 @@ export class SimulationRunPollerService implements OnModuleInit {
      * calculator's pydantic schema (SimulationOutputPayload.timeSeries[].header.startDate).
      * The upstream calculator rejects plain ISO strings with a validation error.
      */
+    /**
+     * Maps a FEWS parameterId to the name the calculator resolves its signals by.
+     * Only applies to model output — the v.obs series from the WISKI CSV keeps
+     * its verbatim parameterId.
+     */
+    private toCalculatorParameterId(parameterId: string): string {
+        return parameterId.replace(CALCULATOR_PARAMETER_SUFFIX, '');
+    }
+
     private isoToDateTimeDict(iso: string | null | undefined): { date: string; time: string } | null {
         if (!iso) return null;
         const [datePart, timePartRaw] = iso.split('T');

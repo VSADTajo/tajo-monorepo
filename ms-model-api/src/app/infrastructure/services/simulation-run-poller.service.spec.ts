@@ -211,8 +211,9 @@ describe('SimulationRunPollerService.pollOnce()', () => {
         expect(wiskiEntry).toBeDefined();
         expect(wiskiEntry.header.locationId).toBe('E_08');
 
-        // Normalized entries must be re-shaped into { header, events } with proper date/time split
-        const forecastEntry = payload.timeSeries.find((s: any) => s.header.parameterId === 'I.mk11.forecast.web');
+        // Normalized entries must be re-shaped into { header, events } with proper date/time split.
+        // The fixture carries FEWS' ".web" suffix; the calculator must receive it stripped.
+        const forecastEntry = payload.timeSeries.find((s: any) => s.header.parameterId === 'I.mk11.forecast');
         expect(forecastEntry).toBeDefined();
         expect(forecastEntry.header.locationId).toBe('E_08');
 
@@ -313,5 +314,84 @@ describe('SimulationRunPollerService.pollOnce()', () => {
         // The mandatory dates must still be shaped as { date, time } dicts
         expect(entry.header.startDate).toEqual({ date: '2026-06-19', time: '00:00:00' });
         expect(run.status).toBe(SimulationRunStatus.COMPLETED);
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // parameterId normalisation for the calculator
+    //
+    // The calculator resolves its signals by exact parameterId, as declared in
+    // its reservoir_parameters.json: "I.mk11.forecast" -> q.in.for.harmonie and
+    // "Q.salida.forecast" -> q.out.for. FEWS now emits the MIKE11 series with a
+    // ".web" suffix, which no longer matches. Strip it on the way out.
+    // ─────────────────────────────────────────────────────────────
+
+    it('(i) should strip the .web suffix so parameterIds match what the calculator expects', async () => {
+        mockAppConfig.useCalculatorPipeline = true;
+        const run = buildSimulationRun();
+        const timeSeries = [
+            buildTimeSeries({ locationId: 'E_09', parameterId: 'I.mk11.forecast.web' }),
+            buildTimeSeries({ locationId: 'E_09', parameterId: 'Q.mk11.forecast.web' }),
+        ];
+
+        mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
+        mockSimulationResultFetcher.fetchFromFolder.mockResolvedValue({
+            timeSeries,
+            processedFileName: 'result.json',
+        });
+        mockSimulationResultFetcher.fetchVobsSeries.mockResolvedValue(null);
+        mockSimulationRunRepository.update.mockResolvedValue(run);
+        mockMessageBroker.publishToTopic.mockResolvedValue(undefined);
+
+        await service.pollOnce();
+
+        const [, , payload] = mockMessageBroker.publishToTopic.mock.calls[0];
+        const parameterIds = payload.timeSeries.map((s: any) => s.header.parameterId);
+        expect(parameterIds).toEqual(['I.mk11.forecast', 'Q.mk11.forecast']);
+    });
+
+    it('(j) should leave parameterIds without the suffix untouched', async () => {
+        mockAppConfig.useCalculatorPipeline = true;
+        const run = buildSimulationRun();
+        const timeSeries = [
+            // Already matches q.out.for — must not be altered.
+            buildTimeSeries({ locationId: 'E_09', parameterId: 'Q.salida.forecast' }),
+            // ".web" only counts as a suffix, never mid-string.
+            buildTimeSeries({ locationId: 'E_15', parameterId: 'I.web.forecast' }),
+        ];
+
+        mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
+        mockSimulationResultFetcher.fetchFromFolder.mockResolvedValue({
+            timeSeries,
+            processedFileName: 'result.json',
+        });
+        mockSimulationResultFetcher.fetchVobsSeries.mockResolvedValue(null);
+        mockSimulationRunRepository.update.mockResolvedValue(run);
+        mockMessageBroker.publishToTopic.mockResolvedValue(undefined);
+
+        await service.pollOnce();
+
+        const [, , payload] = mockMessageBroker.publishToTopic.mock.calls[0];
+        const parameterIds = payload.timeSeries.map((s: any) => s.header.parameterId);
+        expect(parameterIds).toEqual(['Q.salida.forecast', 'I.web.forecast']);
+    });
+
+    it('(k) should not rename the v.obs series coming from the WISKI CSV', async () => {
+        mockAppConfig.useCalculatorPipeline = true;
+        const run = buildSimulationRun();
+
+        mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
+        mockSimulationResultFetcher.fetchFromFolder.mockResolvedValue({
+            timeSeries: [buildTimeSeries({ parameterId: 'I.mk11.forecast.web' })],
+            processedFileName: 'result.json',
+        });
+        mockSimulationResultFetcher.fetchVobsSeries.mockResolvedValue([buildWiskiSeries()]);
+        mockSimulationRunRepository.update.mockResolvedValue(run);
+        mockMessageBroker.publishToTopic.mockResolvedValue(undefined);
+
+        await service.pollOnce();
+
+        const [, , payload] = mockMessageBroker.publishToTopic.mock.calls[0];
+        const wiski = payload.timeSeries.find((s: any) => s.header.parameterId === 'VICT01.Validado');
+        expect(wiski).toBeDefined();
     });
 });
