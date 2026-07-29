@@ -6,17 +6,27 @@
 # container (via runlike) and recreates it with the new GHCR image. Config is
 # read from the running container, so NO secrets ever live in git or in this
 # script. Rollback is automatic per service: the previous container is kept as
-# <svc>-prev until the new one passes health; on any failure it is restored.
+# <svc>-prev until the new one passes health; on any failure it is restored,
+# and the restore is verified — a rollback that did not work is reported as
+# such instead of being announced as done.
+#
+# Because config is copied from the live container, a variable the image only
+# starts requiring in the new version cannot come from anywhere: declare it in
+# service-env/<service>.env and it will be added when missing.
 #
 # Usage:
 #   TAG=latest            bash redeploy.sh all
 #   TAG=sha-abc123        bash redeploy.sh "ms-gateway-api ms-user-api"
 #
 # Env:
-#   REGISTRY  (default ghcr.io/vsadtajo)
-#   TAG       (default latest)
-#   DRY_RUN=1 validate only: pull the image + rebuild the run command, but do
-#             NOT touch any container. Safe to run against live production.
+#   REGISTRY      (default ghcr.io/vsadtajo)
+#   TAG           (default latest)
+#   EXTRA_ENV_DIR (default <script dir>/service-env)
+#   DRY_RUN=1     validate only: pull the image + rebuild the run command, but
+#                 do NOT touch any container. Safe against live production.
+#
+# Exit codes: 0 ok · 1 some service failed but kept its previous version
+#             2 some service is DOWN (rollback could not restore it)
 # =============================================================================
 set -uo pipefail
 
@@ -45,6 +55,40 @@ if [ "$REQUEST" = "all" ]; then SERVICES="$ALL_SERVICES"; else SERVICES="$REQUES
 
 runlike() { docker run --rm -v /var/run/docker.sock:/var/run/docker.sock assaflavie/runlike "$@"; }
 
+# Extra environment a service needs but its live container does not have yet.
+#
+# runlike can only copy variables that already exist on the running container,
+# so an image that starts *requiring* a new variable crash-loops on deploy: the
+# recreate has no way to supply it. That is exactly what took ms-logs-ui down
+# when it became a runtime-configurable image (API_URL, GATEWAY_URL, ...).
+#
+# Drop a `<service>.env` here (KEY=VALUE per line) and every recreate will add
+# the ones the container is missing. Existing values are never overwritten —
+# the live container remains the source of truth for secrets.
+EXTRA_ENV_DIR="${EXTRA_ENV_DIR:-$(dirname "$0")/service-env}"
+
+# Appends "--env=K=V" to $cmd for each declared key not already present.
+merge_extra_env() {
+    local svc="$1" cmd="$2" file="$EXTRA_ENV_DIR/$1.env" key value line
+    [ -f "$file" ] || { printf '%s' "$cmd"; return 0; }
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in ''|'#'*) continue ;; esac
+        key=${line%%=*}
+        value=${line#*=}
+        [ -z "$key" ] && continue
+        # Already set on the live container: leave it alone.
+        if printf '%s' "$cmd" | grep -q -- "--env=${key}="; then
+            echo "  · env $key ya presente — se respeta el valor del contenedor" >&2
+            continue
+        fi
+        echo "  + env $key (declarada en ${svc}.env, ausente en el contenedor)" >&2
+        cmd="${cmd/--detach=true/--env=${key}=${value} --detach=true}"
+    done <"$file"
+
+    printf '%s' "$cmd"
+}
+
 # Rewrite "--volume /dest" -> "--volume <named>:/dest" in $cmd for every
 # destination listed in NAMED_VOLUMES for $svc.
 apply_named_volumes() {
@@ -66,10 +110,22 @@ apply_named_volumes() {
 #   - no `node` (e.g. ms-calculator-api, Python): probe /health over the
 #     container network with a throwaway curl container (language-agnostic).
 health_ok() {
-    local name="$1" port="$2" i net
+    local name="$1" port="$2" i net state restarts
     if [ -z "$port" ]; then
-        sleep 5
-        docker ps --filter "name=^${name}$" --filter status=running -q | grep -q . && return 0 || return 1
+        # A crash-looping container alternates between running and restarting, so
+        # a single check right after start can catch it mid-"running" and pass.
+        # Watch it for a while instead: it must stay up AND never restart.
+        for i in $(seq 1 6); do
+            sleep 5
+            state=$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || echo missing)
+            restarts=$(docker inspect -f '{{.RestartCount}}' "$name" 2>/dev/null || echo 0)
+            if [ "$state" != "running" ] || [ "${restarts:-0}" -gt 0 ]; then
+                echo "  ✗ $name estado=$state reinicios=$restarts" >&2
+                docker logs "$name" --tail 15 2>&1 | sed 's/^/      /' >&2
+                return 1
+            fi
+        done
+        return 0
     fi
     if docker exec "$name" sh -c 'command -v node' >/dev/null 2>&1; then
         for i in $(seq 1 40); do
@@ -92,14 +148,44 @@ health_ok() {
     return 1
 }
 
+# Restores <svc>-prev and VERIFIES it came back. The previous version reported
+# "rollback aplicado" unconditionally: if any step failed the service was left
+# down while the log claimed otherwise, which is worse than a loud failure.
 rollback() {
-    local svc="$1"
+    local svc="$1" state
+
     echo "  ↩ rollback $svc"
-    docker rm -f "$svc" 2>/dev/null || true
-    docker rename "${svc}-prev" "$svc" && docker start "$svc" >/dev/null
+
+    if ! docker rm -f "$svc" >/dev/null 2>&1; then
+        echo "  ! no pude borrar el contenedor nuevo $svc" >&2
+    fi
+
+    if ! docker container inspect "${svc}-prev" >/dev/null 2>&1; then
+        echo "  ✗✗ NO existe ${svc}-prev — $svc queda CAÍDO, hay que restaurarlo a mano" >&2
+        return 1
+    fi
+
+    if ! docker rename "${svc}-prev" "$svc" >/dev/null 2>&1; then
+        echo "  ✗✗ no pude renombrar ${svc}-prev — $svc queda CAÍDO" >&2
+        return 1
+    fi
+
+    docker start "$svc" >/dev/null 2>&1 || true
+
+    sleep 5
+    state=$(docker inspect -f '{{.State.Status}}' "$svc" 2>/dev/null || echo missing)
+    if [ "$state" != "running" ]; then
+        echo "  ✗✗ ROLLBACK NO RESTAURÓ EL SERVICIO — $svc estado=$state" >&2
+        return 1
+    fi
+
+    echo "  ✓ rollback verificado — $svc corriendo con la versión anterior"
+    return 0
 }
 
 FAILED=""
+# Services the rollback could NOT bring back — these are actually down.
+DOWN=""
 for svc in $SERVICES; do
     echo "=================== $svc ==================="
     newimg="${REGISTRY}/${svc}:${TAG}"
@@ -122,6 +208,7 @@ for svc in $SERVICES; do
         echo "  ✗ falló runlike"; FAILED="$FAILED $svc"; continue
     fi
     cmd=$(apply_named_volumes "$svc" "$cmd")
+    cmd=$(merge_extra_env "$svc" "$cmd")
 
     if [ "${DRY_RUN:-0}" = "1" ]; then
         echo "  ✓ [dry-run] imagen pulleable + config reconstruida ($(printf '%s\n' "$cmd" | grep -c . ) líneas) — no se recrea nada"
@@ -132,20 +219,29 @@ for svc in $SERVICES; do
     docker stop "${svc}-prev" >/dev/null
 
     if ! eval "$cmd" >/dev/null; then
-        echo "  ✗ no arrancó el nuevo"; rollback "$svc"; FAILED="$FAILED $svc"; continue
+        echo "  ✗ no arrancó el nuevo"
+        rollback "$svc" || DOWN="$DOWN $svc"
+        FAILED="$FAILED $svc"; continue
     fi
 
     if health_ok "$svc" "$port"; then
         echo "  ✓ healthy — limpio el contenedor previo"
         docker rm "${svc}-prev" >/dev/null 2>&1 || true
     else
-        echo "  ✗ no llegó a healthy"; rollback "$svc"; FAILED="$FAILED $svc"
+        echo "  ✗ no llegó a healthy"
+        rollback "$svc" || DOWN="$DOWN $svc"
+        FAILED="$FAILED $svc"
     fi
 done
 
 echo ""
+if [ -n "$DOWN" ]; then
+    echo "=== ✗✗ CAÍDOS — el rollback no los restauró, requieren intervención manual:$DOWN ==="
+    echo "=== fallaron:$FAILED ==="
+    exit 2
+fi
 if [ -n "$FAILED" ]; then
-    echo "=== FALLARON (rollback aplicado):$FAILED ==="
+    echo "=== FALLARON (rollback verificado, sigue la versión anterior):$FAILED ==="
     exit 1
 fi
 echo "=== deploy OK: $SERVICES ==="
