@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, FlaskConical, Loader2, Plus, Rocket, Trash2, X } from 'lucide-react';
+import { AlertCircle, FlaskConical, Loader2, Plus, Radio, Rocket, Trash2, X } from 'lucide-react';
 import SearchableSelect from '../hydro/SearchableSelect';
 import { createManualSimulation, listReservoirs } from './api';
 import { useModalDismiss } from './useModalDismiss';
@@ -336,6 +336,13 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
                                 <p className="mt-1.5 text-[10px] text-amber-300/80 flex items-start gap-1.5">
                                     <FlaskConical size={11} className="shrink-0 mt-px" />
                                     No se ejecuta el modelo: se usa un resultado de referencia para probar el circuito.
+                                </p>
+                            )}
+                            {modelSource === 'FEWS_API' && (
+                                <p className="mt-1.5 text-[10px] text-sky-300/80 flex items-start gap-1.5">
+                                    <Radio size={11} className="shrink-0 mt-px" />
+                                    Lanza el modelo en FEWS y sigue la tarea. Requiere la conexión configurada; si no,
+                                    la simulación falla con el detalle.
                                 </p>
                             )}
                         </div>

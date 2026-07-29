@@ -31,6 +31,8 @@ import { ProviderSchedulerService } from '@infrastructure/services/provider-sche
 import { SimulationResultFetcherService } from '@infrastructure/services/simulation-result-fetcher.service';
 import { MockModelOutputService } from '@infrastructure/services/mock-model-output.service';
 import { FewsTaskClientService } from '@infrastructure/services/fews-task-client.service';
+import { FewsSimulationLauncherService } from '@infrastructure/services/fews-simulation-launcher.service';
+import { FewsResultFetcherService } from '@infrastructure/services/fews-result-fetcher.service';
 import { SimulationDispatchedConsumerService } from '@infrastructure/services/simulation-dispatched-consumer.service';
 import { SimulationRunPollerService } from '@infrastructure/services/simulation-run-poller.service';
 
@@ -100,6 +102,8 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         SimulationResultFetcherService,
         MockModelOutputService,
         FewsTaskClientService,
+        FewsSimulationLauncherService,
+        FewsResultFetcherService,
         SimulationDispatchedConsumerService,
         SimulationRunPollerService,
     ],

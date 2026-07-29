@@ -251,6 +251,14 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                                                 Mock
                                             </span>
                                         )}
+                                        {sim.modelSource === 'FEWS_API' && (
+                                            <span
+                                                title="Lanzada directamente en FEWS por la API"
+                                                className="px-1.5 py-0.5 rounded-md border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] font-medium"
+                                            >
+                                                FEWS
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="rounded-lg border border-slate-700/40 bg-slate-800/30 px-3.5 py-2.5">

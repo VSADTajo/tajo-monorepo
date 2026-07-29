@@ -13,7 +13,7 @@ import {
 } from '@application/commands/provider-config.commands';
 import { ExecuteIngestionHandler, TriggerIngestionHandler } from '@application/commands/ingestion.commands';
 import { PurgeOldIngestionRunsHandler } from '@application/commands/cleanup.commands';
-import { RegisterSimulationRunHandler } from '@application/commands/simulation-run.commands';
+import { RegisterSimulationRunHandler, AttachFewsTaskHandler } from '@application/commands/simulation-run.commands';
 
 // Query Handlers
 import { ListProviderConfigsHandler, GetProviderConfigByIdHandler } from '@application/queries/provider-config.queries';
@@ -39,6 +39,7 @@ import { IngestionRunController } from '@api/controllers/ingestion-run.controlle
         TriggerIngestionHandler,
         PurgeOldIngestionRunsHandler,
         RegisterSimulationRunHandler,
+        AttachFewsTaskHandler,
     ],
 })
 export class ApplicationModule {}

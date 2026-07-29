@@ -8,6 +8,7 @@ import { NormalizedTimeSeriesResult } from '@domain/results/normalized-timeserie
 import { WiskiTimeSeriesResult } from '@domain/results/wiski-timeseries.result';
 import { Topics } from '@infrastructure/messaging/messaging.registry';
 import { SimulationResultFetcherService } from '@infrastructure/services/simulation-result-fetcher.service';
+import { FewsResultFetcherService } from '@infrastructure/services/fews-result-fetcher.service';
 import { AppConfigService } from '@config/app/app-config.service';
 
 const DEFAULT_POLL_INTERVAL_MINUTES = 5;
@@ -52,6 +53,7 @@ export class SimulationRunPollerService implements OnModuleInit {
         private readonly logger: Logger,
         private readonly simulationRunRepository: ISimulationRunRepository,
         private readonly simulationResultFetcherService: SimulationResultFetcherService,
+        private readonly fewsResultFetcherService: FewsResultFetcherService,
         private readonly messageBroker: IMessageBroker,
         private readonly appConfigService: AppConfigService,
     ) {
@@ -101,14 +103,22 @@ export class SimulationRunPollerService implements OnModuleInit {
 
     private async processSingleRun(run: SimulationRun): Promise<void> {
         try {
-            const result = await this.simulationResultFetcherService.fetchFromFolder(run.outputFolder);
+            // A run launched through the FEWS REST API is followed by task id: its
+            // results never land in the output folder, so watching it would wait
+            // forever. Everything after the fetch is identical for all modes.
+            const result = run.fewsTaskId
+                ? await this.fewsResultFetcherService.fetchByTask(run.fewsTaskId)
+                : await this.simulationResultFetcherService.fetchFromFolder(run.outputFolder);
 
             if (!result) {
                 this.logger.log({
-                    msg: 'No result file yet — will retry next poll cycle',
+                    msg: run.fewsTaskId
+                        ? 'FEWS task still running — will retry next poll cycle'
+                        : 'No result file yet — will retry next poll cycle',
                     entity: 'SimulationRunPoller',
                     simulationId: run.simulationId,
                     outputFolder: run.outputFolder,
+                    fewsTaskId: run.fewsTaskId,
                 });
                 return;
             }

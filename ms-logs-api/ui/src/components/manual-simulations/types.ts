@@ -9,11 +9,12 @@ export type ModmeteoChoice = 'HARMONIE' | 'EPS' | 'BOTH';
  * Where the model output comes from. SFTP is the real flow; MOCK seeds a
  * known-good reference output so the pipeline can be exercised without FEWS.
  */
-export type ModelSource = 'SFTP' | 'MOCK';
+export type ModelSource = 'SFTP' | 'MOCK' | 'FEWS_API';
 
 export const MODEL_SOURCE_OPTIONS: { value: ModelSource; label: string; hint: string }[] = [
     { value: 'SFTP', label: 'SFTP', hint: 'Flujo real: FEWS deja el resultado en la carpeta de salida' },
     { value: 'MOCK', label: 'Mock', hint: 'Usa un resultado de referencia, sin depender de FEWS' },
+    { value: 'FEWS_API', label: 'FEWS', hint: 'Lanza el modelo directo por la API de FEWS' },
 ];
 
 export const MODMETEO_OPTIONS: { value: ModmeteoChoice; label: string }[] = [

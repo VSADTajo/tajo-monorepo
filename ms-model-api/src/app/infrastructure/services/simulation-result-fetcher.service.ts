@@ -2,7 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import axios from 'axios';
 
-import { NormalizedTimeSeriesResult, TimeSeriesEventResult } from '@domain/results/normalized-timeseries.result';
+import { NormalizedTimeSeriesResult } from '@domain/results/normalized-timeseries.result';
+import { MappedSeries, mapPiJsonToNormalized } from '@infrastructure/services/pi-json.mapper';
 import { WiskiTimeSeriesResult } from '@domain/results/wiski-timeseries.result';
 import { ProviderError } from '@domain/errors/provider.error';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
@@ -15,12 +16,6 @@ export interface SimulationFetchResult {
     /** Series dropped because every event carried missVal (not modelled by FEWS). */
     skippedEmptySeries: number;
     /** Series dropped because their shape could not be mapped. */
-    skippedInvalidSeries: number;
-}
-
-interface MappedSeries {
-    series: NormalizedTimeSeriesResult[];
-    skippedEmptySeries: number;
     skippedInvalidSeries: number;
 }
 
@@ -82,7 +77,9 @@ export class SimulationResultFetcherService {
                 headers: { 'x-internal-caller': 'ms-model-api' },
             });
 
-            mapped = this.mapResponseToNormalized(downloadResponse.data);
+            mapped = mapPiJsonToNormalized(downloadResponse.data, (message, context) =>
+                this.logger.warn({ msg: message, entity: 'SimulationResultFetcher', ...context }),
+            );
         } catch (parseError) {
             const message = parseError instanceof Error ? parseError.message : String(parseError);
             this.logger.error({
@@ -206,108 +203,5 @@ export class SimulationResultFetcherService {
         } catch {
             return buffer.toString('latin1');
         }
-    }
-
-    /**
-     * Converts a FEWS `{ date, time }` pair into an ISO-8601 UTC string.
-     * FEWS omits optional date blocks entirely, so absence is expected, not an error.
-     */
-    private toIsoUtc(dateTime: { date: string; time: string } | null | undefined): string | null {
-        if (!dateTime?.date || !dateTime?.time) {
-            return null;
-        }
-
-        return `${dateTime.date}T${dateTime.time}Z`;
-    }
-
-    private mapResponseToNormalized(data: any): MappedSeries {
-        const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        const seriesList = parsed?.timeSeries;
-
-        if (!Array.isArray(seriesList)) {
-            throw new Error('Malformed simulation result: "timeSeries" is missing or is not an array');
-        }
-
-        const series: NormalizedTimeSeriesResult[] = [];
-        let skippedEmptySeries = 0;
-        let skippedInvalidSeries = 0;
-
-        for (const entry of seriesList) {
-            let mapped: NormalizedTimeSeriesResult;
-
-            try {
-                mapped = this.mapSingleSeries(entry);
-            } catch (error) {
-                // A single unmappable series must never invalidate the whole file.
-                skippedInvalidSeries += 1;
-                this.logger.warn({
-                    msg: 'Skipping unmappable time series',
-                    entity: 'SimulationResultFetcher',
-                    locationId: entry?.header?.locationId,
-                    parameterId: entry?.header?.parameterId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-                continue;
-            }
-
-            // Series outside the running FEWS model come fully filled with missVal.
-            // They carry no information, so they are not worth persisting.
-            if (mapped.events.every((event) => event.isMissing)) {
-                skippedEmptySeries += 1;
-                continue;
-            }
-
-            series.push(mapped);
-        }
-
-        return { series, skippedEmptySeries, skippedInvalidSeries };
-    }
-
-    private mapSingleSeries(entry: any): NormalizedTimeSeriesResult {
-        const { header, events } = entry;
-        const missValue = parseFloat(header.missVal);
-
-        const mappedEvents: TimeSeriesEventResult[] = (events ?? []).map((event: any) => {
-            const rawValue = parseFloat(event.value);
-            // Compare numerically: FEWS declares missVal as "-999.0" but a plain
-            // "-999" in an event means the same thing.
-            const isMissing = Number.isNaN(rawValue) || rawValue === missValue;
-
-            return new TimeSeriesEventResult({
-                timestamp: `${event.date}T${event.time}Z`,
-                value: isMissing ? 0 : rawValue,
-                flag: parseInt(event.flag, 10),
-                isMissing,
-            });
-        });
-
-        const startDate = this.toIsoUtc(header.startDate);
-        const endDate = this.toIsoUtc(header.endDate);
-
-        if (!startDate || !endDate) {
-            throw new Error(`Series "${header.locationId}/${header.parameterId}" is missing startDate or endDate`);
-        }
-
-        return new NormalizedTimeSeriesResult({
-            locationId: header.locationId,
-            parameterId: header.parameterId,
-            // FEWS only emits moduleInstanceId for series a module actually produced.
-            moduleInstanceId: header.moduleInstanceId ?? '',
-            stationName: header.stationName,
-            lat: parseFloat(header.lat) || 0,
-            lon: parseFloat(header.lon) || 0,
-            x: parseFloat(header.x) || 0,
-            y: parseFloat(header.y) || 0,
-            z: parseFloat(header.z) || 0,
-            units: header.units,
-            timeStep: {
-                unit: header.timeStep?.unit || 'hour',
-                multiplier: parseInt(header.timeStep?.multiplier || '1', 10),
-            },
-            forecastDate: this.toIsoUtc(header.forecastDate),
-            startDate,
-            endDate,
-            events: mappedEvents,
-        });
     }
 }

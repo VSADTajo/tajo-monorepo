@@ -32,6 +32,14 @@ export class SimulationRun extends BaseAuditEntity implements IValidable {
     @Column('text', { nullable: true })
     errorMessage: string | null;
 
+    /**
+     * Task id returned by FEWS when the run was launched through the REST API.
+     * Null for the SFTP and MOCK flows, where the result arrives as a file and
+     * there is no task to follow.
+     */
+    @Column('varchar', { length: 200, nullable: true })
+    fewsTaskId: string | null;
+
     validate(): void {
         if (!this.simulationId) {
             throw new EntityError('simulationId is required', 'simulationId');

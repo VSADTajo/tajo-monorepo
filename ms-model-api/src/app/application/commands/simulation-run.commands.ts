@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common';
+import { HttpStatus, Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Logger } from 'nestjs-pino';
 
@@ -6,6 +6,7 @@ import { ISimulationRunRepository } from '@domain/ports/simulation-run-repositor
 import { SimulationRun } from '@domain/entities/simulation-run.entity';
 import { SimulationRunResult } from '@domain/results/simulation-run.result';
 import { SimulationRunStatus } from '@domain/types/simulation-run-status.enum';
+import { ApiError } from '@domain/errors/api.error';
 
 // ─────────────────────────────────────────────────────────────
 // RegisterSimulationRun
@@ -87,6 +88,61 @@ export class RegisterSimulationRunHandler implements ICommandHandler<
             startedAt: persisted.startedAt,
             completedAt: persisted.completedAt,
             errorMessage: persisted.errorMessage,
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// AttachFewsTask
+// ─────────────────────────────────────────────────────────────
+
+export interface IAttachFewsTaskCommand {
+    simulationId: string;
+    fewsTaskId: string;
+}
+
+/** Links a run to the FEWS task that is producing its results. */
+export class AttachFewsTaskCommand {
+    constructor(private readonly parameters: IAttachFewsTaskCommand) {}
+
+    get simulationId(): string {
+        return this.parameters.simulationId;
+    }
+
+    get fewsTaskId(): string {
+        return this.parameters.fewsTaskId;
+    }
+}
+
+@CommandHandler(AttachFewsTaskCommand)
+export class AttachFewsTaskHandler implements ICommandHandler<AttachFewsTaskCommand, void> {
+    constructor(
+        @Inject(Logger)
+        private readonly logger: Logger,
+        private readonly simulationRunRepository: ISimulationRunRepository,
+    ) {}
+
+    async execute(command: AttachFewsTaskCommand): Promise<void> {
+        const run = await this.simulationRunRepository.findBySimulationId(command.simulationId);
+
+        if (!run) {
+            // The run is created from the same event moments earlier, so this
+            // means something is off — losing the task id would leave the run
+            // waiting on a folder no one will ever write to.
+            throw new ApiError(
+                HttpStatus.NOT_FOUND,
+                `No simulation run for "${command.simulationId}" — cannot attach FEWS task "${command.fewsTaskId}"`,
+            );
+        }
+
+        run.fewsTaskId = command.fewsTaskId;
+        await this.simulationRunRepository.update(run);
+
+        this.logger.log({
+            msg: 'FEWS task attached to simulation run',
+            entity: 'SimulationRun',
+            simulationId: command.simulationId,
+            fewsTaskId: command.fewsTaskId,
         });
     }
 }

@@ -8,6 +8,7 @@ import { NormalizedTimeSeriesResult } from '../../domain/results/normalized-time
 import { WiskiTimeSeriesResult } from '../../domain/results/wiski-timeseries.result';
 import { ProviderError } from '../../domain/errors/provider.error';
 import { SimulationResultFetcherService } from './simulation-result-fetcher.service';
+import { FewsResultFetcherService } from './fews-result-fetcher.service';
 import { SimulationRunPollerService } from './simulation-run-poller.service';
 import { Topics } from '../messaging/messaging.registry';
 import { AppConfigService } from '../../../configuration/app/app-config.service';
@@ -29,6 +30,10 @@ const mockSimulationRunRepository = {
 const mockSimulationResultFetcher = {
     fetchFromFolder: jest.fn(),
     fetchVobsSeries: jest.fn(),
+};
+
+const mockFewsResultFetcher = {
+    fetchByTask: jest.fn(),
 };
 
 const mockMessageBroker = {
@@ -105,6 +110,7 @@ describe('SimulationRunPollerService.pollOnce()', () => {
             mockLogger as unknown as Logger,
             mockSimulationRunRepository as unknown as ISimulationRunRepository,
             mockSimulationResultFetcher as unknown as SimulationResultFetcherService,
+            mockFewsResultFetcher as unknown as FewsResultFetcherService,
             mockMessageBroker as unknown as IMessageBroker,
             mockAppConfig as unknown as AppConfigService,
         );
@@ -393,5 +399,54 @@ describe('SimulationRunPollerService.pollOnce()', () => {
         const [, , payload] = mockMessageBroker.publishToTopic.mock.calls[0];
         const wiski = payload.timeSeries.find((s: any) => s.header.parameterId === 'VICT01.Validado');
         expect(wiski).toBeDefined();
+    });
+
+    // ── FEWS direct mode ──────────────────────────────────────────────────────
+    //
+    // A run launched through the REST API is followed by task id: its results
+    // never land in the output folder, so polling the folder would wait forever.
+
+    it('(l) should read results from FEWS when the run carries a task id', async () => {
+        mockAppConfig.useCalculatorPipeline = true;
+        const run = buildSimulationRun({ fewsTaskId: 'TASK-77' });
+
+        mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
+        mockFewsResultFetcher.fetchByTask.mockResolvedValue({
+            timeSeries: [buildTimeSeries()],
+            processedFileName: 'fews-taskrun-RUN-9',
+        });
+        mockSimulationResultFetcher.fetchVobsSeries.mockResolvedValue(null);
+        mockSimulationRunRepository.update.mockResolvedValue(run);
+        mockMessageBroker.publishToTopic.mockResolvedValue(undefined);
+
+        await service.pollOnce();
+
+        expect(mockFewsResultFetcher.fetchByTask).toHaveBeenCalledWith('TASK-77');
+        expect(mockSimulationResultFetcher.fetchFromFolder).not.toHaveBeenCalled();
+        expect(run.status).toBe(SimulationRunStatus.COMPLETED);
+    });
+
+    it('(m) should keep watching the output folder when there is no task id', async () => {
+        const run = buildSimulationRun();
+
+        mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
+        mockSimulationResultFetcher.fetchFromFolder.mockResolvedValue(null);
+
+        await service.pollOnce();
+
+        expect(mockSimulationResultFetcher.fetchFromFolder).toHaveBeenCalled();
+        expect(mockFewsResultFetcher.fetchByTask).not.toHaveBeenCalled();
+    });
+
+    it('(n) should just retry while the FEWS task is still running', async () => {
+        const run = buildSimulationRun({ fewsTaskId: 'TASK-77' });
+
+        mockSimulationRunRepository.findWaitingResult.mockResolvedValue([run]);
+        mockFewsResultFetcher.fetchByTask.mockResolvedValue(null);
+
+        await service.pollOnce();
+
+        expect(run.status).toBe(SimulationRunStatus.WAITING_RESULT);
+        expect(mockMessageBroker.publishToTopic).not.toHaveBeenCalled();
     });
 });

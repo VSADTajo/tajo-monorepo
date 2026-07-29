@@ -12,11 +12,13 @@ import type { Maneuver } from './maneuver.entity';
  *   SFTP — the real flow: FEWS leaves the result in the output folder.
  *   MOCK — a known-good reference output is seeded, so the whole pipeline can
  *          be exercised without depending on FEWS.
- * A direct FEWS REST integration is not implemented yet.
+ *   FEWS_API — the input is pushed to the FEWS PI REST service and the workflow
+ *          is launched there, instead of leaving a file for someone to import.
  */
 export enum ModelSource {
     SFTP = 'SFTP',
     MOCK = 'MOCK',
+    FEWS_API = 'FEWS_API',
 }
 
 export enum SimulationStatus {
