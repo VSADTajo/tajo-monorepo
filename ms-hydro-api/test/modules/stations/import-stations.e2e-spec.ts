@@ -131,6 +131,7 @@ describe('Import Stations (e2e)', () => {
 
         const { body } = await importStations({
             basinId,
+            createMissingSubBasins: true,
             items: [
                 buildImportItem(),
                 buildImportItem({ id: 'local-EM10', name: 'Embalse Ejemplo', stationCode: 'EM10', stationType: 'Embalse', tipoCod: 'E' }),
@@ -158,13 +159,14 @@ describe('Import Stations (e2e)', () => {
     // ─── Idempotency ──────────────────────────────────────────
     it('is idempotent by stationCode: re-import updates instead of duplicating', async () => {
         const basinId = await seedBasin();
-        const payload = { basinId, items: [buildImportItem()] };
+        const payload = { basinId, createMissingSubBasins: true, items: [buildImportItem()] };
 
         const { body: first } = await importStations(payload).expect(HttpStatus.OK);
         expect(first).toMatchObject({ created: 1, updated: 0 });
 
         const { body: second } = await importStations({
             basinId,
+            createMissingSubBasins: true,
             items: [buildImportItem({ name: 'Río Ejemplo (actualizado)' })],
         }).expect(HttpStatus.OK);
         expect(second).toMatchObject({ created: 0, updated: 1, skipped: 0 });
@@ -182,6 +184,7 @@ describe('Import Stations (e2e)', () => {
 
         const { body } = await importStations({
             basinId,
+            createMissingSubBasins: true,
             items: [
                 buildImportItem(),
                 buildImportItem({ stationCode: 'BAD1', stationType: 'Pluviometro raro', subBasinName: 'Cuenca Ejemplo' }),
@@ -197,6 +200,55 @@ describe('Import Stations (e2e)', () => {
 
         // The valid item was still persisted.
         await getByCode('AR50').expect(HttpStatus.OK);
+    });
+
+    // ─── Opt-in sub-basin creation (default OFF) ──────────────
+    it('does NOT create a missing sub-basin by default: item goes to errors[]', async () => {
+        const basinId = await seedBasin();
+
+        const { body } = await importStations({
+            basinId,
+            items: [buildImportItem()], // createMissingSubBasins omitted → defaults to false
+        }).expect(HttpStatus.OK);
+
+        expect(body.created).toBe(0);
+        expect(body.skipped).toBe(1);
+        expect(body.errors[0].stationCode).toBe('AR50');
+        expect(body.errors[0].reason).toContain('createMissingSubBasins');
+
+        // Nothing was persisted.
+        await getByCode('AR50').expect(HttpStatus.NOT_FOUND);
+    });
+
+    // ─── Canonical enum passthrough ───────────────────────────
+    it('accepts a canonical StationType enum value as-is', async () => {
+        const basinId = await seedBasin();
+
+        const { body } = await importStations({
+            basinId,
+            createMissingSubBasins: true,
+            items: [buildImportItem({ stationCode: 'CAN1', stationType: 'AFOROS_EN_CANAL' })],
+        }).expect(HttpStatus.OK);
+
+        expect(body).toMatchObject({ created: 1, skipped: 0 });
+        const { body: station } = await getByCode('CAN1').expect(HttpStatus.OK);
+        expect(station.stationType).toBe('AFOROS_EN_CANAL');
+    });
+
+    // ─── Intra-batch duplicate stationCode ────────────────────
+    it('reports a duplicate stationCode within the same payload', async () => {
+        const basinId = await seedBasin();
+
+        const { body } = await importStations({
+            basinId,
+            createMissingSubBasins: true,
+            items: [buildImportItem(), buildImportItem({ name: 'Duplicado' })], // same stationCode AR50
+        }).expect(HttpStatus.OK);
+
+        expect(body.total).toBe(2);
+        expect(body.created).toBe(1);
+        expect(body.skipped).toBe(1);
+        expect(body.errors[0].reason).toContain('Duplicate');
     });
 
     // ─── Basin not found ──────────────────────────────────────

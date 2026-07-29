@@ -614,6 +614,7 @@ export interface IImportStationItem {
 
 export interface IImportStationsCommand {
     basinId: string;
+    createMissingSubBasins: boolean;
     items: IImportStationItem[];
 }
 
@@ -622,6 +623,10 @@ export class ImportStationsCommand {
 
     get basinId(): string {
         return this.parameters.basinId;
+    }
+
+    get createMissingSubBasins(): boolean {
+        return this.parameters.createMissingSubBasins;
     }
 
     get items(): IImportStationItem[] {
@@ -698,14 +703,31 @@ export class ImportStationsHandler implements ICommandHandler<ImportStationsComm
 
         const errors: ImportStationError[] = [];
         const subBasinIdByName = new Map<string, string>();
+        const seenStationCodes = new Set<string>();
         let created = 0;
         let updated = 0;
 
         for (const item of command.items) {
-            const stationCode = (item.stationCode ?? '').trim() || 'unknown';
+            const stationCode = (item.stationCode ?? '').trim();
             try {
+                if (!stationCode) {
+                    throw new EntityError('stationCode is required', 'stationCode');
+                }
+
+                // Reject duplicate stationCodes within the same payload so one item
+                // does not silently clobber another (both would target the same row).
+                if (seenStationCodes.has(stationCode)) {
+                    throw new EntityError(`Duplicate stationCode "${stationCode}" in payload`, 'stationCode');
+                }
+                seenStationCodes.add(stationCode);
+
                 const stationType = resolveStationType(item.stationType);
-                const subBasinId = await this.resolveSubBasinId(item.subBasinName, command.basinId, subBasinIdByName);
+                const subBasinId = await this.resolveSubBasinId(
+                    item.subBasinName,
+                    command.basinId,
+                    command.createMissingSubBasins,
+                    subBasinIdByName,
+                );
 
                 const existing = await this.stationRepository.findByStationCode(stationCode);
                 const isUpdate = existing !== null;
@@ -737,9 +759,18 @@ export class ImportStationsHandler implements ICommandHandler<ImportStationsComm
                     created++;
                 }
             } catch (error) {
-                const reason = error instanceof Error ? error.message : String(error);
-                this.logger.warn({ msg: 'Station import item skipped', stationCode, reason });
-                errors.push({ stationCode, reason });
+                // Only surface domain-level messages to the caller; never leak internal
+                // (repository/DB) details in the batch response.
+                const reason =
+                    error instanceof EntityError || error instanceof ApiError
+                        ? error.message
+                        : 'Internal error processing this item';
+                this.logger.warn({
+                    msg: 'Station import item skipped',
+                    stationCode,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                errors.push({ stationCode: stationCode || 'unknown', reason });
             }
         }
 
@@ -759,7 +790,12 @@ export class ImportStationsHandler implements ICommandHandler<ImportStationsComm
         return result;
     }
 
-    private async resolveSubBasinId(name: string, basinId: string, cache: Map<string, string>): Promise<string> {
+    private async resolveSubBasinId(
+        name: string,
+        basinId: string,
+        allowCreate: boolean,
+        cache: Map<string, string>,
+    ): Promise<string> {
         const cached = cache.get(name);
         if (cached) {
             return cached;
@@ -769,6 +805,14 @@ export class ImportStationsHandler implements ICommandHandler<ImportStationsComm
         if (existing) {
             cache.set(name, existing.id);
             return existing.id;
+        }
+
+        // Opt-in guard: never write reference data unless the caller explicitly asks.
+        if (!allowCreate) {
+            throw new EntityError(
+                `Sub-basin "${name}" does not exist in basin "${basinId}" (set createMissingSubBasins=true to create it)`,
+                'subBasinName',
+            );
         }
 
         // Auto-create the sub-basin under the explicitly provided basin. The code

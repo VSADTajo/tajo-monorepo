@@ -448,6 +448,7 @@ export class ImportStationsMapper {
     static toCommand(dto: ImportStationsRequestDto): ImportStationsCommand {
         return new ImportStationsCommand({
             basinId: dto.basinId,
+            createMissingSubBasins: dto.createMissingSubBasins ?? false,
             items: dto.items.map((item) => ({
                 id: item.id,
                 name: item.name,

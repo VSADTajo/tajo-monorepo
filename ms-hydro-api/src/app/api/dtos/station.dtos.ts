@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+    ArrayMaxSize,
     ArrayMinSize,
     IsArray,
+    IsBoolean,
     IsEnum,
     IsInt,
     IsNotEmpty,
@@ -10,6 +12,8 @@ import {
     IsOptional,
     IsString,
     IsUUID,
+    Max,
+    Min,
     ValidateIf,
     ValidateNested,
 } from 'class-validator';
@@ -799,11 +803,15 @@ export class ImportStationItemDto {
     @ApiProperty({ required: false, nullable: true, example: 40.0316 })
     @IsOptional()
     @IsNumber()
+    @Min(-90)
+    @Max(90)
     latitude?: number;
 
     @ApiProperty({ required: false, nullable: true, example: -3.6042 })
     @IsOptional()
     @IsNumber()
+    @Min(-180)
+    @Max(180)
     longitude?: number;
 
     @ApiProperty({ required: false, nullable: true, example: 'A' })
@@ -847,9 +855,21 @@ export class ImportStationsRequestDto {
     @IsUUID()
     basinId: string;
 
-    @ApiProperty({ description: 'Stations to import', type: [ImportStationItemDto] })
+    @ApiProperty({
+        required: false,
+        default: false,
+        description:
+            'When true, a sub-basin referenced by name that does not exist under basinId is created automatically. ' +
+            'When false (default), such items are reported in errors[] instead — protects the reference model from accidental writes.',
+    })
+    @IsOptional()
+    @IsBoolean()
+    createMissingSubBasins?: boolean;
+
+    @ApiProperty({ description: 'Stations to import (max 1000 per request)', type: [ImportStationItemDto] })
     @IsArray()
     @ArrayMinSize(1)
+    @ArrayMaxSize(1000)
     @ValidateNested({ each: true })
     @Type(() => ImportStationItemDto)
     items: ImportStationItemDto[];
