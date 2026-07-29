@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 // Solo se muestra la sección de Logs; el resto comentado para no romper nada
 // import { BalancerPanel } from './components/balancer';
 import { AdministrationPanel } from './components/administration';
+import { AerialPrecipitationPanel } from './components/aerial-precipitation';
 import { AlertsPanel } from './components/alerts';
 import { HydroPanel } from './components/hydro';
 import { PredictionTypesPanel } from './components/prediction-types';
@@ -25,7 +26,7 @@ function App() {
   const { isAuthenticated, isLoading } = useAuth();
   const isLoginPage = location.pathname === '/login';
 
-  const [activePanel, setActivePanel] = useState<'logs' | 'forecasts' | 'input-data' | 'io-history' | 'balancer' | 'predictions-data' | 'manual-simulations' | 'reports' | 'administration' | 'hydro' | 'alerts' | 'prediction-types' | 'webhooks'>('logs');
+  const [activePanel, setActivePanel] = useState<'logs' | 'forecasts' | 'input-data' | 'io-history' | 'balancer' | 'predictions-data' | 'manual-simulations' | 'reports' | 'administration' | 'hydro' | 'alerts' | 'prediction-types' | 'webhooks' | 'aerial-precipitation'>('logs');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   if (isLoginPage) {
@@ -75,6 +76,8 @@ function App() {
         return isAdmin() ? <ManualSimulationsPanel /> : <Dashboard />;
       case 'webhooks':
         return isAdmin() ? <WebhooksPanel /> : <Dashboard />;
+      case 'aerial-precipitation':
+        return isAdmin() ? <AerialPrecipitationPanel /> : <Dashboard />;
       // case 'reports':
       //   return <ReportsPanel />;
       // case 'balancer':
