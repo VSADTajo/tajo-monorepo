@@ -5,6 +5,7 @@ import SearchableSelect from '../hydro/SearchableSelect';
 import { createManualSimulation, listReservoirs } from './api';
 import { useModalDismiss } from './useModalDismiss';
 import { parseManeuverSeries, sortSeries } from './maneuverSeries';
+import { buildDemoManeuvers, isPristine } from './demoPreset';
 import {
     MODEL_SOURCE_OPTIONS,
     MODMETEO_OPTIONS,
@@ -154,6 +155,24 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
             onCreated(simulation);
         },
     });
+
+    /**
+     * Switching to Mock prefills the demo so it can be launched right away.
+     * Only when nothing has been typed yet — autofilling over the operator's own
+     * input would silently discard it.
+     */
+    function selectModelSource(next: ModelSource) {
+        setModelSource(next);
+        if (next === 'MOCK' && isPristine(maneuvers)) {
+            setManeuvers(buildDemoManeuvers());
+            setValidationError(null);
+        }
+    }
+
+    function loadDemoManeuvers() {
+        setManeuvers(buildDemoManeuvers());
+        setValidationError(null);
+    }
 
     function updateManeuver(index: number, patch: Partial<ManeuverDraft>) {
         setManeuvers((prev) => prev.map((m, i) => (i === index ? { ...m, ...patch } : m)));
@@ -318,7 +337,7 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
                                         key={opt.value}
                                         type="button"
                                         title={opt.hint}
-                                        onClick={() => setModelSource(opt.value)}
+                                        onClick={() => selectModelSource(opt.value)}
                                         className={`flex-1 min-w-[140px] text-left px-3 py-2 rounded-lg border text-xs transition ${
                                             modelSource === opt.value
                                                 ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-200'
@@ -333,10 +352,21 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
                                 ))}
                             </div>
                             {modelSource === 'MOCK' && (
-                                <p className="mt-1.5 text-[10px] text-amber-300/80 flex items-start gap-1.5">
-                                    <FlaskConical size={11} className="shrink-0 mt-px" />
-                                    No se ejecuta el modelo: se usa un resultado de referencia para probar el circuito.
-                                </p>
+                                <div className="mt-1.5 flex items-start justify-between gap-3">
+                                    <p className="text-[10px] text-amber-300/80 flex items-start gap-1.5">
+                                        <FlaskConical size={11} className="shrink-0 mt-px" />
+                                        No se ejecuta el modelo: se usa un resultado de referencia. Los embalses
+                                        precargados son los que ese resultado sí trae con datos.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={loadDemoManeuvers}
+                                        title="Reemplaza las maniobras por las de la demo"
+                                        className="shrink-0 text-[10px] px-2 py-0.5 rounded-md border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 transition"
+                                    >
+                                        Recargar demo
+                                    </button>
+                                </div>
                             )}
                             {modelSource === 'FEWS_API' && (
                                 <p className="mt-1.5 text-[10px] text-sky-300/80 flex items-start gap-1.5">
