@@ -2,7 +2,13 @@ import { HttpStatus, Inject } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Logger } from 'nestjs-pino';
 
-import { Simulation, SimulationStatus, SimulationType, DataOrigin } from '@domain/entities/simulation.entity';
+import {
+    Simulation,
+    SimulationStatus,
+    SimulationType,
+    DataOrigin,
+    ModelSource,
+} from '@domain/entities/simulation.entity';
 import { Maneuver } from '@domain/entities/maneuver.entity';
 import { ISimulationRepository } from '@domain/ports/simulation-repository.port';
 import { IManeuverRepository } from '@domain/ports/maneuver-repository.port';
@@ -43,6 +49,7 @@ export interface ICreateManualSimulationCommand {
     description?: string;
     createdBy?: string | null;
     modmeteo: ModmeteoChoice;
+    modelSource: ModelSource;
     maneuverIds?: string[];
     maneuvers?: IManeuverInput[];
 }
@@ -64,6 +71,10 @@ export class CreateManualSimulationCommand {
 
     get modmeteo(): ModmeteoChoice {
         return this.parameters.modmeteo;
+    }
+
+    get modelSource(): ModelSource {
+        return this.parameters.modelSource;
     }
 
     get maneuverIds(): string[] {
@@ -142,6 +153,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             dataOrigin: DataOrigin.FORECAST,
             jobType: null,
             modmeteo: command.modmeteo,
+            modelSource: command.modelSource,
             environment: null,
             createdBy: command.createdBy ?? 'operator',
             maneuvers,
@@ -155,6 +167,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             simulationId: persistedSimulation.id,
             maneuverCount: maneuvers.length,
             modmeteo: command.modmeteo,
+            modelSource: command.modelSource,
         });
 
         // 3. Build + upload the SINGLE SFTP input file with the modified station series.
@@ -220,6 +233,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
                 simulationId: persistedSimulation.id,
                 outputFolder,
                 modmeteo: command.modmeteo,
+                modelSource: command.modelSource,
             },
         );
 
@@ -234,6 +248,7 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             simulationId: persistedSimulation.id,
             outputFolder,
             modmeteo: command.modmeteo,
+            modelSource: command.modelSource,
         });
 
         return new ManualSimulationResult({

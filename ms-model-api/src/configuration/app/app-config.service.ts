@@ -58,4 +58,9 @@ export class AppConfigService {
     public get vobsCsvFetchTimeoutMs(): number {
         return this.configService.getOrThrow('app.vobsCsvFetchTimeoutMs', { infer: true });
     }
+
+    /** Reference FEWS output copied into a simulation running in MOCK mode. */
+    public get mockModelOutputSftpPath(): string {
+        return this.configService.getOrThrow('app.mockModelOutputSftpPath', { infer: true });
+    }
 }

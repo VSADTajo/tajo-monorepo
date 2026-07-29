@@ -29,6 +29,7 @@ import { CsvFileProviderService } from '@infrastructure/services/csv-file-provid
 import { DataProviderFactoryService } from '@infrastructure/services/data-provider-factory.service';
 import { ProviderSchedulerService } from '@infrastructure/services/provider-scheduler.service';
 import { SimulationResultFetcherService } from '@infrastructure/services/simulation-result-fetcher.service';
+import { MockModelOutputService } from '@infrastructure/services/mock-model-output.service';
 import { SimulationDispatchedConsumerService } from '@infrastructure/services/simulation-dispatched-consumer.service';
 import { SimulationRunPollerService } from '@infrastructure/services/simulation-run-poller.service';
 
@@ -96,6 +97,7 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         DataProviderFactoryService,
         ProviderSchedulerService,
         SimulationResultFetcherService,
+        MockModelOutputService,
         SimulationDispatchedConsumerService,
         SimulationRunPollerService,
     ],

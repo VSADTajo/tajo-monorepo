@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { SimulationFileStatus } from '@domain/results/simulation-files.result';
+import { ModelSource } from '@domain/entities/simulation.entity';
 import {
     ArrayMinSize,
     IsArray,
@@ -418,6 +419,20 @@ export class CreateManualSimulationRequestDto {
 
     @ApiProperty({
         description:
+            'Where the model output should come from. SFTP is the real flow (FEWS leaves the result in the ' +
+            'output folder). MOCK seeds a known-good reference output so the whole pipeline can be exercised ' +
+            'without FEWS — useful for testing and demos.',
+        enum: ModelSource,
+        required: false,
+        default: ModelSource.SFTP,
+        example: ModelSource.SFTP,
+    })
+    @IsOptional()
+    @IsEnum(ModelSource)
+    modelSource?: ModelSource;
+
+    @ApiProperty({
+        description:
             'IDs of existing reusable maneuvers to attach. Combine with `maneuvers` as needed; ' +
             'at least one maneuver in total (from `maneuverIds` and/or `maneuvers`) is required.',
         type: [String],
@@ -465,6 +480,9 @@ export class ManualSimulationResponseDto {
     createdBy: string | null;
     @ApiProperty({ description: 'Meteorological forcing chosen by the operator', nullable: true, example: 'BOTH' })
     modmeteo: string | null;
+
+    @ApiProperty({ description: 'Where the model output came from', enum: ModelSource, example: ModelSource.SFTP })
+    modelSource: ModelSource;
     @ApiProperty({ description: 'Maneuvers included in the simulation', type: [ManeuverResponseDto] })
     maneuvers: ManeuverResponseDto[];
     @ApiProperty({ description: 'Creation timestamp' }) createdAt: Date | undefined;

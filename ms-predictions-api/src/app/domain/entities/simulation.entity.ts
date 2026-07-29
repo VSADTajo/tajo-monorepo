@@ -7,6 +7,18 @@ import { HttpStatus } from '@nestjs/common';
 import type { Prediction } from './prediction.entity';
 import type { Maneuver } from './maneuver.entity';
 
+/**
+ * Where a manual simulation expects its model output from.
+ *   SFTP — the real flow: FEWS leaves the result in the output folder.
+ *   MOCK — a known-good reference output is seeded, so the whole pipeline can
+ *          be exercised without depending on FEWS.
+ * A direct FEWS REST integration is not implemented yet.
+ */
+export enum ModelSource {
+    SFTP = 'SFTP',
+    MOCK = 'MOCK',
+}
+
 export enum SimulationStatus {
     CREATED = 'CREATED',
     MODEL_PROCESSING = 'MODEL_PROCESSING',
@@ -44,6 +56,13 @@ export class Simulation extends BaseAuditEntity implements IValidable {
 
     @Column('varchar', { length: 100, nullable: true })
     modmeteo: string | null;
+
+    /**
+     * Where the model output comes from: SFTP (the real flow) or MOCK (a
+     * reference output seeded so the pipeline can run without FEWS).
+     */
+    @Column('varchar', { length: 20, nullable: false, default: ModelSource.SFTP })
+    modelSource: ModelSource;
 
     @Column({
         type: 'enum',

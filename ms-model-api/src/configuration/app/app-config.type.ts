@@ -26,4 +26,5 @@ export type AppConfig = {
     vobsCsvSftpPath: string;
     vobsCsvTimezone: string;
     vobsCsvFetchTimeoutMs: number;
+    mockModelOutputSftpPath: string;
 };

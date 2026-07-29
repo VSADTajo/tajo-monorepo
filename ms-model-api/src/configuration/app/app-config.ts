@@ -55,6 +55,10 @@ class EnvVariablesValidator {
     @IsInt()
     @Min(0)
     VOBS_CSV_FETCH_TIMEOUT_MS: number;
+
+    @IsOptional()
+    @IsString()
+    MOCK_MODEL_OUTPUT_SFTP_PATH: string;
 }
 
 export default registerAs<AppConfig>('app', () => {
@@ -73,5 +77,6 @@ export default registerAs<AppConfig>('app', () => {
         vobsCsvSftpPath: process.env.VOBS_CSV_SFTP_PATH || '',
         vobsCsvTimezone: process.env.VOBS_CSV_TIMEZONE || 'Europe/Madrid',
         vobsCsvFetchTimeoutMs: Number(process.env.VOBS_CSV_FETCH_TIMEOUT_MS) || 30_000,
+        mockModelOutputSftpPath: process.env.MOCK_MODEL_OUTPUT_SFTP_PATH || '',
     };
 });

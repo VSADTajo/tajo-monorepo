@@ -1,3 +1,4 @@
+import { ModelSource } from '@domain/entities/simulation.entity';
 import {
     CreateManualSimulationRequestDto,
     ManualSimulationResponseDto,
@@ -31,6 +32,8 @@ export class CreateManualSimulationMapper {
             description: dto.description,
             createdBy,
             modmeteo: dto.modmeteo,
+            // Omitting it means the real flow, so an unaware client never gets a mock run.
+            modelSource: dto.modelSource ?? ModelSource.SFTP,
             maneuverIds: dto.maneuverIds,
             maneuvers: dto.maneuvers,
         });
@@ -62,6 +65,7 @@ export class CreateManualSimulationMapper {
             description: result.simulation.description ?? null,
             createdBy: result.simulation.createdBy ?? null,
             modmeteo: result.simulation.modmeteo ?? null,
+            modelSource: result.simulation.modelSource ?? ModelSource.SFTP,
             maneuvers: result.maneuvers.map(
                 (m: Maneuver): ManeuverResponseDto => ({
                     id: m.id,
@@ -95,6 +99,7 @@ export class GetManualSimulationByIdMapper {
             description: result.simulation.description ?? null,
             createdBy: result.simulation.createdBy ?? null,
             modmeteo: result.simulation.modmeteo ?? null,
+            modelSource: result.simulation.modelSource ?? ModelSource.SFTP,
             maneuvers: result.maneuvers.map(
                 (m: Maneuver): ManeuverResponseDto => ({
                     id: m.id,

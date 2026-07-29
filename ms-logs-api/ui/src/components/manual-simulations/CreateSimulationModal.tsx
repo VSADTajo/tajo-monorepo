@@ -6,11 +6,13 @@ import { createManualSimulation, listReservoirs } from './api';
 import { useModalDismiss } from './useModalDismiss';
 import { parseManeuverSeries, sortSeries } from './maneuverSeries';
 import {
+    MODEL_SOURCE_OPTIONS,
     MODMETEO_OPTIONS,
     type ManeuverDraft,
     type ManeuverInput,
     type ManeuverMode,
     type ManualSimulation,
+    type ModelSource,
     type ModmeteoChoice,
 } from './types';
 
@@ -128,6 +130,7 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
     const queryClient = useQueryClient();
     const [description, setDescription] = useState('');
     const [modmeteo, setModmeteo] = useState<ModmeteoChoice>('BOTH');
+    const [modelSource, setModelSource] = useState<ModelSource>('SFTP');
     const [maneuvers, setManeuvers] = useState<ManeuverDraft[]>(() => [emptyManeuver()]);
     const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -240,6 +243,7 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
         mutation.mutate({
             ...(description.trim() ? { description: description.trim() } : {}),
             modmeteo,
+            modelSource,
             maneuvers: built,
         });
     }
@@ -303,6 +307,37 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
                                     </option>
                                 ))}
                             </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                            <label className="block text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">
+                                Origen del resultado
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {MODEL_SOURCE_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.value}
+                                        type="button"
+                                        title={opt.hint}
+                                        onClick={() => setModelSource(opt.value)}
+                                        className={`flex-1 min-w-[140px] text-left px-3 py-2 rounded-lg border text-xs transition ${
+                                            modelSource === opt.value
+                                                ? 'border-indigo-500/60 bg-indigo-500/10 text-indigo-200'
+                                                : 'border-slate-700 bg-slate-950/60 text-slate-400 hover:border-slate-600 hover:text-slate-300'
+                                        }`}
+                                    >
+                                        <span className="block font-medium">{opt.label}</span>
+                                        <span className="block text-[10px] text-slate-500 mt-0.5 leading-snug">
+                                            {opt.hint}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                            {modelSource === 'MOCK' && (
+                                <p className="mt-1.5 text-[10px] text-amber-300/80 flex items-start gap-1.5">
+                                    <FlaskConical size={11} className="shrink-0 mt-px" />
+                                    No se ejecuta el modelo: se usa un resultado de referencia para probar el circuito.
+                                </p>
+                            )}
                         </div>
                     </div>
 

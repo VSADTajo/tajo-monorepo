@@ -241,7 +241,17 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                                     <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-500 mb-1">
                                         <Droplet size={11} /> Meteo
                                     </div>
-                                    <div className="text-sm text-slate-200">{sim.modmeteo ?? '-'}</div>
+                                    <div className="text-sm text-slate-200 flex items-center gap-2">
+                                        {sim.modmeteo ?? '-'}
+                                        {sim.modelSource === 'MOCK' && (
+                                            <span
+                                                title="Resultado de referencia — el modelo no se ejecutó"
+                                                className="px-1.5 py-0.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-300 text-[10px] font-medium"
+                                            >
+                                                Mock
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="rounded-lg border border-slate-700/40 bg-slate-800/30 px-3.5 py-2.5">
                                     <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-500 mb-1">

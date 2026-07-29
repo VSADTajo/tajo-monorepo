@@ -5,6 +5,17 @@
 
 export type ModmeteoChoice = 'HARMONIE' | 'EPS' | 'BOTH';
 
+/**
+ * Where the model output comes from. SFTP is the real flow; MOCK seeds a
+ * known-good reference output so the pipeline can be exercised without FEWS.
+ */
+export type ModelSource = 'SFTP' | 'MOCK';
+
+export const MODEL_SOURCE_OPTIONS: { value: ModelSource; label: string; hint: string }[] = [
+    { value: 'SFTP', label: 'SFTP', hint: 'Flujo real: FEWS deja el resultado en la carpeta de salida' },
+    { value: 'MOCK', label: 'Mock', hint: 'Usa un resultado de referencia, sin depender de FEWS' },
+];
+
 export const MODMETEO_OPTIONS: { value: ModmeteoChoice; label: string }[] = [
     { value: 'HARMONIE', label: 'HARMONIE (Q.NAM.harmonie)' },
     { value: 'EPS', label: 'EPS (Q.NAM.ens)' },
@@ -75,6 +86,7 @@ export interface ManeuverInput {
 export interface CreateManualSimulationPayload {
     description?: string;
     modmeteo: ModmeteoChoice;
+    modelSource: ModelSource;
     maneuvers: ManeuverInput[];
 }
 
@@ -87,6 +99,7 @@ export interface ManualSimulation {
     description: string | null;
     createdBy: string | null;
     modmeteo: string | null;
+    modelSource: ModelSource;
     maneuvers: Maneuver[];
     createdAt?: string; // ISO 8601
     updatedAt?: string; // ISO 8601
