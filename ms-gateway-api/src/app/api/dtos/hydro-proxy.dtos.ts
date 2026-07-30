@@ -363,3 +363,32 @@ export class ImportStationsResponseDto {
     @ApiProperty({ type: [ImportStationErrorDto] })
     errors: ImportStationErrorDto[];
 }
+
+// ─────────────────────────────────────────────────────────────
+// Scenarios (test datasets — raw JSON storage)
+// ─────────────────────────────────────────────────────────────
+
+export class ScenarioMetadataDto {
+    @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' }) id: string;
+    @ApiProperty({ example: 'sample-stations' }) name: string;
+    @ApiProperty({ nullable: true, example: 'Escenario de prueba' }) description: string | null;
+    @ApiProperty({ example: 3 }) itemsCount: number;
+    @ApiProperty({ example: 370245 }) sizeBytes: number;
+    @ApiProperty({ example: '2026-07-30T00:00:00.000Z' }) createdAt: Date | undefined;
+    @ApiProperty({ example: '2026-07-30T00:00:00.000Z' }) updatedAt: Date | undefined;
+}
+
+export class ListScenariosResponseDto {
+    @ApiProperty({ type: [ScenarioMetadataDto] }) items: ScenarioMetadataDto[];
+    @ApiProperty({ example: 5 }) total: number;
+}
+
+export class GetScenarioResponseDto extends ScenarioMetadataDto {
+    @ApiProperty({ type: 'object', additionalProperties: true, description: 'Raw JSON payload stored verbatim' })
+    payload: Record<string, unknown>;
+}
+
+export class DeleteScenarioResponseDto {
+    @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' }) id: string;
+    @ApiProperty({ example: true }) deleted: boolean;
+}

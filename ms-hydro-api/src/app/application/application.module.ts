@@ -27,6 +27,7 @@ import {
     ImportStationsHandler,
 } from '@application/commands/station.commands';
 import { ImportResguardosHandler, UpdateResguardoHandler } from '@application/commands/resguardo.commands';
+import { CreateScenarioHandler, DeleteScenarioHandler } from '@application/commands/scenario.commands';
 
 // Query Handlers
 import { GetBasinByIdHandler, ListBasinsHandler } from '@application/queries/basin.queries';
@@ -41,6 +42,7 @@ import {
 } from '@application/queries/station.queries';
 import { SearchGeoDataHandler } from '@application/queries/geo-data.queries';
 import { GetResguardosByStationHandler, GetResguardoByDateHandler } from '@application/queries/resguardo.queries';
+import { GetScenarioByIdHandler, ListScenariosHandler } from '@application/queries/scenario.queries';
 
 // Controllers
 import { BasinController } from '@api/controllers/basin.controller';
@@ -49,6 +51,7 @@ import { StationController } from '@api/controllers/station.controller';
 import { SyncController } from '@api/controllers/sync.controller';
 import { GeoDataController } from '@api/controllers/geo-data.controller';
 import { ResguardoController } from '@api/controllers/resguardo.controller';
+import { ScenarioController } from '@api/controllers/scenario.controller';
 
 @Module({
     imports: [CqrsModule, InfrastructureModule],
@@ -59,6 +62,7 @@ import { ResguardoController } from '@api/controllers/resguardo.controller';
         SyncController,
         GeoDataController,
         ResguardoController,
+        ScenarioController,
     ],
     providers: [
         SyncGeoserverHandler,
@@ -91,6 +95,10 @@ import { ResguardoController } from '@api/controllers/resguardo.controller';
         GetResguardosByStationHandler,
         GetResguardoByDateHandler,
         GetDownstreamStationsHandler,
+        CreateScenarioHandler,
+        DeleteScenarioHandler,
+        GetScenarioByIdHandler,
+        ListScenariosHandler,
     ],
 })
 export class ApplicationModule {}

@@ -28,6 +28,9 @@ import {
     UpdateResguardoResponseDto,
     GetDownstreamStationsResponseDto,
     ImportStationsResponseDto,
+    ListScenariosResponseDto,
+    GetScenarioResponseDto,
+    DeleteScenarioResponseDto,
 } from '@api/dtos/hydro-proxy.dtos';
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
@@ -798,6 +801,93 @@ export class HydroProxyController {
             query: req.query as Record<string, string | string[]>,
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Scenarios (test datasets — raw JSON storage)
+    // ─────────────────────────────────────────────────────────────
+
+    @Get('scenarios')
+    @ApiEndpoint({
+        summary: 'List scenarios (metadata only, no payload)',
+        response: { status: 200, type: ListScenariosResponseDto, description: 'List of scenarios' },
+    })
+    @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+    @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+    async listScenarios(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: '/scenarios',
+            query: req.query as Record<string, string | string[]>,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('scenarios/:id')
+    @ApiEndpoint({
+        summary: 'Get a scenario by ID (with full payload)',
+        response: { status: 200, type: GetScenarioResponseDto, description: 'Scenario found' },
+        errors: [{ status: 404, description: 'Scenario not found' }],
+    })
+    async getScenario(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: `/scenarios/${id}`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Post('scenarios')
+    @ApiEndpoint({
+        summary: 'Create a scenario (store a raw JSON test dataset)',
+        response: { status: 201, type: GetScenarioResponseDto, description: 'Scenario created (metadata)' },
+        errors: [{ status: 400, description: 'Invalid payload' }],
+    })
+    async createScenario(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'POST',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: '/scenarios',
+            body: req.body,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Delete('scenarios/:id')
+    @ApiEndpoint({
+        summary: 'Delete a scenario',
+        response: { status: 200, type: DeleteScenarioResponseDto, description: 'Scenario deleted' },
+        errors: [{ status: 404, description: 'Scenario not found' }],
+    })
+    async deleteScenario(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'DELETE',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: `/scenarios/${id}`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
         });
         res.status(result.status).json(result.data);
     }

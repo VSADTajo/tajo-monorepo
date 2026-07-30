@@ -16,6 +16,7 @@ async function bootstrap() {
     // wins for /stations/import and the general one is a no-op there.
     const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
     app.use('/stations/import', json({ limit: '20mb' }));
+    app.use('/scenarios', json({ limit: '20mb' }));
     app.use(json({ limit: '1mb' }));
     app.use(urlencoded({ extended: true, limit: '1mb' }));
 
