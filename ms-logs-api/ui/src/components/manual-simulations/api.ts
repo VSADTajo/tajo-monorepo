@@ -3,6 +3,8 @@ import { TOKEN_KEY } from '../../api/auth';
 import { listStations } from '../hydro/api';
 import type {
     CreateManualSimulationPayload,
+    InputSeries,
+    SimulationResultsResponse,
     ListManualSimulationsResponse,
     ManualSimulation,
     ManualSimulationFilters,
@@ -79,3 +81,68 @@ export async function deleteSimulation(id: string): Promise<{ id: string; delete
 
 // ── SFTP files — reuse the generic endpoints already implemented for predictions-data ──
 export { listSimulationFiles, downloadSimulationFile } from '../predictions-data/api';
+
+// ── Results of a manual simulation ────────────────────────────
+
+/**
+ * Asks for the balance the calculator produced.
+ *
+ * `withResults` is off by default on purpose: the full series for every
+ * reservoir is several megabytes, so the table asks for max/last only and the
+ * series is fetched per reservoir when a row is expanded.
+ */
+export async function getManualSimulationResults(
+    id: string,
+    options: { stationCode?: string; withResults?: boolean } = {},
+    signal?: AbortSignal,
+): Promise<SimulationResultsResponse> {
+    const params: Record<string, string | boolean> = {};
+    if (options.stationCode) params.stationCode = options.stationCode;
+    if (options.withResults) params.withResults = true;
+
+    const { data } = await gatewayClient.get(`/simulations/manual/${id}/results`, { params, signal });
+    return data as SimulationResultsResponse;
+}
+
+// ── What was actually sent to the model ───────────────────────
+
+/**
+ * Reads the generated input file and returns the series per reservoir.
+ *
+ * The persisted maneuver only keeps `outputFlowValue`, so a pasted curve exists
+ * nowhere but in this file — which makes the file the only honest answer to "what
+ * did we send?". Read rather than downloaded: the same endpoint the download
+ * button uses, kept as text so it can be charted.
+ */
+export async function fetchSimulationInputSeries(
+    simulationId: string,
+    fileName: string,
+    signal?: AbortSignal,
+): Promise<InputSeries[]> {
+    const { data } = await gatewayClient.get(`/simulations/${simulationId}/files/download`, {
+        params: { folder: 'input', name: fileName },
+        responseType: 'text',
+        transformResponse: [(raw) => raw],
+        signal,
+    });
+
+    const document = JSON.parse(data as string) as {
+        timeSeries?: {
+            header?: { locationId?: string; units?: string; missVal?: string };
+            events?: { date: string; time: string; value: string }[];
+        }[];
+    };
+
+    return (document.timeSeries ?? []).map((series) => {
+        const missVal = series.header?.missVal ?? '-999.0';
+        return {
+            reservoirCode: series.header?.locationId ?? '?',
+            unit: series.header?.units ?? '',
+            points: (series.events ?? [])
+                .filter((event) => event.value !== missVal)
+                // The file is UTC (timeZone 0.0), so the stamps are read as UTC.
+                .map((event) => ({ date: `${event.date}T${event.time}Z`, value: Number(event.value) }))
+                .filter((point) => Number.isFinite(point.value)),
+        };
+    });
+}

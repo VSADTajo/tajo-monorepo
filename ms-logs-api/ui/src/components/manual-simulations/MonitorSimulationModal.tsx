@@ -16,6 +16,8 @@ import { downloadSimulationFile, finalizeSimulation, getManualSimulationById, li
 import { formatIsoDate, formatSimDate } from '../predictions-data/format';
 import type { SftpFileMeta, SimulationFileStatus, SimulationFolder } from '../predictions-data/types';
 import { isDirectSource, isTerminalStatus } from './types';
+import SimulationResults from './SimulationResults';
+import InputSeriesChart from './InputSeriesChart';
 import { statusBadgeClass, statusDescription, statusLabel } from './status';
 import { useModalDismiss } from './useModalDismiss';
 
@@ -318,6 +320,15 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                                     </table>
                                 </div>
                             </div>
+
+                            {/* What went in, drawn from the file the model received */}
+                            <InputSeriesChart
+                                simulationId={sim.id}
+                                fileName={files?.input?.[0]?.name ?? null}
+                            />
+
+                            {/* What came out: the balance, which is the real output */}
+                            <SimulationResults simulationId={sim.id} />
 
                             {/* SFTP files */}
                             <div className="space-y-4">

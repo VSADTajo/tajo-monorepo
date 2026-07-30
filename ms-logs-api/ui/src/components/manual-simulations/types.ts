@@ -153,3 +153,58 @@ export interface ReservoirOption {
     code: string;
     name: string;
 }
+
+// ── Results of a manual simulation ────────────────────────────
+//
+// The real output of a manual run is not a file, it is the volume balance the
+// calculator produced: one prediction per reservoir per meteorological source
+// (HARMONIE, plus five EPS percentiles). `max` and `last` are null when the run
+// produced nothing for that combination, which today is the common case — FEWS
+// sends the inflow forecast filled with missing values for most reservoirs.
+
+export interface PredictionPoint {
+    date: string; // ISO 8601
+    value: number;
+    flag: number;
+}
+
+export interface PredictionStationSnapshot {
+    name: string | null;
+    stationCode: string | null;
+    subBasinName: string | null;
+}
+
+export interface SimulationPrediction {
+    id: string;
+    stationId: string;
+    stationName: string | null;
+    station: PredictionStationSnapshot | null;
+    predictionTypeName: string;
+    predictionTypeUnit: string | null;
+    /** Null for HARMONIE; 10/25/50/75/90 for the EPS ensemble members. */
+    percentile: number | null;
+    predictionStartDate: string | null;
+    predictionEndDate: string | null;
+    max: PredictionPoint | null;
+    last: PredictionPoint | null;
+    /** Only present when asked for with withResults=true. */
+    results?: PredictionPoint[];
+}
+
+export interface SimulationResultsResponse {
+    simulation: { id: string; simulationDate: string; status: string };
+    predictions: SimulationPrediction[];
+}
+
+/** One point of the series that was actually sent to the model. */
+export interface InputSeriesPoint {
+    date: string; // ISO 8601
+    value: number;
+}
+
+/** What the generated input file carries for one reservoir. */
+export interface InputSeries {
+    reservoirCode: string;
+    unit: string;
+    points: InputSeriesPoint[];
+}
