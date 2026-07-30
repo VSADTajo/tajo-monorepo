@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
 import { SwaggerDocumentBuilder } from './swagger/swagger-document-builder';
@@ -9,7 +10,12 @@ import { HttpExceptionFilter } from './common/exceptions/http.exception';
 import { setupAdminPanel } from './admin';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule, { bufferLogs: true });
+    // Size the JSON body limit per route: only the bulk import passthrough accepts
+    // large payloads; every other route keeps a tight limit.
+    const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
+    app.use('/stations/import', json({ limit: '20mb' }));
+    app.use(json({ limit: '1mb' }));
+    app.use(urlencoded({ extended: true, limit: '1mb' }));
 
     const appConfig: AppConfigService = app.get(AppConfigService);
 

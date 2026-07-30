@@ -122,6 +122,23 @@ export async function updateThreshold(id: string, payload: Record<string, number
     return data;
 }
 
+export interface ImportStationsResult {
+    total: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: { stationCode: string; reason: string }[];
+}
+
+export async function importStations(payload: {
+    basinId: string;
+    createMissingSubBasins?: boolean;
+    items: unknown[];
+}) {
+    const { data } = await gatewayClient.post('/stations/import', payload);
+    return data as ImportStationsResult;
+}
+
 // ── Resguardos ────────────────────────────────────────────────
 
 export async function getResguardosByStation(stationCode: string, filters?: { from?: string; to?: string }) {
