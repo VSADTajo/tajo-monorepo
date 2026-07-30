@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     CheckCircle2,
     Download,
-    Droplet,
     FileText,
     FolderInput,
     FolderOutput,
@@ -247,10 +246,10 @@ export default function MonitorSimulationModal({ simulationId, onClose }: Monito
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="rounded-lg border border-slate-700/40 bg-slate-800/30 px-3.5 py-2.5">
                                     <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-500 mb-1">
-                                        <Droplet size={11} /> Meteo
+                                        <Radio size={11} /> Origen del resultado
                                     </div>
                                     <div className="text-sm text-slate-200 flex items-center gap-2">
-                                        {sim.modmeteo ?? '-'}
+                                        {sim.modelSource === 'SFTP' && 'SFTP'}
                                         {sim.modelSource === 'MOCK' && (
                                             <span
                                                 title="Flujo directo contra un FEWS simulado — resultado de referencia"

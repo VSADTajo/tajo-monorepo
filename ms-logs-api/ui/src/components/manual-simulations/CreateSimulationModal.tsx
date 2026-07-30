@@ -8,13 +8,11 @@ import { parseManeuverSeries, sortSeries } from './maneuverSeries';
 import { buildDemoManeuvers, isPristine } from './demoPreset';
 import {
     MODEL_SOURCE_OPTIONS,
-    MODMETEO_OPTIONS,
     type ManeuverDraft,
     type ManeuverInput,
     type ManeuverMode,
     type ManualSimulation,
     type ModelSource,
-    type ModmeteoChoice,
 } from './types';
 
 const inputClass =
@@ -130,7 +128,6 @@ function CurveInput({ value, onChange }: { value: string; onChange: (value: stri
 export default function CreateSimulationModal({ onClose, onCreated }: CreateSimulationModalProps) {
     const queryClient = useQueryClient();
     const [description, setDescription] = useState('');
-    const [modmeteo, setModmeteo] = useState<ModmeteoChoice>('BOTH');
     const [modelSource, setModelSource] = useState<ModelSource>('SFTP');
     const [maneuvers, setManeuvers] = useState<ManeuverDraft[]>(() => [emptyManeuver()]);
     const [validationError, setValidationError] = useState<string | null>(null);
@@ -261,7 +258,11 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
         if (!built) return;
         mutation.mutate({
             ...(description.trim() ? { description: description.trim() } : {}),
-            modmeteo,
+            // The backend still requires it, and BOTH is the truth: the calculator
+            // runs the harmonie and EPS pipelines on every simulation regardless.
+            // The operator is not asked because nothing acts on the answer — a
+            // manual simulation sends outflow maneuvers, which carry no meteorology.
+            modmeteo: 'BOTH',
             modelSource,
             maneuvers: built,
         });
@@ -295,8 +296,8 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
 
                 {/* Body */}
                 <div className="flex-1 overflow-auto subtle-scroll px-6 py-5 space-y-6">
-                    {/* Description + modmeteo */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Description + result source */}
+                    <div className="grid grid-cols-1 gap-4">
                         <div>
                             <label className="block text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">
                                 Descripción <span className="text-slate-600 normal-case tracking-normal">· opcional</span>
@@ -312,22 +313,6 @@ export default function CreateSimulationModal({ onClose, onCreated }: CreateSimu
                             <p className="text-[10px] text-slate-600 mt-1 text-right">{description.length}/500</p>
                         </div>
                         <div>
-                            <label className="block text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">
-                                Forzamiento meteorológico
-                            </label>
-                            <select
-                                value={modmeteo}
-                                onChange={(e) => setModmeteo(e.target.value as ModmeteoChoice)}
-                                className={inputClass}
-                            >
-                                {MODMETEO_OPTIONS.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="sm:col-span-2">
                             <label className="block text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">
                                 Origen del resultado
                             </label>

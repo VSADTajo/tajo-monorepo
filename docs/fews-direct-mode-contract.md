@@ -188,3 +188,13 @@ Las dos preguntas para Idrica:
    manda `-999` para los otros 20 que sí tienen caudal de salida?
 2. ¿Por qué no vienen las series de EPS, si el sistema las necesita para los
    percentiles?
+3. ¿Existe un `workflowId` (o `scenarioId`) distinto para la corrida determinista
+   —HARMONIE— y para el ensemble —EPS—, o el workflow siempre produce las dos?
+
+La tercera decide una cuestión de producto de nuestro lado. Hoy el formulario ya no
+pregunta el forzamiento, porque nada actuaba sobre la respuesta: una simulación
+manual manda maniobras de caudal de salida, que no llevan meteorología, y el
+calculator computa las dos familias siempre. Pero elegir el forzamiento **sí**
+tendría valor —el ensemble es más lento y responde otra pregunta— si se pudiera
+pedir en la corrida. Nuestro `runtask` ya manda `workflowId` y acepta `scenarioId`,
+así que si están separados el selector vuelve, esta vez conectado a algo.

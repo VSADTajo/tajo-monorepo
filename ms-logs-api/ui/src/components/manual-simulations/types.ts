@@ -3,6 +3,17 @@
 
 // ── Meteorological forcing ────────────────────────────────────
 
+/**
+ * Meteorological forcing, still required by the backend and still meaningful on the
+ * automatic path, where a simulation is keyed by date+environment+modmeteo.
+ *
+ * The manual form no longer asks for it and always sends BOTH. It used to decide
+ * which input file was generated — one per forcing — but a manual simulation now
+ * sends a single file with the operator's outflow maneuvers, which carry no
+ * meteorology at all. The forcing belongs to the model run on the FEWS side, and
+ * the calculator computes the harmonie and EPS pipelines on every simulation
+ * regardless. Offering the choice promised a decision nothing acted on.
+ */
 export type ModmeteoChoice = 'HARMONIE' | 'EPS' | 'BOTH';
 
 /**
@@ -27,12 +38,6 @@ export const MODEL_SOURCE_OPTIONS: { value: ModelSource; label: string; hint: st
     { value: 'SFTP', label: 'SFTP', hint: 'Flujo real: FEWS deja el resultado en la carpeta de salida' },
     { value: 'MOCK', label: 'Mock', hint: 'Mismo flujo directo contra un FEWS simulado, sin depender del suyo' },
     { value: 'FEWS_API', label: 'FEWS', hint: 'Lanza el modelo directo por la API de FEWS' },
-];
-
-export const MODMETEO_OPTIONS: { value: ModmeteoChoice; label: string }[] = [
-    { value: 'HARMONIE', label: 'HARMONIE (Q.NAM.harmonie)' },
-    { value: 'EPS', label: 'EPS (Q.NAM.ens)' },
-    { value: 'BOTH', label: 'BOTH (harmonie + eps)' },
 ];
 
 // ── Simulation status lifecycle ───────────────────────────────
