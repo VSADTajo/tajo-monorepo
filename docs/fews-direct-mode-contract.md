@@ -150,3 +150,41 @@ del PI-JSON y el manejo de errores.
 
 **No valida su instancia.** Un MOCK en verde significa que si algo falla cuando nos
 den la URL, el problema no está en nuestro código — no que vaya a andar.
+
+### Los dos fixtures del mock
+
+En `tajo/mock/` del SFTP conviven dos respuestas, y la diferencia importa:
+
+| archivo | qué es |
+|---|---|
+| `tagus_Q_mod_202607271100.json` | **el que sirve el mock**: la respuesta completa, como sería una corrida sana. Entrada y 5 series EPS para los 38 embalses que el calculator computa, así que las 228 previsiones se llenan. Generado por `ms-model-api/scripts/build-complete-mock-output.mjs`. |
+| `tagus_Q_mod_202607271100.DEGRADADO-REAL.json` | **lo que FEWS manda hoy de verdad**: caudal de entrada en `-999` para todos los embalses menos dos, y ninguna serie de EPS. Es la evidencia de §6 y reproduce el problema. |
+
+El mock sirve el completo a propósito: un mock existe para responder "¿funciona el
+pipeline cuando el modelo se porta bien?", y reproducir una respuesta degradada no
+puede contestar eso. La detección de que FEWS entrega mal corresponde a las
+corridas por SFTP y FEWS_API, no al mock.
+
+Para reproducir el problema real, se intercambian los dos archivos.
+
+---
+
+## 6. La evidencia sobre lo que FEWS entrega hoy
+
+Medido sobre la respuesta real del 27-jul, embalse por embalse:
+
+- **Caudal de salida** (`Q.salida.forecast`): 52 embalses, 281 de 289 valores reales. Bien.
+- **Caudal de entrada** (`I.mk11.forecast`): 22 embalses tienen la serie, pero **solo 2 traen valores** (E_11 y E_21). Los otros 20 vienen con los 289 puntos en `-999`.
+- **Series EPS**: **ninguna**. El calculator espera cinco por embalse
+  (`I.mk11.EPS10forecast`, `EPS25`, `EPS`, `EPS75`, `EPS90`) y no llega una.
+
+Sin caudal de entrada no hay balance de volumen posible, así que de 228 previsiones
+se llenan 2. Pasa igual en las corridas reales por SFTP, así que no es del modo
+directo ni del mock.
+
+Las dos preguntas para Idrica:
+
+1. ¿Por qué el MIKE11 produce caudal de entrada con datos solo para E_11 y E_21, y
+   manda `-999` para los otros 20 que sí tienen caudal de salida?
+2. ¿Por qué no vienen las series de EPS, si el sistema las necesita para los
+   percentiles?
