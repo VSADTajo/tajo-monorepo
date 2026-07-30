@@ -336,35 +336,6 @@ export class GetDownstreamStationsResponseDto {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ImportStations
-// ─────────────────────────────────────────────────────────────
-
-export class ImportStationErrorDto {
-    @ApiProperty({ example: 'AR50' })
-    stationCode: string;
-
-    @ApiProperty({ example: 'Sub-basin "Cuenca Ejemplo" does not exist in basin ...' })
-    reason: string;
-}
-
-export class ImportStationsResponseDto {
-    @ApiProperty({ example: 3 })
-    total: number;
-
-    @ApiProperty({ example: 2 })
-    created: number;
-
-    @ApiProperty({ example: 1 })
-    updated: number;
-
-    @ApiProperty({ example: 0 })
-    skipped: number;
-
-    @ApiProperty({ type: [ImportStationErrorDto] })
-    errors: ImportStationErrorDto[];
-}
-
-// ─────────────────────────────────────────────────────────────
 // Scenarios (test datasets — raw JSON storage)
 // ─────────────────────────────────────────────────────────────
 

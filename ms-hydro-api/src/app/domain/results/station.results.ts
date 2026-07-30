@@ -185,28 +185,3 @@ export class GetThresholdResult {
         this.threshold = params.threshold;
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// ImportStations
-// ─────────────────────────────────────────────────────────────
-
-export interface ImportStationError {
-    stationCode: string;
-    reason: string;
-}
-
-export class ImportStationsResult {
-    readonly total: number;
-    readonly created: number;
-    readonly updated: number;
-    readonly skipped: number;
-    readonly errors: ImportStationError[];
-
-    constructor(params: { total: number; created: number; updated: number; skipped: number; errors: ImportStationError[] }) {
-        this.total = params.total;
-        this.created = params.created;
-        this.updated = params.updated;
-        this.skipped = params.skipped;
-        this.errors = params.errors;
-    }
-}

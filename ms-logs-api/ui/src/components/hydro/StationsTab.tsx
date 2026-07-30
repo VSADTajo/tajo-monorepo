@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, Power, X, ChevronDown, ChevronUp, Search, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Power, X, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
-import ImportStationsModal from './ImportStationsModal';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listStations, createStation, updateStation, toggleStation, deleteStation, updateThreshold, listSubBasins } from './api';
 import type { Station } from '../../types/hydro';
@@ -56,7 +55,6 @@ export default function StationsTab() {
     const [filterSubBasinId, setFilterSubBasinId] = useState<string>('');
     const [filterType, setFilterType] = useState<string>('');
     const [search, setSearch] = useState('');
-    const [showImport, setShowImport] = useState(false);
 
     const { data, isLoading } = useQuery({
         queryKey: ['stations'],
@@ -238,20 +236,11 @@ export default function StationsTab() {
                         placeholder="Todos los tipos"
                         className="w-44"
                     />
-                    <button onClick={() => setShowImport(true)} className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm rounded-lg font-medium transition-colors shrink-0">
-                        <Upload size={14} /> Importar JSON
-                    </button>
                     <button onClick={openCreate} className="flex items-center gap-2 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg font-medium transition-colors shrink-0">
                         <Plus size={14} /> Nueva estacion
                     </button>
                 </div>
             </div>
-
-            <ImportStationsModal
-                open={showImport}
-                onClose={() => setShowImport(false)}
-                onImported={() => queryClient.invalidateQueries({ queryKey: ['stations'] })}
-            />
 
             {/* Stations List */}
             <div className="space-y-2">

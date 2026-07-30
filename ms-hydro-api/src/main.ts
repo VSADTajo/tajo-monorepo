@@ -11,11 +11,10 @@ import { setupAdminPanel } from './admin';
 
 async function bootstrap() {
     // Disable the default body parser so we can size the JSON limit per route: only
-    // the bulk import endpoint accepts large payloads; every other route keeps a
+    // the scenarios endpoint accepts large payloads; every other route keeps a
     // tight limit. express.json sets req._body once parsed, so the scoped parser
-    // wins for /stations/import and the general one is a no-op there.
+    // wins for /scenarios and the general one is a no-op there.
     const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
-    app.use('/stations/import', json({ limit: '20mb' }));
     app.use('/scenarios', json({ limit: '20mb' }));
     app.use(json({ limit: '1mb' }));
     app.use(urlencoded({ extended: true, limit: '1mb' }));

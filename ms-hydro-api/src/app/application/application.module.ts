@@ -24,7 +24,6 @@ import {
     UpdateStationHandler,
     ToggleStationHandler,
     DeleteStationHandler,
-    ImportStationsHandler,
 } from '@application/commands/station.commands';
 import { ImportResguardosHandler, UpdateResguardoHandler } from '@application/commands/resguardo.commands';
 import { CreateScenarioHandler, DeleteScenarioHandler } from '@application/commands/scenario.commands';
@@ -77,7 +76,6 @@ import { ScenarioController } from '@api/controllers/scenario.controller';
         GetSubBasinByIdHandler,
         ListSubBasinsHandler,
         CreateStationHandler,
-        ImportStationsHandler,
         UpdateStationThresholdHandler,
         GetStationByIdHandler,
         GetStationBySubBasinNameHandler,

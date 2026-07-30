@@ -16,8 +16,6 @@ import {
     DeleteStationResponseDto,
     GetDownstreamStationsRequestDto,
     GetDownstreamStationsResponseDto,
-    ImportStationsRequestDto,
-    ImportStationsResponseDto,
 } from '@api/dtos/station.dtos';
 import { StationThresholdData } from '@domain/types/station-threshold-data.type';
 import {
@@ -25,7 +23,6 @@ import {
     UpdateStationCommand,
     ToggleStationCommand,
     DeleteStationCommand,
-    ImportStationsCommand,
 } from '@application/commands/station.commands';
 import {
     GetStationByIdQuery,
@@ -42,7 +39,6 @@ import {
     UpdateStationResult,
     ToggleStationResult,
     DeleteStationResult,
-    ImportStationsResult,
 } from '@domain/results/station.results';
 import {
     GetStationResult,
@@ -436,43 +432,6 @@ export class GetDownstreamStationsMapper {
                 tipoDestino: item.tipoDestino,
             })),
             count: result.count,
-        };
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// ImportStations
-// ─────────────────────────────────────────────────────────────
-
-export class ImportStationsMapper {
-    static toCommand(dto: ImportStationsRequestDto): ImportStationsCommand {
-        return new ImportStationsCommand({
-            basinId: dto.basinId,
-            createMissingSubBasins: dto.createMissingSubBasins ?? false,
-            items: dto.items.map((item) => ({
-                id: item.id,
-                name: item.name,
-                stationCode: item.stationCode,
-                stationType: item.stationType,
-                subBasinName: item.subBasinName,
-                latitude: item.latitude,
-                longitude: item.longitude,
-                tipoCod: item.tipoCod,
-                municipio: item.municipio,
-                provincia: item.provincia,
-                ccaa: item.ccaa,
-                threshold: item.threshold,
-            })),
-        });
-    }
-
-    static toResponseDto(result: ImportStationsResult): ImportStationsResponseDto {
-        return {
-            total: result.total,
-            created: result.created,
-            updated: result.updated,
-            skipped: result.skipped,
-            errors: result.errors.map((error) => ({ stationCode: error.stationCode, reason: error.reason })),
         };
     }
 }
