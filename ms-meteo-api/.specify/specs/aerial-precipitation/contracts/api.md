@@ -184,8 +184,9 @@ All active series for one polygon.
 ### Errors
 
 - **400** — invalid `locationId` format.
-- **404** — `locationId` well-formed but no series exist (yet) for it.
 - **500** — DB failure.
+
+A well-formed `locationId` with no series returns **200** with `groups: []` (not 404).
 
 ### Cache
 

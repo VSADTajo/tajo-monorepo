@@ -339,15 +339,17 @@ describe('Aerial Precipitation Proxy (e2e)', () => {
             expect(forwardCall.query).not.toHaveProperty('anotherParam');
         });
 
-        it('should propagate a 404 from the upstream service when locationId has no data', async () => {
+        it('should forward a 200 with empty groups from the upstream service when locationId has no data', async () => {
             mockProxyService.forward.mockResolvedValue({
-                status: 404,
-                data: { StatusCode: 404, ErrorDescription: 'No series found for locationId' },
+                status: 200,
+                data: { locationId: 'NonExistent.Location.99', groups: [] },
             });
 
-            await request(app.getHttpServer())
+            const { body } = await request(app.getHttpServer())
                 .get('/aerial-precipitation/by-location/NonExistent.Location.99')
-                .expect(HttpStatus.NOT_FOUND);
+                .expect(HttpStatus.OK);
+
+            expect(body).toEqual({ locationId: 'NonExistent.Location.99', groups: [] });
         });
 
         it('should propagate a 400 from the upstream service for invalid query params', async () => {

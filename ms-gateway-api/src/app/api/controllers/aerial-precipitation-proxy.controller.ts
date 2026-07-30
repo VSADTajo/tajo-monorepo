@@ -337,7 +337,6 @@ export class AerialPrecipitationProxyController {
         },
         errors: [
             { status: 400, description: 'Invalid query parameter value' },
-            { status: 404, description: 'No series found for the given locationId' },
             { status: 500, description: 'Internal server error or ms-meteo-api unreachable' },
         ],
     })
