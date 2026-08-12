@@ -95,17 +95,17 @@ export default function CoverageMatrixPanel() {
             )}
 
             {data && !isFetching && (
-                <div className="overflow-auto border border-slate-700/50 rounded-lg">
+                <div className="subtle-scroll max-h-[70vh] overflow-auto border border-slate-700/50 rounded-lg">
                     <table className="min-w-full text-xs">
-                        <thead>
+                        <thead className="sticky top-0 z-20">
                             <tr className="bg-slate-900 text-slate-300">
-                                <th className="sticky left-0 z-10 bg-slate-900 px-3 py-2 text-left font-semibold border-b border-slate-700">
+                                <th className="sticky left-0 top-0 z-30 bg-slate-900 px-3 py-2 text-left font-semibold border-b border-slate-700">
                                     Estación
                                 </th>
                                 {types.map((t) => (
                                     <th
                                         key={t.id}
-                                        className="px-3 py-2 text-left font-medium whitespace-nowrap border-b border-slate-700"
+                                        className="sticky top-0 bg-slate-900 px-3 py-2 text-left font-medium whitespace-nowrap border-b border-slate-700"
                                         title={`${t.name} (${t.unit})`}
                                     >
                                         {t.name}
