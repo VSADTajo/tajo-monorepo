@@ -14,6 +14,7 @@ import {
     GetScenarioResult,
     DeleteScenarioResult,
 } from '@domain/results/scenario.results';
+import { scenarioFileMetadataToDto } from '@application/mappers/scenario-file.mappers';
 
 // ─────────────────────────────────────────────────────────────
 // CreateScenario
@@ -24,7 +25,7 @@ export class CreateScenarioMapper {
         return new CreateScenarioCommand({
             name: dto.name,
             description: dto.description ?? null,
-            payload: dto.payload,
+            payload: dto.payload ?? null,
         });
     }
 
@@ -82,6 +83,7 @@ export class GetScenarioByIdMapper {
             description: result.description,
             itemsCount: result.itemsCount,
             sizeBytes: result.sizeBytes,
+            files: result.files.map(scenarioFileMetadataToDto),
             payload: result.payload,
             createdAt: result.createdAt,
             updatedAt: result.updatedAt,

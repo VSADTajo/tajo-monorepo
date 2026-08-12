@@ -27,6 +27,11 @@ import {
 } from '@application/commands/station.commands';
 import { ImportResguardosHandler, UpdateResguardoHandler } from '@application/commands/resguardo.commands';
 import { CreateScenarioHandler, DeleteScenarioHandler } from '@application/commands/scenario.commands';
+import {
+    AddFilesToScenarioHandler,
+    ReplaceScenarioFileHandler,
+    DeleteScenarioFileHandler,
+} from '@application/commands/scenario-file.commands';
 
 // Query Handlers
 import { GetBasinByIdHandler, ListBasinsHandler } from '@application/queries/basin.queries';
@@ -42,6 +47,7 @@ import {
 import { SearchGeoDataHandler } from '@application/queries/geo-data.queries';
 import { GetResguardosByStationHandler, GetResguardoByDateHandler } from '@application/queries/resguardo.queries';
 import { GetScenarioByIdHandler, ListScenariosHandler } from '@application/queries/scenario.queries';
+import { DownloadScenarioFileHandler } from '@application/queries/scenario-file.queries';
 
 // Controllers
 import { BasinController } from '@api/controllers/basin.controller';
@@ -51,6 +57,7 @@ import { SyncController } from '@api/controllers/sync.controller';
 import { GeoDataController } from '@api/controllers/geo-data.controller';
 import { ResguardoController } from '@api/controllers/resguardo.controller';
 import { ScenarioController } from '@api/controllers/scenario.controller';
+import { ScenarioFileController } from '@api/controllers/scenario-file.controller';
 
 @Module({
     imports: [CqrsModule, InfrastructureModule],
@@ -62,6 +69,7 @@ import { ScenarioController } from '@api/controllers/scenario.controller';
         GeoDataController,
         ResguardoController,
         ScenarioController,
+        ScenarioFileController,
     ],
     providers: [
         SyncGeoserverHandler,
@@ -97,6 +105,10 @@ import { ScenarioController } from '@api/controllers/scenario.controller';
         DeleteScenarioHandler,
         GetScenarioByIdHandler,
         ListScenariosHandler,
+        AddFilesToScenarioHandler,
+        ReplaceScenarioFileHandler,
+        DeleteScenarioFileHandler,
+        DownloadScenarioFileHandler,
     ],
 })
 export class ApplicationModule {}

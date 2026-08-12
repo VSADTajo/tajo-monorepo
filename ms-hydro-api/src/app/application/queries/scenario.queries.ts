@@ -4,7 +4,9 @@ import { Logger } from 'nestjs-pino';
 
 // Domain
 import { IScenarioRepository } from '@domain/ports/scenario-repository.port';
+import { IScenarioFileRepository } from '@domain/ports/scenario-file-repository.port';
 import { GetScenarioResult, ListScenariosResult, ScenarioMetadataResult } from '@domain/results/scenario.results';
+import { ScenarioFileMetadataResult } from '@domain/results/scenario-file.results';
 import { ApiError } from '@domain/errors/api.error';
 import { RepositoryError } from '@domain/errors/repository.error';
 
@@ -28,6 +30,7 @@ export class GetScenarioByIdHandler implements IQueryHandler<GetScenarioByIdQuer
     constructor(
         @Inject(Logger) private readonly logger: Logger,
         private readonly scenarioRepository: IScenarioRepository,
+        private readonly scenarioFileRepository: IScenarioFileRepository,
     ) {}
 
     async execute(query: GetScenarioByIdQuery): Promise<GetScenarioResult> {
@@ -43,13 +46,27 @@ export class GetScenarioByIdHandler implements IQueryHandler<GetScenarioByIdQuer
             throw error;
         }
 
+        const files = await this.scenarioFileRepository.findMetadataByScenario(scenario.id);
+
         return new GetScenarioResult({
             id: scenario.id,
             name: scenario.name,
             description: scenario.description,
             itemsCount: scenario.itemsCount,
             sizeBytes: scenario.sizeBytes,
-            payload: scenario.payload,
+            payload: scenario.payload ?? null,
+            files: files.map(
+                (file) =>
+                    new ScenarioFileMetadataResult({
+                        id: file.id,
+                        scenarioId: file.scenarioId,
+                        filename: file.filename,
+                        contentType: file.contentType,
+                        sizeBytes: file.sizeBytes,
+                        createdAt: file.createdAt!,
+                        updatedAt: file.updatedAt!,
+                    }),
+            ),
             createdAt: scenario.createdAt!,
             updatedAt: scenario.updatedAt!,
         });

@@ -1,15 +1,17 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseAuditEntity } from '@app/infrastructure/persistence/base-entity';
 import { IValidable } from '@domain/types/validable.type';
 import { EntityError } from '@domain/errors/entity.error';
+import { ScenarioFile } from '@domain/entities/scenario-file.entity';
 
 /**
- * Scenario — a stored test dataset (raw JSON payload) used to load a full
- * station+predictions scenario without running the real pipeline.
+ * Scenario — a stored test dataset used to load a full station+predictions
+ * scenario without running the real pipeline.
  *
- * The payload is persisted verbatim as jsonb; the service does NOT process it
- * nor relate it to the stations table. itemsCount and sizeBytes are derived
- * metadata so the list endpoint can render without shipping the heavy payload.
+ * A scenario owns N files of any type via the `files` relation (see
+ * ScenarioFile). The legacy `payload` jsonb column is kept nullable during the
+ * expand-contract migration and will be dropped once every consumer reads files
+ * instead; new scenarios do NOT populate it.
  */
 @Entity('scenarios')
 export class Scenario extends BaseAuditEntity implements IValidable {
@@ -27,8 +29,9 @@ export class Scenario extends BaseAuditEntity implements IValidable {
     @Column('text', { nullable: true })
     description: string | null;
 
-    @Column('jsonb', { nullable: false })
-    payload: Record<string, unknown>;
+    /** @deprecated legacy single-JSON storage — kept for the migration window only. */
+    @Column('jsonb', { nullable: true })
+    payload: Record<string, unknown> | null;
 
     @Column('integer', { nullable: false, default: 0 })
     itemsCount: number;
@@ -36,14 +39,13 @@ export class Scenario extends BaseAuditEntity implements IValidable {
     @Column('integer', { nullable: false, default: 0 })
     sizeBytes: number;
 
+    @OneToMany(() => ScenarioFile, (file) => file.scenario, { cascade: true })
+    files: ScenarioFile[];
+
     validate(): void {
         if (!this.name || this.name.trim().length === 0) {
             throw new EntityError('Scenario name is required', 'name');
         }
         this.name = this.name.trim();
-
-        if (this.payload === null || this.payload === undefined || typeof this.payload !== 'object' || Array.isArray(this.payload)) {
-            throw new EntityError('Scenario payload must be a non-null JSON object', 'payload');
-        }
     }
 }

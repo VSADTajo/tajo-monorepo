@@ -16,7 +16,7 @@ import { RepositoryError } from '@domain/errors/repository.error';
 export interface ICreateScenarioCommand {
     name: string;
     description?: string | null;
-    payload: Record<string, unknown>;
+    payload?: Record<string, unknown> | null;
 }
 
 export class CreateScenarioCommand {
@@ -27,7 +27,7 @@ export class CreateScenarioCommand {
     get description(): string | null | undefined {
         return this.parameters.description;
     }
-    get payload(): Record<string, unknown> {
+    get payload(): Record<string, unknown> | null | undefined {
         return this.parameters.payload;
     }
 }
@@ -43,15 +43,16 @@ export class CreateScenarioHandler implements ICommandHandler<CreateScenarioComm
     async execute(command: CreateScenarioCommand): Promise<ScenarioMetadataResult> {
         this.logger.log({ msg: 'Creating scenario', entity: 'Scenarios', name: command.name });
 
-        // Derive metadata from the raw payload before persisting.
-        const items = (command.payload as { items?: unknown }).items;
+        // Derive metadata from the legacy payload when present (optional now).
+        const payload = command.payload ?? null;
+        const items = payload ? (payload as { items?: unknown }).items : undefined;
         const itemsCount = Array.isArray(items) ? items.length : 0;
-        const sizeBytes = Buffer.byteLength(JSON.stringify(command.payload), 'utf8');
+        const sizeBytes = payload ? Buffer.byteLength(JSON.stringify(payload), 'utf8') : 0;
 
         const scenario = new Scenario({
             name: command.name,
             description: command.description ?? null,
-            payload: command.payload,
+            payload,
             itemsCount,
             sizeBytes,
         });

@@ -13,6 +13,7 @@ import { IStationRepository } from '@domain/ports/station-repository.port';
 import { IStationThresholdRepository } from '@domain/ports/station-threshold-repository.port';
 import { IStationResguardoRepository } from '@domain/ports/station-resguardo-repository.port';
 import { IScenarioRepository } from '@domain/ports/scenario-repository.port';
+import { IScenarioFileRepository } from '@domain/ports/scenario-file-repository.port';
 import { IGeoserverRepository } from '@domain/ports/geoserver-repository.port';
 import { IGeoDataRepository } from '@domain/ports/geo-data-repository.port';
 import { IDownstreamStationsRepository } from '@domain/ports/downstream-stations-repository.port';
@@ -36,6 +37,7 @@ import { RedisCacheService } from '@infrastructure/services/redis-cache.service'
 import { RabbitmqService } from '@infrastructure/messaging/rabbitmq.service';
 import { ResguardoImportService } from '@infrastructure/services/resguardo-import.service';
 import { ScenarioRepository } from '@infrastructure/persistence/scenario.repository';
+import { ScenarioFileRepository } from '@infrastructure/persistence/scenario-file.repository';
 
 // Cache
 import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service';
@@ -51,6 +53,7 @@ import { Station } from '@domain/entities/station.entity';
 import { StationThreshold } from '@domain/entities/station-threshold.entity';
 import { StationResguardo } from '@domain/entities/station-resguardo.entity';
 import { Scenario } from '@domain/entities/scenario.entity';
+import { ScenarioFile } from '@domain/entities/scenario-file.entity';
 
 @Module({
     imports: [
@@ -59,7 +62,7 @@ import { Scenario } from '@domain/entities/scenario.entity';
         GeoserverDatabaseProviderModule,
         RedisConfigModule,
         RabbitmqConfigModule,
-        TypeOrmModule.forFeature([Basin, SubBasin, Station, StationThreshold, StationResguardo, Scenario]),
+        TypeOrmModule.forFeature([Basin, SubBasin, Station, StationThreshold, StationResguardo, Scenario, ScenarioFile]),
     ],
     controllers: [],
     providers: [
@@ -112,6 +115,10 @@ import { Scenario } from '@domain/entities/scenario.entity';
             useClass: ScenarioRepository,
         },
         {
+            provide: IScenarioFileRepository,
+            useClass: ScenarioFileRepository,
+        },
+        {
             provide: IMessageBroker,
             useClass: RabbitmqService,
         },
@@ -131,6 +138,7 @@ import { Scenario } from '@domain/entities/scenario.entity';
         ICacheService,
         IStationResguardoRepository,
         IScenarioRepository,
+        IScenarioFileRepository,
         IMessageBroker,
         ResguardoImportService,
         CachingQueryBus,

@@ -1,3 +1,5 @@
+import { ScenarioFileMetadataResult } from '@domain/results/scenario-file.results';
+
 // ─────────────────────────────────────────────────────────────
 // Scenario metadata (no payload) — used by Create + List
 // ─────────────────────────────────────────────────────────────
@@ -35,7 +37,9 @@ export class ScenarioMetadataResult {
 // ─────────────────────────────────────────────────────────────
 
 export class GetScenarioResult extends ScenarioMetadataResult {
-    readonly payload: Record<string, unknown>;
+    /** @deprecated legacy single-JSON payload — null for file-based scenarios. */
+    readonly payload: Record<string, unknown> | null;
+    readonly files: ScenarioFileMetadataResult[];
 
     constructor(params: {
         id: string;
@@ -43,12 +47,14 @@ export class GetScenarioResult extends ScenarioMetadataResult {
         description: string | null;
         itemsCount: number;
         sizeBytes: number;
-        payload: Record<string, unknown>;
+        payload: Record<string, unknown> | null;
+        files: ScenarioFileMetadataResult[];
         createdAt: Date;
         updatedAt: Date;
     }) {
         super(params);
         this.payload = params.payload;
+        this.files = params.files;
     }
 }
 

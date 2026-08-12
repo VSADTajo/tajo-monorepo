@@ -16,13 +16,17 @@ export class ProxyService {
         baseUrl: string;
         path: string;
         body?: unknown;
+        /** Raw request stream to pipe upstream verbatim (e.g. multipart uploads). Takes precedence over `body`. */
+        rawBody?: unknown;
+        /** Overrides the outgoing Content-Type (e.g. the original multipart boundary). Defaults to application/json. */
+        contentTypeOverride?: string;
         headers?: Record<string, string>;
         query?: Record<string, string | string[]>;
         user?: { userId: string; roles: string[]; name?: string };
         timeoutMs?: number;
         responseType?: 'arraybuffer';
         traceId?: string;
-    }): Promise<{ status: number; data: unknown; contentType?: string }> {
+    }): Promise<{ status: number; data: unknown; contentType?: string; contentDisposition?: string }> {
         const url = `${config.baseUrl}${config.path}`;
         const correlationId = config.traceId || config.headers?.[CORRELATION_ID_HEADER] || randomUUID();
         this.logger.debug(`Proxying ${config.method} ${url} [${CORRELATION_ID_HEADER}: ${correlationId}]`);
@@ -30,9 +34,11 @@ export class ProxyService {
         const axiosConfig: AxiosRequestConfig = {
             method: config.method,
             url,
-            data: config.body,
+            data: config.rawBody ?? config.body,
             params: config.query,
             responseType: config.responseType,
+            maxBodyLength: Infinity,
+            maxContentLength: Infinity,
             paramsSerializer: (params) => {
                 const search = new URLSearchParams();
                 for (const [key, value] of Object.entries(params)) {
@@ -46,7 +52,7 @@ export class ProxyService {
             },
             timeout: config.timeoutMs ?? 30_000,
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': config.contentTypeOverride ?? 'application/json',
                 [CORRELATION_ID_HEADER]: correlationId,
                 ...(config.headers?.authorization ? { Authorization: config.headers.authorization } : {}),
                 ...(config.headers?.['x-internal-caller']
@@ -69,6 +75,7 @@ export class ProxyService {
                 status: response.status,
                 data: response.data,
                 contentType: response.headers['content-type'] as string | undefined,
+                contentDisposition: response.headers['content-disposition'] as string | undefined,
             };
         } catch (error: unknown) {
             if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {

@@ -354,12 +354,35 @@ export class ListScenariosResponseDto {
     @ApiProperty({ example: 5 }) total: number;
 }
 
+export class ScenarioFileMetadataDto {
+    @ApiProperty({ example: '660e8400-e29b-41d4-a716-446655440000' }) id: string;
+    @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' }) scenarioId: string;
+    @ApiProperty({ example: 'episodio-1.csv' }) filename: string;
+    @ApiProperty({ example: 'text/csv' }) contentType: string;
+    @ApiProperty({ example: 20481 }) sizeBytes: number;
+    @ApiProperty({ example: '2026-08-12T00:00:00.000Z' }) createdAt: Date | undefined;
+    @ApiProperty({ example: '2026-08-12T00:00:00.000Z' }) updatedAt: Date | undefined;
+}
+
 export class GetScenarioResponseDto extends ScenarioMetadataDto {
-    @ApiProperty({ type: 'object', additionalProperties: true, description: 'Raw JSON payload stored verbatim' })
-    payload: Record<string, unknown>;
+    @ApiProperty({ type: [ScenarioFileMetadataDto], description: 'Files belonging to this scenario' })
+    files: ScenarioFileMetadataDto[];
+
+    @ApiProperty({ type: 'object', additionalProperties: true, nullable: true, description: 'Legacy raw JSON payload (deprecated)' })
+    payload: Record<string, unknown> | null;
 }
 
 export class DeleteScenarioResponseDto {
     @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' }) id: string;
+    @ApiProperty({ example: true }) deleted: boolean;
+}
+
+export class AddFilesToScenarioResponseDto {
+    @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' }) scenarioId: string;
+    @ApiProperty({ type: [ScenarioFileMetadataDto] }) files: ScenarioFileMetadataDto[];
+}
+
+export class DeleteScenarioFileResponseDto {
+    @ApiProperty({ example: '660e8400-e29b-41d4-a716-446655440000' }) id: string;
     @ApiProperty({ example: true }) deleted: boolean;
 }

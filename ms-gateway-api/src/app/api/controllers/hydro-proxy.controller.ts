@@ -1,5 +1,5 @@
 import { Controller, Delete, Get, Param, Patch, Post, Put, Req, Res } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import * as express from 'express';
 
 import { ProxyService } from '@infrastructure/services/proxy.service';
@@ -30,6 +30,9 @@ import {
     ListScenariosResponseDto,
     GetScenarioResponseDto,
     DeleteScenarioResponseDto,
+    ScenarioFileMetadataDto,
+    AddFilesToScenarioResponseDto,
+    DeleteScenarioFileResponseDto,
 } from '@api/dtos/hydro-proxy.dtos';
 
 const INTERNAL_CALLER_HEADER_VALUE = 'ms-gateway-api';
@@ -867,5 +870,110 @@ export class HydroProxyController {
             traceId: (req as any).id,
         });
         res.status(result.status).json(result.data);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Scenario files (N files of any type per scenario)
+    // ─────────────────────────────────────────────────────────────
+
+    @Post('scenarios/:id/files')
+    @ApiConsumes('multipart/form-data')
+    @ApiEndpoint({
+        summary: 'Upload 1..N files (any type) to a scenario',
+        response: { status: 201, type: AddFilesToScenarioResponseDto, description: 'Files added' },
+        errors: [
+            { status: 400, description: 'No files or invalid file' },
+            { status: 404, description: 'Scenario not found' },
+        ],
+    })
+    async addScenarioFiles(@Param('id') id: string, @Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'POST',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: `/scenarios/${id}/files`,
+            rawBody: req,
+            contentTypeOverride: req.headers['content-type'],
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Patch('scenarios/:id/files/:fileId')
+    @ApiConsumes('multipart/form-data')
+    @ApiEndpoint({
+        summary: 'Replace a single file of a scenario',
+        response: { status: 200, type: ScenarioFileMetadataDto, description: 'File replaced' },
+        errors: [
+            { status: 400, description: 'No file or invalid file' },
+            { status: 404, description: 'Scenario or file not found' },
+        ],
+    })
+    async replaceScenarioFile(
+        @Param('id') id: string,
+        @Param('fileId') fileId: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'PATCH',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: `/scenarios/${id}/files/${fileId}`,
+            rawBody: req,
+            contentTypeOverride: req.headers['content-type'],
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Delete('scenarios/:id/files/:fileId')
+    @ApiEndpoint({
+        summary: 'Delete a single file of a scenario',
+        response: { status: 200, type: DeleteScenarioFileResponseDto, description: 'File deleted' },
+        errors: [{ status: 404, description: 'Scenario or file not found' }],
+    })
+    async deleteScenarioFile(
+        @Param('id') id: string,
+        @Param('fileId') fileId: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'DELETE',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: `/scenarios/${id}/files/${fileId}`,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    @Get('scenarios/:id/files/:fileId/download')
+    @ApiOperation({ summary: 'Download a single scenario file (raw bytes with its content type)' })
+    @ApiResponse({ status: 200, description: 'File stream' })
+    @ApiResponse({ status: 404, description: 'Scenario or file not found' })
+    async downloadScenarioFile(
+        @Param('id') id: string,
+        @Param('fileId') fileId: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: `/scenarios/${id}/files/${fileId}/download`,
+            responseType: 'arraybuffer',
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status);
+        if (result.contentType) res.setHeader('content-type', result.contentType);
+        if (result.contentDisposition) res.setHeader('content-disposition', result.contentDisposition);
+        res.send(result.data);
     }
 }

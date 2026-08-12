@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ScenarioFileMetadataResponseDto } from '@api/dtos/scenario-file.dtos';
 
 // ─────────────────────────────────────────────────────────────
 // CreateScenario
@@ -18,14 +19,15 @@ export class CreateScenarioRequestDto {
     description?: string | null;
 
     @ApiProperty({
-        description: 'Raw JSON payload stored verbatim (e.g. { items: [...] }). Not processed nor related to stations.',
+        description: 'Legacy raw JSON payload (deprecated; optional). New scenarios upload files via POST /scenarios/:id/files instead.',
         type: 'object',
         additionalProperties: true,
+        nullable: true,
         example: { items: [{ stationCode: 'AR50', name: 'Río Ejemplo' }] },
     })
-    @IsNotEmpty()
+    @IsOptional()
     @IsObject()
-    payload: Record<string, unknown>;
+    payload?: Record<string, unknown> | null;
 }
 
 export class ScenarioMetadataResponseDto {
@@ -84,13 +86,17 @@ export class ListScenariosResponseDto {
 // ─────────────────────────────────────────────────────────────
 
 export class GetScenarioResponseDto extends ScenarioMetadataResponseDto {
+    @ApiProperty({ description: 'Files belonging to this scenario', type: [ScenarioFileMetadataResponseDto] })
+    files: ScenarioFileMetadataResponseDto[];
+
     @ApiProperty({
-        description: 'Raw JSON payload stored verbatim',
+        description: 'Legacy raw JSON payload (deprecated; null for file-based scenarios)',
         type: 'object',
         additionalProperties: true,
-        example: { items: [{ stationCode: 'AR50' }] },
+        nullable: true,
+        example: null,
     })
-    payload: Record<string, unknown>;
+    payload: Record<string, unknown> | null;
 }
 
 // ─────────────────────────────────────────────────────────────
