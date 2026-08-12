@@ -1,5 +1,5 @@
 import { Controller, Delete, Get, Param, Patch, Post, Put, Req, Res } from '@nestjs/common';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import * as express from 'express';
 
 import { ProxyService } from '@infrastructure/services/proxy.service';
@@ -878,6 +878,20 @@ export class HydroProxyController {
 
     @Post('scenarios/:id/files')
     @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        description: 'One or more files of any type. Repeat the `files` field once per file.',
+        required: true,
+        schema: {
+            type: 'object',
+            required: ['files'],
+            properties: {
+                files: {
+                    type: 'array',
+                    items: { type: 'string', format: 'binary' },
+                },
+            },
+        },
+    })
     @ApiEndpoint({
         summary: 'Upload 1..N files (any type) to a scenario',
         response: { status: 201, type: AddFilesToScenarioResponseDto, description: 'Files added' },
@@ -902,6 +916,17 @@ export class HydroProxyController {
 
     @Patch('scenarios/:id/files/:fileId')
     @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        description: 'The replacement file (single). Field name must be `file`.',
+        required: true,
+        schema: {
+            type: 'object',
+            required: ['file'],
+            properties: {
+                file: { type: 'string', format: 'binary' },
+            },
+        },
+    })
     @ApiEndpoint({
         summary: 'Replace a single file of a scenario',
         response: { status: 200, type: ScenarioFileMetadataDto, description: 'File replaced' },

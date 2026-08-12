@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 
 import { CachingQueryBus } from '@infrastructure/cache/caching-query-bus.service';
@@ -65,6 +65,20 @@ export class ScenarioFileController {
     @Post()
     @UseInterceptors(FilesInterceptor('files', MAX_FILES, { limits: { fileSize: MAX_FILE_SIZE } }))
     @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        description: 'One or more files of any type. Repeat the `files` field once per file.',
+        required: true,
+        schema: {
+            type: 'object',
+            required: ['files'],
+            properties: {
+                files: {
+                    type: 'array',
+                    items: { type: 'string', format: 'binary' },
+                },
+            },
+        },
+    })
     @ApiEndpoint({
         summary: 'Upload 1..N files (any type) to a scenario',
         response: { status: 201, type: AddFilesToScenarioResponseDto, description: 'Files added' },
@@ -95,6 +109,17 @@ export class ScenarioFileController {
     @Patch(':fileId')
     @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE } }))
     @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        description: 'The replacement file (single). Field name must be `file`.',
+        required: true,
+        schema: {
+            type: 'object',
+            required: ['file'],
+            properties: {
+                file: { type: 'string', format: 'binary' },
+            },
+        },
+    })
     @ApiEndpoint({
         summary: 'Replace a single file of a scenario',
         response: { status: 200, type: ScenarioFileMetadataResponseDto, description: 'File replaced' },
