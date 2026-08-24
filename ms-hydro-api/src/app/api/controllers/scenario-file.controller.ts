@@ -49,9 +49,15 @@ import {
     DownloadScenarioFileMapper,
 } from '@application/mappers/scenario-file.mappers';
 
-/** Max size accepted per uploaded file (25 MB) and max files per upload. */
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
-const MAX_FILES = 20;
+/**
+ * Upload limits. `fileSize` is capped at 1 GB — the hard ceiling of a PostgreSQL
+ * `bytea` field, so a bigger file could not be persisted anyway. This is the
+ * practical "no size limit" for scenario datasets while still failing fast
+ * (multer buffers each file in memory before it reaches Postgres, so an
+ * unbounded size would expose the service to OOM).
+ */
+const MAX_FILE_SIZE = 1024 * 1024 * 1024;
+const MAX_FILES = 500;
 
 @ApiTags('Scenarios')
 @Controller('scenarios/:scenarioId/files')

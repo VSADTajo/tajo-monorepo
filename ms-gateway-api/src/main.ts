@@ -13,7 +13,7 @@ async function bootstrap() {
     // Size the JSON body limit per route: only the scenarios passthrough accepts
     // large payloads; every other route keeps a tight limit.
     const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
-    app.use('/scenarios', json({ limit: '20mb' }));
+    app.use('/scenarios', json({ limit: '1gb' }));
     app.use(json({ limit: '1mb' }));
     app.use(urlencoded({ extended: true, limit: '1mb' }));
 

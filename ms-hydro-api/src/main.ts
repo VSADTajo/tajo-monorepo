@@ -15,7 +15,7 @@ async function bootstrap() {
     // tight limit. express.json sets req._body once parsed, so the scoped parser
     // wins for /scenarios and the general one is a no-op there.
     const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
-    app.use('/scenarios', json({ limit: '20mb' }));
+    app.use('/scenarios', json({ limit: '1gb' }));
     app.use(json({ limit: '1mb' }));
     app.use(urlencoded({ extended: true, limit: '1mb' }));
 
