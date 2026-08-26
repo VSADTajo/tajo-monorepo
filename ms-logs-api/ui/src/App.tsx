@@ -6,6 +6,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AdministrationPanel } from './components/administration';
 import { AerialPrecipitationPanel } from './components/aerial-precipitation';
 import { AlertsPanel } from './components/alerts';
+import { DataProvidersPanel } from './components/data-providers';
 import { HydroPanel } from './components/hydro';
 import { PredictionTypesPanel } from './components/prediction-types';
 import Dashboard from './components/dashboard';
@@ -26,7 +27,7 @@ function App() {
   const { isAuthenticated, isLoading } = useAuth();
   const isLoginPage = location.pathname === '/login';
 
-  const [activePanel, setActivePanel] = useState<'logs' | 'forecasts' | 'input-data' | 'io-history' | 'balancer' | 'predictions-data' | 'manual-simulations' | 'reports' | 'administration' | 'hydro' | 'alerts' | 'prediction-types' | 'webhooks' | 'aerial-precipitation'>('logs');
+  const [activePanel, setActivePanel] = useState<'logs' | 'forecasts' | 'input-data' | 'io-history' | 'balancer' | 'predictions-data' | 'manual-simulations' | 'reports' | 'administration' | 'hydro' | 'alerts' | 'prediction-types' | 'webhooks' | 'aerial-precipitation' | 'data-providers'>('logs');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   if (isLoginPage) {
@@ -78,6 +79,8 @@ function App() {
         return isAdmin() ? <WebhooksPanel /> : <Dashboard />;
       case 'aerial-precipitation':
         return isAdmin() ? <AerialPrecipitationPanel /> : <Dashboard />;
+      case 'data-providers':
+        return isAdmin() ? <DataProvidersPanel /> : <Dashboard />;
       // case 'reports':
       //   return <ReportsPanel />;
       // case 'balancer':
