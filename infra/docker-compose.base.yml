@@ -19,7 +19,11 @@ x-postgres-base: &postgres-base
         interval: 10s
         timeout: 5s
         retries: 5
-        start_period: 15s
+        # Cold-start margin: on a fresh host every DB runs initdb at once (the
+        # PostGIS ones are slower) while apps depend_on them being healthy. 15s
+        # was too tight and could trip "dependency failed to start" on the first
+        # `tajo up`; 40s absorbs the cold start without masking a real failure.
+        start_period: 40s
     networks:
         - infra-network
 
@@ -141,7 +145,7 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
-            start_period: 15s
+            start_period: 40s
         networks:
             - infra-network
 
@@ -213,7 +217,7 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
-            start_period: 15s
+            start_period: 40s
         networks:
             - infra-network
 
