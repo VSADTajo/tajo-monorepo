@@ -285,3 +285,70 @@ describe('SimulationResultFetcherService.fetchFromFolder()', () => {
         expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v.obs from the WISKI API (VOBS_SOURCE=WISKI_API)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('SimulationResultFetcherService.fetchVobsSeries() — WISKI_API source', () => {
+    const WISKI_READINGS = [
+        { variable: 'E_08VICT01.Validado', lastchange: '2026-08-11T14:00:00', value: 20.68 },
+        { variable: 'E_08VICT01.Validado', lastchange: '2026-08-11T13:45:00', value: 20.67 },
+    ];
+
+    function buildWiskiFetcher(overrides: { baseUrl?: string } = {}) {
+        const appConfig = {
+            vobsSource: 'WISKI_API',
+            vobsCsvSftpPath: 'tajo/Tagus_FlowCast.csv',
+            vobsCsvTimezone: 'Europe/Madrid',
+            vobsCsvFetchTimeoutMs: 5000,
+        } as unknown as AppConfigService;
+
+        const wiskiConfig = {
+            baseUrl: overrides.baseUrl ?? 'https://apisaih.saihchtajo.es',
+            path: '/wiski/tagus_flowcast_observado/',
+            timezone: 'Europe/Madrid',
+            requestTimeoutMs: 5000,
+            maxResponseBytes: 1024 * 1024,
+        } as unknown as import('@config/wiski-api/wiski-api-config.service').WiskiApiConfigService;
+
+        return new SimulationResultFetcherService(
+            mockLogger,
+            { baseUrl: 'http://ms-sftp-api:3003' } as unknown as SftpApiConfigService,
+            appConfig,
+            wiskiConfig,
+        );
+    }
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('reads the endpoint and returns the same shape the CSV path returns', async () => {
+        mockedAxios.get.mockResolvedValueOnce({ data: WISKI_READINGS });
+
+        const series = await buildWiskiFetcher().fetchVobsSeries('sim-1');
+
+        expect(series).toHaveLength(1);
+        expect(series![0].header.locationId).toBe('E_08');
+        // Verbatim, exactly as parseWiskiCsv emits it.
+        expect(series![0].header.parameterId).toBe('VICT01.Validado');
+        expect(series![0].events[0]).toEqual({
+            date: '2026-08-11',
+            time: '11:45:00',
+            value: '20.67',
+            flag: '2',
+        });
+    });
+
+    it('degrades to null when the endpoint is unreachable', async () => {
+        mockedAxios.get.mockRejectedValueOnce(new Error('ENOTFOUND apisaih.saihchtajo.es'));
+
+        await expect(buildWiskiFetcher().fetchVobsSeries('sim-1')).resolves.toBeNull();
+    });
+
+    it('degrades to null when the source is selected but no base url is configured', async () => {
+        const series = await buildWiskiFetcher({ baseUrl: '' }).fetchVobsSeries('sim-1');
+
+        expect(series).toBeNull();
+        expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+});

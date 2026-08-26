@@ -130,6 +130,14 @@ export function parseWiskiCsv(csvText: string, options?: WiskiParseOptions): Wis
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Header values arrive as strings; anything non-numeric becomes undefined. */
+function toNumberOrUndefined(raw: unknown): number | undefined {
+    if (raw === null || raw === undefined || raw === '') return undefined;
+
+    const numeric = typeof raw === 'number' ? raw : Number(String(raw).trim().replace(',', '.'));
+    return Number.isFinite(numeric) ? numeric : undefined;
+}
+
 /** Removes the trailing colon WISKI appends to header keys ("Station Number:"). */
 function stripTrailingColon(key: string): string {
     return key.endsWith(':') ? key.slice(0, -1).trim() : key;
@@ -223,10 +231,12 @@ function buildResult(
         startDate,
         endDate,
         sourceTimezone: 'UTC', // output is always UTC
-        lat: typeof header.lat === 'number' ? header.lat : undefined,
-        lon: typeof header.lon === 'number' ? header.lon : undefined,
-        x: typeof header.x === 'number' ? header.x : undefined,
-        y: typeof header.y === 'number' ? header.y : undefined,
+        // Header values always arrive as strings; the previous `typeof === number`
+        // guard meant coordinates were silently dropped on every file.
+        lat: toNumberOrUndefined(header.lat),
+        lon: toNumberOrUndefined(header.lon),
+        x: toNumberOrUndefined(header.x),
+        y: toNumberOrUndefined(header.y),
     };
 
     // Suppress unused variable warning — sourceTimezone already used in tryParseEventLine

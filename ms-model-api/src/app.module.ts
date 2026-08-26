@@ -9,6 +9,7 @@ import { AppConfigModule } from '@config/app/app-config.module';
 import { AppConfigService } from '@config/app/app-config.service';
 import { FewsApiConfigModule } from '@config/fews-api/fews-api-config.module';
 import { SftpApiConfigModule } from '@config/sftp-api/sftp-api-config.module';
+import { WiskiApiConfigModule } from '@config/wiski-api/wiski-api-config.module';
 
 // Feature modules
 import { ApplicationModule } from '@application/application.module';
@@ -22,6 +23,7 @@ import { ClientWhitelistMiddleware } from '@common/middleware/client-whitelist.m
         AppConfigModule,
         FewsApiConfigModule,
         SftpApiConfigModule,
+        WiskiApiConfigModule,
         ScheduleModule.forRoot(),
         TraceModule.forRoot({
             serviceName: process.env.APP_NAME || 'ms-model-api',

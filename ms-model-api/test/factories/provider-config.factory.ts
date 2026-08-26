@@ -41,3 +41,20 @@ export function buildCreateCsvProviderConfigDto(
         ...overrides,
     };
 }
+
+export function buildCreateWiskiProviderConfigDto(
+    overrides?: Partial<CreateProviderConfigData>,
+): CreateProviderConfigData {
+    return {
+        name: `wiski-provider-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        type: 'WISKI_API',
+        baseUrl: 'https://apisaih.saihchtajo.es',
+        pollingIntervalMinutes: 60,
+        settings: {
+            endpointPath: '/wiski/tagus_flowcast_observado/',
+            sourceTimezone: 'Europe/Madrid',
+            onUnknownVariable: 'heuristic',
+        },
+        ...overrides,
+    };
+}

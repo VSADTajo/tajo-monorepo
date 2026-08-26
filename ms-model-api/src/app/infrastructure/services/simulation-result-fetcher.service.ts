@@ -8,7 +8,10 @@ import { WiskiTimeSeriesResult } from '@domain/results/wiski-timeseries.result';
 import { ProviderError } from '@domain/errors/provider.error';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
 import { AppConfigService } from '@config/app/app-config.service';
+import { VOBS_SOURCE } from '@config/app/app-config.type';
+import { WiskiApiConfigService } from '@config/wiski-api/wiski-api-config.service';
 import { parseWiskiCsv } from '@infrastructure/services/wiski-csv-parser';
+import { WiskiObservedRecord, toWiskiTimeSeries } from '@infrastructure/services/wiski-json.mapper';
 
 export interface SimulationFetchResult {
     timeSeries: NormalizedTimeSeriesResult[];
@@ -26,6 +29,7 @@ export class SimulationResultFetcherService {
         private readonly logger: Logger,
         private readonly sftpApiConfigService: SftpApiConfigService,
         private readonly appConfigService?: AppConfigService,
+        private readonly wiskiApiConfigService?: WiskiApiConfigService,
     ) {}
 
     /**
@@ -162,6 +166,78 @@ export class SimulationResultFetcherService {
      * Returns null and logs a warning on any failure. Never throws.
      */
     async fetchVobsSeries(simulationId: string): Promise<WiskiTimeSeriesResult[] | null> {
+        if (this.appConfigService?.vobsSource === VOBS_SOURCE.WISKI_API) {
+            return this.fetchVobsFromWiskiApi(simulationId);
+        }
+
+        return this.fetchVobsFromSftpCsv(simulationId);
+    }
+
+    /**
+     * Reads the same observed series from their WISKI REST endpoint instead of
+     * the CSV, resolving each variable through the catalog the ingestion path
+     * already uses. The output shape is identical to parseWiskiCsv's, so the
+     * poller and the calculator never learn the origin changed.
+     *
+     * Like the CSV path, any failure degrades to null: a simulation without
+     * v.obs enrichment is worse than one with it, and better than none at all.
+     */
+    private async fetchVobsFromWiskiApi(simulationId: string): Promise<WiskiTimeSeriesResult[] | null> {
+        const baseUrl = this.wiskiApiConfigService?.baseUrl ?? '';
+        if (!baseUrl) {
+            this.logger.warn({
+                msg: 'VOBS_SOURCE=WISKI_API but the WISKI endpoint is not configured — skipping v.obs enrichment',
+                entity: 'SimulationResultFetcher',
+                simulationId,
+            });
+            return null;
+        }
+
+        const url = `${baseUrl.replace(/\/+$/, '')}${this.wiskiApiConfigService!.path}`;
+
+        try {
+            const response = await axios.get(url, {
+                timeout: this.wiskiApiConfigService!.requestTimeoutMs,
+                maxContentLength: this.wiskiApiConfigService!.maxResponseBytes,
+                maxBodyLength: this.wiskiApiConfigService!.maxResponseBytes,
+                responseType: 'json',
+                headers: { Accept: 'application/json' },
+            });
+
+            const records = response.data;
+            if (!Array.isArray(records)) {
+                throw new Error(`expected a JSON array of readings, got ${typeof records}`);
+            }
+
+            const mapped = toWiskiTimeSeries(records as WiskiObservedRecord[], {
+                sourceTimezone: this.wiskiApiConfigService!.timezone,
+            });
+
+            this.logger.log({
+                msg: 'Fetched v.obs series from the WISKI API',
+                entity: 'SimulationResultFetcher',
+                simulationId,
+                seriesCount: mapped.series.length,
+                resolvedCount: mapped.resolvedCount,
+                skippedCount: mapped.skippedVariables.length,
+            });
+
+            return mapped.series;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.warn({
+                msg: 'Failed to fetch v.obs from the WISKI API — publishing without v.obs enrichment',
+                entity: 'SimulationResultFetcher',
+                simulationId,
+                url,
+                error: message,
+            });
+            return null;
+        }
+    }
+
+
+    private async fetchVobsFromSftpCsv(simulationId: string): Promise<WiskiTimeSeriesResult[] | null> {
         const path = this.appConfigService?.vobsCsvSftpPath ?? '';
         if (!path) {
             this.logger.warn({

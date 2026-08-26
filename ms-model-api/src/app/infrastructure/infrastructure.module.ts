@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -26,6 +27,7 @@ import { RabbitmqService } from '@infrastructure/messaging/rabbitmq.service';
 import { FewsApiProviderService } from '@infrastructure/services/fews-api-provider.service';
 import { SftpFileProviderService } from '@infrastructure/services/sftp-file-provider.service';
 import { CsvFileProviderService } from '@infrastructure/services/csv-file-provider.service';
+import { WiskiApiProviderService } from '@infrastructure/services/wiski-api-provider.service';
 import { DataProviderFactoryService } from '@infrastructure/services/data-provider-factory.service';
 import { ProviderSchedulerService } from '@infrastructure/services/provider-scheduler.service';
 import { SimulationResultFetcherService } from '@infrastructure/services/simulation-result-fetcher.service';
@@ -46,6 +48,10 @@ import { RedisConfigModule } from '@config/redis/redis-config.module';
 import { RabbitmqConfigModule } from '@config/rabbitmq/rabbitmq-config.module';
 import { FewsApiConfigModule } from '@config/fews-api/fews-api-config.module';
 import { SftpApiConfigModule } from '@config/sftp-api/sftp-api-config.module';
+import { WiskiApiConfigModule } from '@config/wiski-api/wiski-api-config.module';
+import { WiskiApiConfigService } from '@config/wiski-api/wiski-api-config.service';
+import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
+import { AppConfigService } from '@config/app/app-config.service';
 import { AppConfigModule } from '@config/app/app-config.module';
 
 // Entities
@@ -62,6 +68,7 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         RabbitmqConfigModule,
         FewsApiConfigModule,
         SftpApiConfigModule,
+        WiskiApiConfigModule,
         AppConfigModule,
         TypeOrmModule.forFeature([ProviderConfig, IngestionRun, SimulationRun]),
     ],
@@ -99,9 +106,19 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         FewsApiProviderService,
         SftpFileProviderService,
         CsvFileProviderService,
+        WiskiApiProviderService,
         DataProviderFactoryService,
         ProviderSchedulerService,
-        SimulationResultFetcherService,
+        {
+            provide: SimulationResultFetcherService,
+            useFactory: (
+                logger: Logger,
+                sftpConfig: SftpApiConfigService,
+                appConfig: AppConfigService,
+                wiskiConfig: WiskiApiConfigService,
+            ) => new SimulationResultFetcherService(logger, sftpConfig, appConfig, wiskiConfig),
+            inject: [Logger, SftpApiConfigService, AppConfigService, WiskiApiConfigService],
+        },
         FewsTargetResolverService,
         MockFewsTaskStoreService,
         SimulationOutputArchiverService,
@@ -123,6 +140,7 @@ import { SimulationRun } from '@domain/entities/simulation-run.entity';
         FewsApiProviderService,
         SftpFileProviderService,
         CsvFileProviderService,
+        WiskiApiProviderService,
         DataProviderFactoryService,
         ProviderSchedulerService,
         SimulationResultFetcherService,

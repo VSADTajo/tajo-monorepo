@@ -1,5 +1,5 @@
 import { registerAs } from '@nestjs/config';
-import { AppConfig, ENVIRONMENT, LOG_LEVEL } from './app-config.type';
+import { AppConfig, ENVIRONMENT, LOG_LEVEL, VOBS_SOURCE } from './app-config.type';
 
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import validateConfig from '@config/helpers/validate-config';
@@ -58,6 +58,10 @@ class EnvVariablesValidator {
 
     @IsOptional()
     @IsString()
+    VOBS_SOURCE: string;
+
+    @IsOptional()
+    @IsString()
     MOCK_MODEL_OUTPUT_SFTP_PATH: string;
 }
 
@@ -77,6 +81,7 @@ export default registerAs<AppConfig>('app', () => {
         vobsCsvSftpPath: process.env.VOBS_CSV_SFTP_PATH || '',
         vobsCsvTimezone: process.env.VOBS_CSV_TIMEZONE || 'Europe/Madrid',
         vobsCsvFetchTimeoutMs: Number(process.env.VOBS_CSV_FETCH_TIMEOUT_MS) || 30_000,
+        vobsSource: process.env.VOBS_SOURCE === VOBS_SOURCE.WISKI_API ? VOBS_SOURCE.WISKI_API : VOBS_SOURCE.SFTP_CSV,
         mockModelOutputSftpPath: process.env.MOCK_MODEL_OUTPUT_SFTP_PATH || '',
     };
 });

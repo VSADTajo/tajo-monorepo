@@ -83,6 +83,13 @@ npm run start:dev
 | `POST` | `/provider-configs/:id/trigger` | Disparar ingestion manual inmediata |
 | `DELETE` | `/provider-configs/:id` | Eliminar proveedor |
 
+### WISKI Catalog (`/wiski-catalog`)
+
+| Metodo | Ruta | Descripcion |
+|--------|------|-------------|
+| `GET` | `/wiski-catalog` | Listar el catalogo de variables WISKI |
+| `POST` | `/wiski-catalog/sync` | Sembrar el catalogo desde el CSV de WISKI (SFTP o `csvText`) |
+
 ### Ingestion Runs (`/ingestion-runs`)
 
 | Metodo | Ruta | Descripcion |
@@ -119,6 +126,25 @@ Documentacion completa con esquemas request/response en `/docs` (Swagger UI).
    → status: SUCCESS, seriesCount, eventsCount
 ```
 
+### Tipos de proveedor
+
+| `type` | Transporte | Que lee |
+|--------|-----------|---------|
+| `SFTP_FILE` | fichero en el SFTP | JSON PI (`Q_mod_input_*.json`) |
+| `CSV_FILE` | fichero en el SFTP | CSV de WISKI (`Tagus_FlowCast*.csv`) |
+| `FEWS_API` | HTTP GET | PI-JSON del PI REST de FEWS |
+| `WISKI_API` | HTTP GET | Observados del servicio WISKI de la CH Tajo |
+
+`WISKI_API` lee los mismos datos que `CSV_FILE` pero yendo a buscarlos por HTTP en vez de esperar
+el fichero en el SFTP. Los dos producen el mismo `(locationId, parameterId)`, asi que activar uno y
+desactivar el otro cambia el origen sin tocar nada aguas abajo.
+
+El endpoint devuelve la estacion y la serie concatenadas en un unico campo
+(`E_08` + `VICT01.Validado` -> `E_08VICT01.Validado`) y sin nombre de estacion, unidades ni
+coordenadas: eso lo resuelve la tabla `wiski_variable_catalog`, sembrada desde el CSV via
+`POST /wiski-catalog/sync`. Sin catalogo la variable se parte por su gramatica y la corrida lo
+avisa en el log (`derivedCount`).
+
 ### Ejemplo de Provider Config
 
 ```json
@@ -131,6 +157,20 @@ Documentacion completa con esquemas request/response en `/docs` (Swagger UI).
     "filePrefix": "Harmonie"
   },
   "pollingIntervalMinutes": 360
+}
+```
+
+```json
+{
+  "name": "WISKI Observados (API)",
+  "type": "WISKI_API",
+  "baseUrl": "https://apisaih.saihchtajo.es",
+  "settings": {
+    "endpointPath": "/wiski/tagus_flowcast_observado/",
+    "sourceTimezone": "Europe/Madrid",
+    "onUnknownVariable": "heuristic"
+  },
+  "pollingIntervalMinutes": 60
 }
 ```
 
@@ -224,6 +264,11 @@ El evento `timeseries.ingested` es consumido por **ms-predictions-api** para gen
 | `RABBITMQ_PORT` | `5672` | Puerto RabbitMQ |
 | `SFTP_API_BASE_URL` | `http://localhost:3003` | URL de ms-sftp-api |
 | `FEWS_API_BASE_URL` | `http://localhost:8080` | URL de FEWS API (reservado) |
+| `WISKI_API_BASE_URL` | *(vacio)* | Raiz del servicio WISKI; solo resuelve dentro de la red de la CH Tajo |
+| `WISKI_API_PATH` | `/wiski/tagus_flowcast_observado/` | Path del recurso de observados |
+| `WISKI_API_TIMEZONE` | `Europe/Madrid` | Zona horaria asumida de `lastchange` (el JSON no trae offset) |
+| `WISKI_API_REQUEST_TIMEOUT_MS` | `120000` | Timeout de la peticion |
+| `WISKI_API_MAX_RESPONSE_BYTES` | `52428800` | Tope del cuerpo de respuesta |
 
 Ver `.env.example` para la lista completa.
 
