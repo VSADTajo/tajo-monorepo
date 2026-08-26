@@ -1,7 +1,7 @@
 import { registerAs } from '@nestjs/config';
 import { ServicesConfig } from './services-config.type';
 
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import validateConfig from '@config/helpers/validate-config';
 
 class EnvVariablesValidator {
@@ -32,6 +32,13 @@ class EnvVariablesValidator {
     @IsNotEmpty()
     @IsString()
     METEO_API_URL: string;
+
+    // Optional with a default so an existing .env keeps booting: the model API
+    // was reachable only from inside the network until the provider screens
+    // needed it.
+    @IsOptional()
+    @IsString()
+    MODEL_API_URL: string;
 }
 
 export default registerAs<ServicesConfig>('services', () => {
@@ -45,5 +52,6 @@ export default registerAs<ServicesConfig>('services', () => {
         hydroApiUrl: process.env.HYDRO_API_URL!,
         notificationsApiUrl: process.env.NOTIFICATIONS_API_URL!,
         meteoApiUrl: process.env.METEO_API_URL!,
+        modelApiUrl: process.env.MODEL_API_URL || 'http://ms-model-api:3008',
     };
 });

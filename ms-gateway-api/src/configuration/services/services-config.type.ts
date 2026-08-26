@@ -6,4 +6,5 @@ export type ServicesConfig = {
     hydroApiUrl: string;
     notificationsApiUrl: string;
     meteoApiUrl: string;
+    modelApiUrl: string;
 };

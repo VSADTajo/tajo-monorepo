@@ -33,4 +33,8 @@ export class ServicesConfigService {
     public get meteoApiUrl(): string {
         return this.configService.getOrThrow('services.meteoApiUrl', { infer: true });
     }
+
+    public get modelApiUrl(): string {
+        return this.configService.getOrThrow('services.modelApiUrl', { infer: true });
+    }
 }
