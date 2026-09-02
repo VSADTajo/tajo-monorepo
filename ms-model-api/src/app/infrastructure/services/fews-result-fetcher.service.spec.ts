@@ -79,7 +79,15 @@ function outcome(status: FewsTaskStatus, taskRunId = 'RUN-1'): TaskOutcome {
 describe('FewsResultFetcherService.fetchByTask()', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockClient.getTimeSeries.mockResolvedValue(PI_JSON_RESULT);
+        mockClient.getTimeSeries.mockResolvedValue({ document: PI_JSON_RESULT, complete: true });
+    });
+
+    it('should wait for the next poll when FEWS answers a partial run (206)', async () => {
+        mockClient.getTaskStatus.mockResolvedValue(outcome(FewsTaskStatus.COMPLETED));
+        mockClient.getTimeSeries.mockResolvedValue({ document: PI_JSON_RESULT, complete: false });
+
+        await expect(buildService().fetchByTask('TASK-1', 'FEWS_API', OUTPUT_FOLDER)).resolves.toBeNull();
+        expect(mockArchiver.archive).not.toHaveBeenCalled();
     });
 
     it('should return the parsed series once the task completed', async () => {

@@ -289,6 +289,10 @@ services:
             DB_DATABASE: ${DB_PREDICTIONS_DATABASE:-predictions_db}
             HYDRO_API_BASE_URL: http://ms-hydro-api:3006
             STATION_THRESHOLD_CACHE_TTL: ${STATION_THRESHOLD_CACHE_TTL:-300}
+            # Header identifiers of the manual-simulation input file, as Idrica's
+            # FEWS import maps the series (endpoints_FEWS_TagusFlowCast.xlsx).
+            MANUAL_SIMULATION_MODULE_INSTANCE_ID: ${MANUAL_SIMULATION_MODULE_INSTANCE_ID:-ImportAPI_Q_mod}
+            MANUAL_SIMULATION_PARAMETER_ID: ${MANUAL_SIMULATION_PARAMETER_ID:-Q.salida.forecast.web}
         expose:
             - '3007'
         depends_on:
@@ -332,6 +336,23 @@ services:
             WISKI_API_TIMEZONE: ${WISKI_API_TIMEZONE:-Europe/Madrid}
             WISKI_API_REQUEST_TIMEOUT_MS: ${WISKI_API_REQUEST_TIMEOUT_MS:-120000}
             WISKI_API_MAX_RESPONSE_BYTES: ${WISKI_API_MAX_RESPONSE_BYTES:-52428800}
+            # FEWS PI REST (direct model flow: modelSource=FEWS_API, and the
+            # FEWS_API data providers). Values from Idrica's endpoint sheet for
+            # the CH Tajo instance; the host only resolves inside their network.
+            FEWS_API_BASE_URL: ${FEWS_API_BASE_URL:-http://cpdfews2.saihchtajo.es:8080/FewsWebServices}
+            FEWS_API_SERVICE_PATH: ${FEWS_API_SERVICE_PATH:-/rest/fewspiservice/v1}
+            FEWS_WORKFLOW_ID: ${FEWS_WORKFLOW_ID:-ForecastMIKE11_mod}
+            FEWS_FILTER_ID: ${FEWS_FILTER_ID:-Tajo_Forecasts_mods}
+            FEWS_API_USERNAME: ${FEWS_API_USERNAME:-}
+            FEWS_API_PASSWORD: ${FEWS_API_PASSWORD:-}
+            FEWS_RUN_USER_ID: ${FEWS_RUN_USER_ID:-fews}
+            FEWS_RUN_OPTION: ${FEWS_RUN_OPTION:-alloneatatime}
+            FEWS_RUN_START_OFFSET_MINUTES: ${FEWS_RUN_START_OFFSET_MINUTES:-60}
+            FEWS_RUN_HORIZON_DAYS: ${FEWS_RUN_HORIZON_DAYS:-3}
+            # The whole basin takes Idrica 10-15 minutes; 30 minutes leaves room.
+            FEWS_TASK_TIMEOUT_MS: ${FEWS_TASK_TIMEOUT_MS:-1800000}
+            FEWS_TASK_POLL_INTERVAL_MS: ${FEWS_TASK_POLL_INTERVAL_MS:-15000}
+            FEWS_REQUEST_TIMEOUT_MS: ${FEWS_REQUEST_TIMEOUT_MS:-120000}
         expose:
             - '3008'
         depends_on:

@@ -3,8 +3,9 @@
  *
  * Format mirrors the FEWS example `Q_mod_input_<YYYYMMDDHHMM>.json` provided by the
  * modelling team (Idrica): one envelope with one `timeSeries` entry per modified
- * station. Each series carries a fixed `parameterId = "Q.salida.forecast"`, the
- * station code as `locationId`, and a complete 15-minute grid of events.
+ * station. Each series carries the `parameterId` and `moduleInstanceId` FEWS
+ * expects on import (defaults below, overridable per call), the station code as
+ * `locationId`, and a complete 15-minute grid of events.
  *
  * Two modes are supported per station, both feeding the same output shape:
  *   - CURVE: the visor sends the full 15-minute series (passthrough of FEWS events).
@@ -19,7 +20,14 @@
 // Constants (from the FEWS example header)
 // ─────────────────────────────────────────────────────────────
 
-export const PARAMETER_ID = 'Q.salida.forecast';
+/**
+ * Idrica: the import maps a series only when it arrives as
+ * `ImportAPI_Q_mod` / `Q.salida.forecast.web`. Both can be overridden per call
+ * (the handler passes the configured values) so a change on their side does not
+ * need a release.
+ */
+export const DEFAULT_PARAMETER_ID = 'Q.salida.forecast.web';
+export const DEFAULT_MODULE_INSTANCE_ID = 'ImportAPI_Q_mod';
 export const SERIES_TYPE = 'instantaneous';
 export const TIME_STEP_SECONDS = '900'; // 15 minutes
 export const UNITS = 'm3/s';
@@ -27,9 +35,6 @@ export const MISS_VAL = '-999.0';
 export const FILE_VERSION = '1.34';
 export const FILE_TIME_ZONE = '0.0';
 export const GEO_PLACEHOLDER = '0.0';
-
-/** moduleInstanceId is not relevant for import; keep the example value until configured. */
-export const MODULE_INSTANCE_ID = 'RunMIKE11_Forecast_TajoJar_web';
 
 /** Default forecast horizon (in days) used to close the FLAT window when the maneuver has no endDate. */
 export const DEFAULT_HORIZON_DAYS = 3;
@@ -78,6 +83,9 @@ export interface BuildFileParams {
     /** The instant the file is created (creationDate/creationTime/approvedDate). Injected for testability. */
     now: Date;
     horizonDays?: number;
+    /** Header identifiers FEWS maps the import with. Default to Idrica's values. */
+    moduleInstanceId?: string;
+    parameterId?: string;
 }
 
 interface TimeStamp {
@@ -101,6 +109,8 @@ export interface BuiltFile {
 export function buildManualSimulationFile(params: BuildFileParams): BuiltFile {
     const { maneuvers, stationsByCode, forecastDate, now } = params;
     const horizonDays = params.horizonDays ?? DEFAULT_HORIZON_DAYS;
+    const moduleInstanceId = params.moduleInstanceId || DEFAULT_MODULE_INSTANCE_ID;
+    const parameterId = params.parameterId || DEFAULT_PARAMETER_ID;
 
     if (maneuvers.length === 0) {
         throw new Error('Cannot build a manual simulation file with no maneuvers');
@@ -127,6 +137,8 @@ export function buildManualSimulationFile(params: BuildFileParams): BuiltFile {
             end: { date: events[events.length - 1].date, time: events[events.length - 1].time },
             forecast: forecastStamp,
             creation,
+            moduleInstanceId,
+            parameterId,
         });
 
         timeSeries.push({ header, events });
@@ -221,15 +233,17 @@ function buildHeader(args: {
     end: TimeStamp;
     forecast: TimeStamp;
     creation: TimeStamp;
+    moduleInstanceId: string;
+    parameterId: string;
 }): object {
-    const { reservoirCode, station, start, end, forecast, creation } = args;
+    const { reservoirCode, station, start, end, forecast, creation, moduleInstanceId, parameterId } = args;
     const stationName = station?.name ? `${reservoirCode} ${station.name}` : reservoirCode;
 
     return {
         type: SERIES_TYPE,
-        moduleInstanceId: MODULE_INSTANCE_ID,
+        moduleInstanceId,
         locationId: reservoirCode,
-        parameterId: PARAMETER_ID,
+        parameterId,
         timeStep: { unit: 'second', multiplier: TIME_STEP_SECONDS },
         startDate: { date: start.date, time: start.time },
         endDate: { date: end.date, time: end.time },

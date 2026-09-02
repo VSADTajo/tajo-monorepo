@@ -2,8 +2,8 @@ import {
     buildManualSimulationFile,
     StationMeta,
     FileManeuverInput,
-    PARAMETER_ID,
-    MODULE_INSTANCE_ID,
+    DEFAULT_PARAMETER_ID,
+    DEFAULT_MODULE_INSTANCE_ID,
     DEFAULT_HORIZON_DAYS,
 } from './manual-simulation-file.builder';
 
@@ -41,17 +41,34 @@ describe('buildManualSimulationFile', () => {
     });
 
     // ── parameterId + locationId (import-critical) ─────────────────
-    it('always sets parameterId="Q.salida.forecast" and locationId to the station code', () => {
+    it('sets the import identifiers Idrica expects and locationId to the station code', () => {
         const { content } = build([{ reservoirCode: 'E_09', outputFlowValue: 20 }]);
         const header = (content.timeSeries[0] as { header: Record<string, unknown> }).header;
 
-        expect(header.parameterId).toBe(PARAMETER_ID);
-        expect(header.parameterId).toBe('Q.salida.forecast');
+        expect(header.parameterId).toBe(DEFAULT_PARAMETER_ID);
+        expect(header.parameterId).toBe('Q.salida.forecast.web');
         expect(header.locationId).toBe('E_09');
-        expect(header.moduleInstanceId).toBe(MODULE_INSTANCE_ID);
+        expect(header.moduleInstanceId).toBe(DEFAULT_MODULE_INSTANCE_ID);
+        expect(header.moduleInstanceId).toBe('ImportAPI_Q_mod');
         expect(header.type).toBe('instantaneous');
         expect(header.units).toBe('m3/s');
         expect(header.timeStep).toEqual({ unit: 'second', multiplier: '900' });
+    });
+
+    it('lets the caller override the import identifiers, so a change on the FEWS side is an env change', () => {
+        const stationsByCode = { e_09: alcorlo };
+        const { content } = buildManualSimulationFile({
+            maneuvers: [{ reservoirCode: 'E_09', outputFlowValue: 20 }],
+            stationsByCode,
+            forecastDate,
+            now,
+            moduleInstanceId: 'Other_Module',
+            parameterId: 'Q.salida.forecast',
+        });
+        const header = (content.timeSeries[0] as { header: Record<string, unknown> }).header;
+
+        expect(header.moduleInstanceId).toBe('Other_Module');
+        expect(header.parameterId).toBe('Q.salida.forecast');
     });
 
     // ── Header enrichment from the hydro catalog ───────────────────

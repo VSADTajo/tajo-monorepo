@@ -29,7 +29,8 @@ export class FewsResultFetcherService {
     ) {}
 
     /**
-     * Returns null only while the task is still running, so the poller retries.
+     * Returns null while the task is still running or its results are not fully
+     * available yet, so the poller retries.
      * Every other non-usable outcome throws: a run that will never produce results
      * has to be reported as failed rather than left waiting forever.
      */
@@ -68,7 +69,21 @@ export class FewsResultFetcherService {
             );
         }
 
-        const piJson = await this.fewsTaskClient.getTimeSeries(target, outcome.taskRunId);
+        const { document: piJson, complete } = await this.fewsTaskClient.getTimeSeries(target, outcome.taskRunId);
+
+        if (!complete) {
+            // 206: the run finished but the web service cannot see all of it yet.
+            // Reading a partial answer would persist half a forecast as if it were
+            // whole, so this waits for the next poll like an in-flight task.
+            this.logger.warn({
+                msg: 'FEWS results are not completely available yet (206) — will retry next poll cycle',
+                entity: 'FewsResultFetcher',
+                taskId,
+                taskRunId: outcome.taskRunId,
+            });
+            return null;
+        }
+
         const mapped = mapPiJsonToNormalized(piJson, (message, context) =>
             this.logger.warn({ msg: message, entity: 'FewsResultFetcher', ...context }),
         );

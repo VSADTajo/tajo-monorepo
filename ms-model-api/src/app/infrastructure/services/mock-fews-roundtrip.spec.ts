@@ -200,8 +200,9 @@ describe('MOCK source — full round trip over HTTP', () => {
         expect(outcome.status).toBe(FewsTaskStatus.COMPLETED);
         expect(outcome.taskRunId).toMatch(/^mock-taskrun-/);
 
-        const series = await client.getTimeSeries(target, outcome.taskRunId);
-        expect(series).toMatchObject({ version: '1.34' });
+        const result = await client.getTimeSeries(target, outcome.taskRunId);
+        expect(result.complete).toBe(true);
+        expect(result.document).toMatchObject({ version: '1.34' });
     });
 
     it('should produce normalized series through the fetcher the poller uses', async () => {

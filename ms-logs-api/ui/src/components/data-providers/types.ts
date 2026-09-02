@@ -76,9 +76,37 @@ export const SETTINGS_FIELDS: Record<
     { key: 'filePrefix', label: 'Prefijo del fichero', placeholder: 'Q_mod_input' },
   ],
   FEWS_API: [
-    { key: 'filterId', label: 'Filter ID', placeholder: 'NAM_EPS' },
-    { key: 'locationIds', label: 'Location IDs', placeholder: 'AR01,AR02' },
-    { key: 'parameterIds', label: 'Parameter IDs', placeholder: 'Q.NAM.ens.Med' },
+    {
+      key: 'filterId',
+      label: 'Filter ID',
+      placeholder: 'Tajo_API',
+      hint: 'Subfiltro de FEWS bajo el que viven las series (Tajo_API, Tajo_ImportEPS, Tajo_Pareal, Tajo_EmbalsesForecasts…).',
+    },
+    {
+      key: 'parameterIds',
+      label: 'Parameter IDs',
+      placeholder: 'Q.NAM.ens.Med, Q.NAM.ens.90, Q.NAM.ens.75',
+      hint: 'Separados por coma. Se envían repetidos en la URL, como pide el servicio.',
+    },
+    { key: 'locationIds', label: 'Location IDs (opcional)', placeholder: 'AR01, AR02' },
+    {
+      key: 'ensembleId',
+      label: 'Ensemble ID (opcional)',
+      placeholder: 'RSMinerve_cases',
+      hint: 'Sólo para productos de ensemble como RS Minerve.',
+    },
+    {
+      key: 'horizonDays',
+      label: 'Horizonte (días hacia adelante)',
+      placeholder: '3',
+      hint: 'Fin de la ventana: desde la hora en punto previa a la actual. Idrica: 10 para P EPS, 6 para Q/V EPS, 3 para Harmonie.',
+    },
+    {
+      key: 'lookbackDays',
+      label: 'Retrospectiva (días hacia atrás)',
+      placeholder: '0',
+      hint: 'Inicio de la ventana. 3 para observados areales, 0 para previsiones.',
+    },
   ],
 };
 
@@ -108,7 +136,7 @@ export function defaultSettingsFor(type: ProviderType): Record<string, unknown> 
     case 'SFTP_FILE':
       return { filePath: 'tajo', filePrefix: 'Q_mod_input' };
     case 'FEWS_API':
-      return { filterId: '', locationIds: '', parameterIds: '' };
+      return { filterId: '', parameterIds: '', locationIds: '', ensembleId: '', horizonDays: '3', lookbackDays: '0' };
     default:
       return {};
   }
@@ -121,6 +149,8 @@ export function defaultBaseUrlFor(type: ProviderType): string {
     case 'CSV_FILE':
     case 'SFTP_FILE':
       return 'http://ms-sftp-api:3003';
+    case 'FEWS_API':
+      return 'http://cpdfews2.saihchtajo.es:8080/FewsWebServices';
     default:
       return '';
   }

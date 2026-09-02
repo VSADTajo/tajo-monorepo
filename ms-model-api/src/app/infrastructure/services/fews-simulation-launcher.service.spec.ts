@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { Logger } from 'nestjs-pino';
 
-import { FewsSimulationLauncherService } from './fews-simulation-launcher.service';
+import { FewsSimulationLauncherService, buildRunWindow } from './fews-simulation-launcher.service';
+import { FewsApiConfigService } from '@config/fews-api/fews-api-config.service';
 import { FewsTaskClientService } from './fews-task-client.service';
 import { FewsTargetResolverService } from './fews-target-resolver.service';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
@@ -47,13 +48,31 @@ const mockResolver = {
 
 function buildService(): FewsSimulationLauncherService {
     const sftpConfig = { baseUrl: 'http://ms-sftp-api:3003' } as unknown as SftpApiConfigService;
+    const fewsConfig = { runStartOffsetMinutes: 60, runHorizonDays: 3 } as unknown as FewsApiConfigService;
     return new FewsSimulationLauncherService(
         mockLogger,
         sftpConfig,
         mockClient as unknown as FewsTaskClientService,
         mockResolver as unknown as FewsTargetResolverService,
+        fewsConfig,
     );
 }
+
+describe('buildRunWindow()', () => {
+    it('starts one hour before now, rounded down to the quarter hour, and spans the horizon', () => {
+        // Idrica: startTime = execution time minus one hour, minutes at :00/:15/:30/:45.
+        const window = buildRunWindow(new Date('2026-07-30T17:52:41Z'), 60, 3);
+
+        expect(window.startTime.toISOString()).toBe('2026-07-30T16:45:00.000Z');
+        expect(window.endTime.toISOString()).toBe('2026-08-02T16:45:00.000Z');
+    });
+
+    it('keeps an exact quarter hour as is', () => {
+        const window = buildRunWindow(new Date('2026-07-30T17:45:00Z'), 60, 3);
+
+        expect(window.startTime.toISOString()).toBe('2026-07-30T16:45:00.000Z');
+    });
+});
 
 /** input/ holds the generated file; download returns its content. */
 function mockSftp(files: { name: string }[], content = '{"timeSeries":[]}'): void {

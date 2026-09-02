@@ -3,6 +3,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 
 // Infrastructure
 import { InfrastructureModule } from '@infrastructure/infrastructure.module';
+import { AppConfigModule } from '@config/app/app-config.module';
 
 // Command Handlers
 import { ProcessTimeSeriesHandler } from '@application/commands/prediction.commands';
@@ -64,7 +65,7 @@ import { SimulationStatusUpdatedConsumer } from '@application/consumers/simulati
 import { SimulationManualBalanceComputedConsumer } from '@application/consumers/simulation-manual-balance-computed.consumer';
 
 @Module({
-    imports: [CqrsModule, InfrastructureModule],
+    imports: [CqrsModule, InfrastructureModule, AppConfigModule],
     controllers: [
         SimulationController,
         PredictionController,

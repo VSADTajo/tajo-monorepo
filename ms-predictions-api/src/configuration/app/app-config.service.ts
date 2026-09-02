@@ -42,4 +42,12 @@ export class AppConfigService {
     public get xApiKey(): string {
         return this.configService.getOrThrow('app.xApiKey', { infer: true });
     }
+
+    public get manualSimulationModuleInstanceId(): string {
+        return this.configService.getOrThrow('app.manualSimulationModuleInstanceId', { infer: true });
+    }
+
+    public get manualSimulationParameterId(): string {
+        return this.configService.getOrThrow('app.manualSimulationParameterId', { infer: true });
+    }
 }

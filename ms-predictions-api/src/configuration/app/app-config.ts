@@ -38,7 +38,21 @@ class EnvVariablesValidator {
     @IsOptional()
     @IsString()
     X_API_KEY: string;
+
+    @IsOptional()
+    @IsString()
+    MANUAL_SIMULATION_MODULE_INSTANCE_ID: string;
+
+    @IsOptional()
+    @IsString()
+    MANUAL_SIMULATION_PARAMETER_ID: string;
 }
+
+/** What Idrica's FEWS import expects on the manual-simulation input (endpoints_FEWS_TagusFlowCast.xlsx). */
+export const MANUAL_SIMULATION_DEFAULTS = {
+    moduleInstanceId: 'ImportAPI_Q_mod',
+    parameterId: 'Q.salida.forecast.web',
+} as const;
 
 export default registerAs<AppConfig>('app', () => {
     validateConfig(process.env, EnvVariablesValidator);
@@ -52,5 +66,9 @@ export default registerAs<AppConfig>('app', () => {
         apiPrefix: process.env.API_PREFIX || 'api',
         logsApiUrl: process.env.LOGS_API_URL || '',
         xApiKey: process.env.X_API_KEY || '',
+        manualSimulationModuleInstanceId:
+            process.env.MANUAL_SIMULATION_MODULE_INSTANCE_ID || MANUAL_SIMULATION_DEFAULTS.moduleInstanceId,
+        manualSimulationParameterId:
+            process.env.MANUAL_SIMULATION_PARAMETER_ID || MANUAL_SIMULATION_DEFAULTS.parameterId,
     };
 });

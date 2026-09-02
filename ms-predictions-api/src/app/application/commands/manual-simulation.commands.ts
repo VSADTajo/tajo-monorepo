@@ -1,4 +1,4 @@
-import { HttpStatus, Inject } from '@nestjs/common';
+import { HttpStatus, Inject, Optional } from '@nestjs/common';
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { Logger } from 'nestjs-pino';
 
@@ -20,6 +20,7 @@ import { ManualSimulationResult } from '@domain/results/manual-simulation.result
 import { SIMULATION_STATE_CACHE_PATTERNS } from '@infrastructure/cache/cache-config.registry';
 import { Topics } from '@infrastructure/messaging/messaging.registry';
 import { ApiError } from '@domain/errors/api.error';
+import { AppConfigService } from '@config/app/app-config.service';
 import {
     buildManualSimulationFile,
     FileManeuverInput,
@@ -99,6 +100,9 @@ export class CreateManualSimulationHandler implements ICommandHandler<
         private readonly sftpService: ISimulationSftpService,
         private readonly messageBroker: IMessageBroker,
         private readonly cacheService: ICacheService,
+        // Optional so the e2e suites, which compose this handler without the
+        // configuration module, keep running on the builder's defaults.
+        @Optional() private readonly appConfigService?: AppConfigService,
     ) {}
 
     async execute(command: CreateManualSimulationCommand): Promise<ManualSimulationResult> {
@@ -195,6 +199,8 @@ export class CreateManualSimulationHandler implements ICommandHandler<
             stationsByCode,
             forecastDate: this.parseForecastDate(command.simulationDate),
             now,
+            moduleInstanceId: this.appConfigService?.manualSimulationModuleInstanceId,
+            parameterId: this.appConfigService?.manualSimulationParameterId,
         });
         const buffer = Buffer.from(JSON.stringify(content, null, 2), 'utf-8');
         await this.sftpService.uploadInputFile(persistedSimulation.id, fileName, buffer);

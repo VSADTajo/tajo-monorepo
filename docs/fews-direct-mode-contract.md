@@ -15,16 +15,68 @@ llamadas.
 
 ---
 
+## 0. Estado (2026-09-02): alineado con `endpoints_FEWS_TagusFlowCast.xlsx`
+
+Idrica entregó la hoja de endpoints de la instancia de CH Tajo. Lo que sigue en §1
+y §2 se completó con esos valores, y el código quedó alineado con lo que ellos
+validaron a mano:
+
+- **Import del input** (`POST /timeseries`): cuerpo `application/x-www-form-urlencoded`
+  con el documento en el campo `piTimeSeriesJsonContent`. El JSON crudo, aunque el
+  spec lo declara, no les funcionó en su instancia.
+- **Identificadores del input**: `moduleInstanceId = ImportAPI_Q_mod` y
+  `parameterId = Q.salida.forecast.web`. Configurables en ms-predictions-api
+  (`MANUAL_SIMULATION_MODULE_INSTANCE_ID`, `MANUAL_SIMULATION_PARAMETER_ID`). El
+  mismo archivo va por SFTP, así que el cambio afecta a los dos modos.
+- **`runtask`**: `workflowId=ForecastMIKE11_mod`, `startTime` = una hora antes del
+  lanzamiento redondeada al cuarto de hora, `timeZero=startTime`, `endTime=+3 días`,
+  `userId=fews`, `runOption=alloneatatime`, `runLocallyAndPromoteToServer=false`.
+  Todo por env (`FEWS_RUN_*`). La cuenca entera tarda 10-15 min; el timeout es 30.
+- **`taskrunstatus`**: un `code` nulo significa que la consulta hizo timeout dentro
+  de FEWS y se trata como "sigue en vuelo", no como fallo.
+- **Lectura de resultados**: un 206 se trata como "todavía no está completo" y se
+  reintenta en el siguiente poll.
+- **Versión**: 2024.02, así que el `taskRunId` de §4 está disponible.
+
+### Ingesta automática por API (proveedores `FEWS_API`)
+
+El mismo servicio alimenta la ingesta programada que hoy hacen los proveedores
+"JSON por SFTP". Cada bloque de la hoja es un proveedor `FEWS_API`, sembrado por la
+migración `SeedDataProviders` de ms-model-api con su filtro, sus `parameterIds` y la
+ventana documentada (`horizonDays` hacia adelante desde la hora en punto previa;
+`lookbackDays` hacia atrás para observados). Nacen **inactivos**: "Ejecutar ahora"
+sobre uno inactivo compara contra el SFTP equivalente antes de cambiar el origen.
+
+| Proveedor | filterId | ventana |
+|---|---|---|
+| FEWS EPS Pluviometría | `Tajo_ImportEPS` | +10 d |
+| FEWS Harmonie Pluviometría | `Spain_Estaciones_Harmonie` | +3 d |
+| FEWS EPS / Harmonie Precipitación areal | `Tajo_Pareal` | +10 d / +3 d |
+| FEWS SAIH Precipitación areal observada | `Tajo_Pareal` | −3 d |
+| FEWS EPS / Harmonie Caudal | `Tajo_API` | +6 d / +3 d |
+| FEWS RS Minerve Caudal (`ensembleId=RSMinerve_cases`) | `Tajo_API` | +5 d |
+| FEWS EPS / Harmonie Volumen | `Tajo_EmbalsesForecasts` | +6 d / +3 d |
+
+`parameterIds` y `locationIds` se envían repetidos (`parameterIds=A&parameterIds=B`),
+que es como el servicio los declara.
+
+**Pendientes que sólo se resuelven contra su servidor**: que el GET por `taskRunIds`
+devuelva la corrida manual (Idrica la lee por filtro `Tajo_Forecasts_mods` y ventana),
+y que los `parameterIds` de volumen (`V.NAM.ens.10_acum`, sufijo `_acum`) coincidan con
+los que hoy clasifica ms-predictions-api.
+
+---
+
 ## 1. Lo que necesitamos de Idrica
 
 | Dato | Para qué | Estado |
 |---|---|---|
-| URL base del `FewsWebServices` | Endpoint raíz, ej. `https://host/FewsWebServices` | **pendiente** |
-| `workflowId` | Workflow a lanzar. Definido dentro de su FEWS; no tiene default | **pendiente** |
-| `filterId` | Filtro bajo el que se publica el input y se leen los resultados | **pendiente** |
-| Usuario / password | Solo si el servicio pide basic auth | **pendiente** |
-| Versión de Delft-FEWS | Ver §4: de ella depende que podamos leer los resultados | **pendiente** |
-| ¿Disponibilidad continua? | Si el servicio se levanta a ratos, el modo directo no sirve para producción | **pendiente** |
+| URL base del `FewsWebServices` | `http://cpdfews2.saihchtajo.es:8080/FewsWebServices` (sólo resuelve dentro de su red) | **recibido** |
+| `workflowId` | `ForecastMIKE11_mod`: ejecuta los MIKE11 de toda la cuenca | **recibido** |
+| `filterId` | `Tajo_Forecasts_mods` para importar el input y leer los resultados | **recibido** |
+| Usuario / password | No aparece en la hoja: se asume sin autenticación | **recibido** |
+| Versión de Delft-FEWS | 2024.02 | **recibido** |
+| ¿Disponibilidad continua? | Ellos van a levantar el proyecto en su VM, junto al servicio | **pendiente** |
 
 El `servicePath` (`/rest/fewspiservice/v1`) es el estándar; si su despliegue lo tiene
 en otra ruta, se corrige con una variable de entorno sin tocar código.

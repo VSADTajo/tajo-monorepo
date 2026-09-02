@@ -22,4 +22,11 @@ export type AppConfig = {
     logLevel: string;
     logsApiUrl: string;
     xApiKey: string;
+    /**
+     * Header values of the manual-simulation input file, as FEWS must receive
+     * them for the import to map the series. Set by Idrica for the CH Tajo
+     * instance; configurable so a change on their side is an env change here.
+     */
+    manualSimulationModuleInstanceId: string;
+    manualSimulationParameterId: string;
 };

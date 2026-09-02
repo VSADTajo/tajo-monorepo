@@ -41,6 +41,16 @@ describe('MockFewsTaskStoreService — import', () => {
         expect(diag).toContain('<Diag');
     });
 
+    it('should read the document from the piTimeSeriesJsonContent form field, as the real import does', () => {
+        const diag = buildStore().importTimeSeries({ piTimeSeriesJsonContent: JSON.stringify(VALID_DOCUMENT) });
+
+        expect(diag).toContain('time series imported, 0 time series rejected');
+    });
+
+    it('should refuse a form field that is not a string', () => {
+        expect(() => buildStore().importTimeSeries({ piTimeSeriesJsonContent: 42 })).toThrow(ProviderError);
+    });
+
     it('should accept the document as a raw JSON string too', () => {
         const diag = buildStore().importTimeSeries(JSON.stringify(VALID_DOCUMENT));
 

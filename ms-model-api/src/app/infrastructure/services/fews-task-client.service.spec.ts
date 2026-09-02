@@ -44,6 +44,8 @@ function buildClient(): FewsTaskClientService {
         taskTimeoutMs: 1000,
         taskPollIntervalMs: 10,
         requestTimeoutMs: 5000,
+        runUserId: 'fews',
+        runOption: 'alloneatatime',
     } as unknown as FewsApiConfigService;
     return new FewsTaskClientService(mockLogger, config);
 }
@@ -59,18 +61,17 @@ describe('FewsTaskClientService.postTimeSeries()', () => {
 
         const [url, body, options] = (mockedAxios.post as jest.Mock).mock.calls[0];
         expect(url).toBe(`${BASE}${SERVICE}/timeseries`);
-        expect(body).toBe('{"version":"1.34"}');
+        expect(new URLSearchParams(body).get('piTimeSeriesJsonContent')).toBe('{"version":"1.34"}');
         expect(options.params).toMatchObject({ filterId: 'TAJO_WEB' });
     });
 
-    it('should send the PI-JSON document as application/json', async () => {
-        // The API declares application/json for this endpoint. Labelling a JSON
-        // body as XML is what the previous implementation did, and it would have
-        // been rejected by the real service.
+    it('should send the PI-JSON document as the piTimeSeriesJsonContent form field', async () => {
+        // The API also declares a raw application/json body, but Idrica could only
+        // get the import to work on the CH Tajo instance with the form encoding.
         await buildClient().postTimeSeries(buildTarget(), '{"version":"1.34"}');
 
         const options = (mockedAxios.post as jest.Mock).mock.calls[0][2];
-        expect(options.headers['Content-Type']).toBe('application/json');
+        expect(options.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
     });
 
     it('should fail with a clear error when no filter is configured', async () => {
@@ -143,7 +144,24 @@ describe('FewsTaskClientService.runTask()', () => {
             startTime: '2026-07-27T09:00:00Z',
             endTime: '2026-07-30T09:00:00Z',
             description: 'manual simulation abc',
-            runOption: 'all',
+        });
+    });
+
+    it('should send the run parameters Idrica validated: timeZero, userId, run option, no local promotion', async () => {
+        mockedAxios.post = jest.fn().mockResolvedValue({ data: 'TASK-123' });
+
+        await buildClient().runTask(buildTarget(), {
+            startTime: new Date('2026-07-27T09:00:00Z'),
+            endTime: new Date('2026-07-30T09:00:00Z'),
+            description: 'x',
+        });
+
+        const options = (mockedAxios.post as jest.Mock).mock.calls[0][2];
+        expect(options.params).toMatchObject({
+            timeZero: '2026-07-27T09:00:00Z',
+            userId: 'fews',
+            runOption: 'alloneatatime',
+            runLocallyAndPromoteToServer: 'false',
         });
     });
 
@@ -197,6 +215,24 @@ describe('FewsTaskClientService.getTaskStatus()', () => {
         expect(outcome.status).toBe(FewsTaskStatus.COMPLETED);
         expect(outcome.description).toBe('completed fully successful');
         expect(outcome.taskRunId).toBe('RUN-9');
+    });
+});
+
+describe('FewsTaskClientService.getTaskStatus() when FEWS answers no status', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should report a null code as unavailable, which counts as in flight', async () => {
+        // Idrica: `null` = no status available, produced when the lookup times out.
+        mockedAxios.get = jest.fn().mockResolvedValue({ data: { version: '1.2', code: null, taskRunId: null } });
+
+        const outcome = await buildClient().getTaskStatus(buildTarget(), 'TASK-1');
+
+        expect(outcome.status).toBe(FewsTaskStatus.UNAVAILABLE);
+        expect(FewsTaskClientService.isInFlight(outcome.status)).toBe(true);
+        expect(FewsTaskClientService.isUsable(outcome.status)).toBe(false);
+        expect(FewsTaskClientService.isTerminalFailure(outcome.status)).toBe(false);
     });
 });
 
@@ -261,10 +297,11 @@ describe('FewsTaskClientService.getTimeSeries()', () => {
     });
 
     it('should read the results of a task run as PI-JSON under the configured filter', async () => {
-        mockedAxios.get = jest.fn().mockResolvedValue({ data: { version: '1.34', timeSeries: [] } });
+        mockedAxios.get = jest.fn().mockResolvedValue({ status: 200, data: { version: '1.34', timeSeries: [] } });
 
-        await buildClient().getTimeSeries(buildTarget(), 'RUN-9');
+        const result = await buildClient().getTimeSeries(buildTarget(), 'RUN-9');
 
+        expect(result).toEqual({ document: { version: '1.34', timeSeries: [] }, complete: true });
         const [url, options] = (mockedAxios.get as jest.Mock).mock.calls[0];
         expect(url).toBe(`${BASE}${SERVICE}/timeseries`);
         expect(options.params).toMatchObject({
@@ -272,6 +309,14 @@ describe('FewsTaskClientService.getTimeSeries()', () => {
             filterId: 'TAJO_WEB',
             taskRunIds: 'RUN-9',
         });
+    });
+
+    it('should flag a 206 as incomplete instead of handing back a partial run', async () => {
+        mockedAxios.get = jest.fn().mockResolvedValue({ status: 206, data: { version: '1.34', timeSeries: [] } });
+
+        const result = await buildClient().getTimeSeries(buildTarget(), 'RUN-9');
+
+        expect(result.complete).toBe(false);
     });
 });
 

@@ -10,8 +10,8 @@ import { FewsTarget } from '@domain/types/fews-target.type';
  * Task run states reported by FEWS.
  *
  * Taken verbatim from the published OpenAPI description of `GET /taskrunstatus`
- * (Delft-FEWS Web Services REST API v1). Anything outside this list is treated
- * as unknown and never as success.
+ * (Delft-FEWS Web Services REST API v1) and confirmed against Idrica's table.
+ * Anything outside this list is treated as unknown and never as success.
  */
 export enum FewsTaskStatus {
     INVALID = 'I',
@@ -23,6 +23,12 @@ export enum FewsTaskStatus {
     PARTLY_SUCCESSFUL = 'D',
     APPROVED = 'A',
     APPROVED_PARTLY_SUCCESSFUL = 'B',
+    /**
+     * Not a FEWS code: the status endpoint answered `null`, which per Idrica means
+     * the status lookup itself timed out. The run is neither over nor known to
+     * have failed, so it is followed like a pending one.
+     */
+    UNAVAILABLE = '',
 }
 
 /** States where results exist and can be read back. */
@@ -36,14 +42,20 @@ const USABLE_STATES: FewsTaskStatus[] = [
 /** States where the run is over and produced nothing usable. */
 const TERMINAL_FAILURES: FewsTaskStatus[] = [FewsTaskStatus.FAILED, FewsTaskStatus.TERMINATED, FewsTaskStatus.INVALID];
 
-/** States where the run is still in flight. */
-const IN_FLIGHT: FewsTaskStatus[] = [FewsTaskStatus.PENDING, FewsTaskStatus.RUNNING];
+/** States where the run is still in flight (or its status could not be read yet). */
+const IN_FLIGHT: FewsTaskStatus[] = [FewsTaskStatus.PENDING, FewsTaskStatus.RUNNING, FewsTaskStatus.UNAVAILABLE];
 
 /**
  * Diagnostic levels of a PI Diag document. FEWS answers an import with one of
  * these documents per line; only the first two mean the import did not happen.
  */
 const DIAG_LEVEL_ERROR = 1;
+
+/** Form field the PI REST service reads the PI-JSON document from on import. */
+const IMPORT_FORM_FIELD = 'piTimeSeriesJsonContent';
+
+/** A 206 means part of the task run is not yet visible to the web service. */
+const HTTP_PARTIAL_CONTENT = 206;
 
 export interface RunTaskParams {
     startTime: Date;
@@ -57,13 +69,19 @@ export interface TaskOutcome {
     taskRunId: string;
 }
 
+export interface FewsTimeSeriesResponse {
+    document: unknown;
+    /** False when FEWS answered 206: the run exists but is not fully available yet. */
+    complete: boolean;
+}
+
 interface DiagLine {
     level: number;
     description: string;
 }
 
 /** FEWS wants second precision without milliseconds: 2026-07-27T09:00:00Z. */
-function toFewsTime(date: Date): string {
+export function toFewsTime(date: Date): string {
     return `${date.toISOString().split('.')[0]}Z`;
 }
 
@@ -136,10 +154,13 @@ export class FewsTaskClientService {
     /**
      * Uploads the simulation input under the configured filter.
      *
-     * The body is the PI-JSON document as `application/json`, which is what the
-     * API declares for this endpoint. FEWS answers with a PI Diag document that
-     * reports how many series it actually took — a 200 alone does not mean the
-     * import happened, so the diagnostics are inspected rather than discarded.
+     * The document travels as the `piTimeSeriesJsonContent` field of an
+     * `application/x-www-form-urlencoded` body. The API also declares a raw
+     * `application/json` body, but Idrica could only get the import to work with
+     * the form encoding on the CH Tajo instance, so that is what is sent.
+     * FEWS answers with a PI Diag document that reports how many series it
+     * actually took — a 200 alone does not mean the import happened, so the
+     * diagnostics are inspected rather than discarded.
      */
     async postTimeSeries(target: FewsTarget, content: string): Promise<void> {
         if (!target.filterId) {
@@ -147,11 +168,13 @@ export class FewsTaskClientService {
         }
 
         const url = this.endpoint(target, 'timeseries');
+        const form = new URLSearchParams({ [IMPORT_FORM_FIELD]: content });
         let diagnostics: string;
         try {
-            const response = await axios.post(url, content, {
+            const response = await axios.post(url, form.toString(), {
                 ...this.requestOptions(target, { filterId: target.filterId }),
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                maxBodyLength: Infinity,
                 responseType: 'text',
                 transformResponse: [(data) => data],
             });
@@ -194,13 +217,20 @@ export class FewsTaskClientService {
         });
     }
 
-    /** Launches the configured workflow. Returns the task id FEWS replies with. */
+    /**
+     * Launches the configured workflow. Returns the task id FEWS replies with.
+     *
+     * The parameter set mirrors the call Idrica validated on their instance:
+     * `timeZero` equal to `startTime`, an explicit `userId`, `alloneatatime`
+     * as run option and no local promotion.
+     */
     async runTask(target: FewsTarget, params: RunTaskParams): Promise<string> {
         if (!target.workflowId) {
             throw new ProviderError('FEWS_WORKFLOW_ID is not configured — cannot launch the model');
         }
 
         const url = this.endpoint(target, 'runtask');
+        const startTime = toFewsTime(params.startTime);
         let taskId: string;
         try {
             const response = await axios.post(
@@ -208,11 +238,13 @@ export class FewsTaskClientService {
                 null,
                 this.requestOptions(target, {
                     workflowId: target.workflowId,
-                    startTime: toFewsTime(params.startTime),
+                    startTime,
                     endTime: toFewsTime(params.endTime),
+                    timeZero: startTime,
+                    userId: this.config.runUserId,
                     description: params.description,
-                    // One of 'all' | 'alloneatatime' | 'allmostrecentonly'.
-                    runOption: 'all',
+                    runOption: this.config.runOption,
+                    runLocallyAndPromoteToServer: 'false',
                 }),
             );
             // The endpoint answers text/plain with the task id as the whole body.
@@ -238,6 +270,10 @@ export class FewsTaskClientService {
      * text/plain with the bare status letter, and the JSON envelope this method
      * reads would never be there. The envelope is flat — `code`, `description`,
      * `taskRunId` at the root, not nested under a `status` object.
+     *
+     * A `null` code is the documented answer when the status lookup timed out
+     * inside FEWS. It is reported as {@link FewsTaskStatus.UNAVAILABLE} so the
+     * caller retries instead of failing the run.
      */
     async getTaskStatus(target: FewsTarget, taskId: string): Promise<TaskOutcome> {
         const url = this.endpoint(target, 'taskrunstatus');
@@ -246,9 +282,17 @@ export class FewsTaskClientService {
                 url,
                 this.requestOptions(target, { taskId, maxWaitMillis: 1000, documentFormat: 'PI_JSON' }),
             );
-            const body = (response.data ?? {}) as { code?: string; description?: string; taskRunId?: string };
+            const body = (response.data ?? {}) as { code?: string | null; description?: string; taskRunId?: string };
+            const code = body.code == null ? '' : String(body.code);
+            if (code === '') {
+                this.logger.warn({
+                    msg: 'FEWS answered no status for the task (lookup timed out) — will retry',
+                    entity: 'FewsTaskClient',
+                    taskId,
+                });
+            }
             return {
-                status: String(body.code ?? '') as FewsTaskStatus,
+                status: code as FewsTaskStatus,
                 description: String(body.description ?? ''),
                 taskRunId: String(body.taskRunId ?? ''),
             };
@@ -299,12 +343,18 @@ export class FewsTaskClientService {
 
         throw new ProviderError(
             `FEWS task "${taskId}" did not finish within ${this.config.taskTimeoutMs} ms ` +
-                `(last status: ${last?.status ?? 'unknown'})`,
+                `(last status: ${last?.status || 'unavailable'})`,
         );
     }
 
-    /** Reads the results of a finished task run as PI-JSON. */
-    async getTimeSeries(target: FewsTarget, taskRunId: string): Promise<unknown> {
+    /**
+     * Reads the results of a finished task run as PI-JSON.
+     *
+     * Since 2024.01 the service may answer 206 when a task run is not completely
+     * available to it yet. That is reported through `complete` rather than by
+     * throwing: the caller decides whether to wait or to give up.
+     */
+    async getTimeSeries(target: FewsTarget, taskRunId: string): Promise<FewsTimeSeriesResponse> {
         const url = this.endpoint(target, 'timeseries');
         try {
             const response = await axios.get(
@@ -315,7 +365,7 @@ export class FewsTaskClientService {
                     taskRunIds: taskRunId,
                 }),
             );
-            return response.data;
+            return { document: response.data, complete: response.status !== HTTP_PARTIAL_CONTENT };
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new ProviderError(`Failed to read FEWS results for task run "${taskRunId}": ${message}`);

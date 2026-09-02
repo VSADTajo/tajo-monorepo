@@ -1,5 +1,5 @@
 export type FewsApiConfig = {
-    /** Root of the FEWS web services, e.g. https://fews.example.org/FewsWebServices */
+    /** Root of the FEWS web services, e.g. http://cpdfews2.saihchtajo.es:8080/FewsWebServices */
     baseUrl: string;
     /**
      * Path of the PI REST service under baseUrl. Configurable because the public
@@ -15,6 +15,20 @@ export type FewsApiConfig = {
     /** Optional HTTP basic auth. Empty means no authentication. */
     username: string;
     password: string;
+    /**
+     * `userId` sent on runtask. Idrica runs the workflow as the `fews` user;
+     * kept configurable in case their instance maps it to a different account.
+     */
+    runUserId: string;
+    /** `runOption` sent on runtask: one of all | alloneatatime | allmostrecentonly. */
+    runOption: string;
+    /**
+     * How far before "now" the run's startTime (and timeZero) is placed, in
+     * minutes. Idrica asks for one hour, rounded down to the quarter hour.
+     */
+    runStartOffsetMinutes: number;
+    /** Forecast horizon of a manual run: endTime = startTime + this many days. */
+    runHorizonDays: number;
     /** How long to keep polling a task run before giving up. */
     taskTimeoutMs: number;
     /** Delay between task status polls. */

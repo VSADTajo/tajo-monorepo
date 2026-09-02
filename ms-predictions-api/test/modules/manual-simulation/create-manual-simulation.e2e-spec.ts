@@ -178,7 +178,7 @@ describe('Create Manual Simulation (e2e)', () => {
             const parsed = JSON.parse((content as Buffer).toString('utf-8'));
             expect(parsed.version).toBe('1.34');
             expect(parsed.timeSeries).toHaveLength(1);
-            expect(parsed.timeSeries[0].header.parameterId).toBe('Q.salida.forecast');
+            expect(parsed.timeSeries[0].header.parameterId).toBe('Q.salida.forecast.web');
             expect(typeof parsed.timeSeries[0].header.locationId).toBe('string');
         });
 
@@ -224,7 +224,7 @@ describe('Create Manual Simulation (e2e)', () => {
                 .sort();
             expect(locationIds).toEqual(['E100', 'E101', 'E102']);
             for (const s of parsed.timeSeries) {
-                expect(s.header.parameterId).toBe('Q.salida.forecast');
+                expect(s.header.parameterId).toBe('Q.salida.forecast.web');
             }
         });
 

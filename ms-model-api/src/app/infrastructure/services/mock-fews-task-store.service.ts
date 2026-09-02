@@ -11,6 +11,9 @@ import { FewsTaskStatus } from '@infrastructure/services/fews-task-client.servic
 
 const INTERNAL_CALLER_HEADER = { 'x-internal-caller': 'ms-model-api' };
 
+/** Form field the real import reads the PI-JSON document from. */
+const IMPORT_FORM_FIELD = 'piTimeSeriesJsonContent';
+
 /** Top-level keys a PI-JSON time series document is allowed to carry. */
 const ALLOWED_ENVELOPE_KEYS = ['version', 'timeZone', 'timeSeries', 'taskRunIds'];
 
@@ -204,8 +207,20 @@ export class MockFewsTaskStoreService {
         }
     }
 
-    /** Accepts either a parsed body or the raw string, mirroring a lenient server. */
+    /**
+     * Accepts the document the way the real import receives it — as the
+     * `piTimeSeriesJsonContent` field of a form-encoded body — and, for the unit
+     * tests, a parsed object or the raw JSON string as well.
+     */
     private parseDocument(body: unknown): Record<string, unknown> {
+        if (body !== null && typeof body === 'object' && !Array.isArray(body) && IMPORT_FORM_FIELD in body) {
+            const field = (body as Record<string, unknown>)[IMPORT_FORM_FIELD];
+            if (typeof field !== 'string') {
+                throw new ProviderError(`Mock FEWS: ${IMPORT_FORM_FIELD} must be a string`);
+            }
+            return this.parseDocument(field);
+        }
+
         if (typeof body === 'string') {
             try {
                 return JSON.parse(body) as Record<string, unknown>;
