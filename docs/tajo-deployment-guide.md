@@ -122,6 +122,32 @@ bin/tajo up          # pull de las imágenes :latest + recrea lo que cambió
 bin/tajo migrate     # por si hay migraciones nuevas
 ```
 
+### Auto-update por cron (recomendado en VMs de cliente)
+
+Nuestro pipeline publica a GHCR pero **no hace push automático** a la VM
+del cliente. Para cerrar el bucle, un cron simple:
+
+```bash
+# /etc/cron.d/tajo-autoupdate  (o `sudo crontab -e`)
+*/10 * * * * root cd /opt/tajo && /opt/tajo/bin/tajo up >> /var/log/tajo-autoupdate.log 2>&1
+```
+
+`bin/tajo up` (modo prod, default) hace `docker compose pull` seguido de
+`docker compose up -d --pull always`. Si el digest de una imagen cambió,
+compose recrea ese único contenedor. Si no cambió nada, no reinicia nada
+(el log muestra `stack is up` y sale).
+
+- Log de auditoría: `/var/log/tajo-autoupdate.log`.
+- Un pull fallido (`unauthorized`, red caída) aborta la corrida con mensaje
+  visible en el log — no hay updates silenciosos con imagen vieja.
+- Migraciones **no** están en el cron. Cuando anunciamos un cambio de
+  esquema, hay que correr `bin/tajo migrate` a mano.
+
+Alternativa activa (push desde Jenkins) requiere exponer un SSH inbound
+en la VM del cliente y wire de `CLIENT_HOSTS` en los `Jenkinsfile` — más
+complejo y con menos aislamiento; sólo tiene sentido si el SLA exige
+propagación en segundos.
+
 ## Troubleshooting
 
 - **`unauthorized` al hacpull**: falta `docker login ghcr.io` con un PAT que tenga

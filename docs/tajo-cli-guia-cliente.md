@@ -190,6 +190,47 @@ bin/tajo up          # baja lo nuevo y reemplaza lo que cambió
 bin/tajo migrate     # por si hubo cambios en la base
 ```
 
+### Actualización automática (opcional pero recomendada) ⏰
+
+Si querés que la VM se actualice sola cada vez que publicamos una versión
+nueva, dejá un cron corriendo `bin/tajo up`. La instalación es de un solo
+comando; hace `pull` de las imágenes GHCR más nuevas y recrea los
+contenedores que cambiaron. Los que no cambiaron no los toca.
+
+1. Editá el crontab de root:
+
+    ```bash
+    sudo crontab -e
+    ```
+
+2. Pegá esta línea al final (revisa cada 10 min; ajustá el intervalo a gusto):
+
+    ```
+    */10 * * * * cd /ruta/a/tajo && /ruta/a/tajo/bin/tajo up >> /var/log/tajo-autoupdate.log 2>&1
+    ```
+
+    Reemplazá `/ruta/a/tajo` por la carpeta donde clonaste el repo (la que
+    tiene `bin/tajo` adentro).
+
+3. Verificá que el cron esté activo:
+
+    ```bash
+    sudo tail -f /var/log/tajo-autoupdate.log
+    ```
+
+    Vas a ver una entrada cada 10 min. Si no hay imágenes nuevas, dice algo
+    como `stack is up` y no reinicia nada. Si sí hubo cambios, vas a ver el
+    pull de la imagen nueva y la recreación del contenedor afectado.
+
+> **Migraciones**: si publicamos un cambio de base de datos, te vamos a
+> avisar por separado — `bin/tajo migrate` no está en el cron a propósito
+> (para que no corra por accidente). Cuando toque, lo corrés a mano.
+
+> **Login a GHCR**: el `docker login ghcr.io` del paso 5 se mantiene en la
+> VM. Si algún día el PAT caduca, el cron va a fallar con `unauthorized`
+> y te lo va a mostrar en el log — ahí volvés a hacer el login con un PAT
+> nuevo.
+
 ### Guardar una copia de seguridad
 
 ```bash
