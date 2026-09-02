@@ -112,11 +112,19 @@ cmd_up() {
     ensure_network
     log "starting stack (mode=${MODE})"
     if [ "${MODE}" = "prod" ]; then
-        # Don't let a pull miss abort the whole up (set -e): a locally tagged or
-        # pinned image may not be in the registry. Fall back to local copies.
-        compose pull --ignore-pull-failures || warn "some images were not pulled; using local copies if present"
+        # Pull first so a network/auth error is loud, not silent. Then up with
+        # --pull always so compose swaps a container when only the digest of a
+        # rolling tag (e.g. :latest) changed — otherwise it keeps the old one
+        # because the `image:` string is identical.
+        if ! compose pull "$@"; then
+            warn "pull failed for one or more images"
+            warn "if this is expected (local-only pinned image), re-run with TAJO_MODE=dev"
+            die "aborting to avoid running stale images silently"
+        fi
+        compose up -d --remove-orphans --pull always "$@"
+    else
+        compose up -d --remove-orphans "$@"
     fi
-    compose up -d --remove-orphans "$@"
     ok "stack is up — run 'tajo status' to see health"
 }
 
