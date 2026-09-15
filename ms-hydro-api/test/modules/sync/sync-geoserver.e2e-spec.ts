@@ -210,6 +210,30 @@ describe('Sync GeoServer (e2e)', () => {
         expect(rows[0].count).toBe(1);
     });
 
+    it('should sync caudal-only thresholds (no nivel / volumen) from GeoServer', async () => {
+        const geo = geoCtx.geoDataSource;
+        await geo.query(
+            `INSERT INTO cht_puntos_saih_umbrales (codigo, parametro, senal, umbral_caudal_1, umbral_caudal_2, umbral_caudal_3)
+             VALUES ('P01', 'CAUDAL', 'P01FICT98', 24.988, 36.89, 48.392)`,
+        );
+
+        try {
+            await syncGeoserver().expect(HttpStatus.CREATED);
+
+            const { body } = await listStations({ stationCode: 'P01' }).expect(HttpStatus.OK);
+            expect(body.items[0].threshold).toMatchObject({
+                parametro: 'CAUDAL',
+                senal: 'P01FICT98',
+                umbralNivel1: null,
+                umbralCaudal1: 24.988,
+                umbralCaudal2: 36.89,
+                umbralCaudal3: 48.392,
+            });
+        } finally {
+            await geo.query('DELETE FROM cht_puntos_saih_umbrales WHERE codigo = $1', ['P01']);
+        }
+    });
+
     // ─────────────────────────────────────────────────────────────
     // US2: Enriched station responses
     // ─────────────────────────────────────────────────────────────

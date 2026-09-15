@@ -149,6 +149,9 @@ export class GeoserverRepository implements IGeoserverRepository {
                     capacidad
                 FROM cht_puntos_saih_umbrales
                 WHERE umbral_nivel_1 IS NOT NULL
+                   OR umbral_caudal_1 IS NOT NULL
+                   OR umbral_caudal_2 IS NOT NULL
+                   OR umbral_caudal_3 IS NOT NULL
                    OR umbral_1_volumen IS NOT NULL
                 ORDER BY codigo
             `);
