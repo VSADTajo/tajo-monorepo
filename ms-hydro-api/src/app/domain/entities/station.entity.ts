@@ -75,6 +75,12 @@ export class Station extends BaseAuditEntity implements IValidable {
     @Column('varchar', { length: 150, nullable: true })
     meteoalertaZonaNombre: string | null;
 
+    @Column('boolean', { nullable: false, default: false })
+    hasCaudalNam: boolean;
+
+    @Column('boolean', { nullable: false, default: false })
+    hasCaudalMike: boolean;
+
     @Column('varchar', { length: 255, nullable: true })
     description: string | null;
 

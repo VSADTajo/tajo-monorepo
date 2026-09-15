@@ -303,6 +303,18 @@ export class CreateStationResponseDto {
     meteoalertaZonaNombre: string | null;
 
     @ApiProperty({
+        description: 'Whether the station has NAM flow (caudal) data — hascaudalnam from cht_puntos_saih',
+        example: true,
+    })
+    hasCaudalNam: boolean;
+
+    @ApiProperty({
+        description: 'Whether the station has MIKE flow (caudal) data — hascaudalmike from cht_puntos_saih',
+        example: false,
+    })
+    hasCaudalMike: boolean;
+
+    @ApiProperty({
         description: 'Station description',
         example: 'Estación de monitoreo en el tramo alto del Río Negro',
         nullable: true,

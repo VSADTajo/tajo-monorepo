@@ -40,7 +40,11 @@ export class GeoserverRepository implements IGeoserverRepository {
                     ze.ogc_fid AS "zonaExplOgcFid",
                     ze.nombre AS "zonaExplNombre",
                     zm.cod_z AS "meteoalertaZonaCode",
-                    zm.nom_z AS "meteoalertaZonaNombre"
+                    zm.nom_z AS "meteoalertaZonaNombre",
+                    -- Read via to_jsonb so a GeoServer DB without these (recently added) columns
+                    -- yields false instead of failing the whole sync.
+                    COALESCE((to_jsonb(p) ->> 'hascaudalnam')::boolean, false) AS "hasCaudalNam",
+                    COALESCE((to_jsonb(p) ->> 'hascaudalmike')::boolean, false) AS "hasCaudalMike"
                 FROM cht_puntos_saih p
                 LEFT JOIN cht_subcuencas s ON ST_Contains(s.geom, p.geom)
                 LEFT JOIN cht_comarcasagrarias ca ON ST_Intersects(p.geom, ca.wkb_geometry)

@@ -17,6 +17,8 @@ export interface GeoserverStationData {
     zonaExplNombre: string | null;
     meteoalertaZonaCode: string | null;
     meteoalertaZonaNombre: string | null;
+    hasCaudalNam: boolean;
+    hasCaudalMike: boolean;
 }
 
 export interface GeoserverSubcuencaData {

@@ -26,6 +26,8 @@ export class CreateStationResult {
     readonly sistemaName: string | null;
     readonly meteoalertaZonaCode: string | null;
     readonly meteoalertaZonaNombre: string | null;
+    readonly hasCaudalNam: boolean;
+    readonly hasCaudalMike: boolean;
     readonly description: string | null;
     readonly isActive: boolean;
     readonly createdAt: Date;
@@ -53,6 +55,8 @@ export class CreateStationResult {
         sistemaName: string | null;
         meteoalertaZonaCode: string | null;
         meteoalertaZonaNombre: string | null;
+        hasCaudalNam: boolean;
+        hasCaudalMike: boolean;
         description: string | null;
         isActive: boolean;
         createdAt: Date;
@@ -79,6 +83,8 @@ export class CreateStationResult {
         this.sistemaName = params.sistemaName;
         this.meteoalertaZonaCode = params.meteoalertaZonaCode;
         this.meteoalertaZonaNombre = params.meteoalertaZonaNombre;
+        this.hasCaudalNam = params.hasCaudalNam;
+        this.hasCaudalMike = params.hasCaudalMike;
         this.description = params.description;
         this.isActive = params.isActive;
         this.createdAt = params.createdAt;

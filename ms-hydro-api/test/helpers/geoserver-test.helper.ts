@@ -60,7 +60,9 @@ export async function createGeoserverTestDb(): Promise<GeoserverTestContext> {
             provincia varchar(254),
             ccaa varchar(254),
             xetrs89h30 numeric(23,15),
-            yetrs89h30 numeric(23,15)
+            yetrs89h30 numeric(23,15),
+            hascaudalnam boolean,
+            hascaudalmike boolean
         )
     `);
 
@@ -72,13 +74,13 @@ export async function createGeoserverTestDb(): Promise<GeoserverTestContext> {
             (ST_GeomFromText('POLYGON((-4 39, -3 39, -3 40, -4 40, -4 39))', 4326), 'E_02', 'SUBCUENCA SUR', 567.89, 123.45, -3.5, 39.5)
     `);
 
-    // Seed stations — 3 stations, 2 in subcuenca E_01, 1 in E_02
+    // Seed stations — 3 stations, 2 in subcuenca E_01, 1 in E_02 (P01 has NULL caudal flags)
     await geoDataSource.query(`
-        INSERT INTO cht_puntos_saih (geom, codigo, nombre, tipo_cod, tipo, zona, municipio, provincia, ccaa)
+        INSERT INTO cht_puntos_saih (geom, codigo, nombre, tipo_cod, tipo, zona, municipio, provincia, ccaa, hascaudalnam, hascaudalmike)
         VALUES
-            (ST_SetSRID(ST_MakePoint(-2.5, 40.5), 4326), 'AR01', 'ESTACION RIO NORTE', 'AR', 'AFORO EN RIO', 'CABECERA', 'Sacedón', 'Guadalajara', 'Castilla La Mancha'),
-            (ST_SetSRID(ST_MakePoint(-2.3, 40.7), 4326), 'E_01', 'EMBALSE NORTE', 'E', 'EMBALSE SAIH', 'CABECERA', 'Brihuega', 'Guadalajara', 'Castilla La Mancha'),
-            (ST_SetSRID(ST_MakePoint(-3.5, 39.5), 4326), 'P01', 'PLUVIOMETRO SUR', 'P', 'PLUVIOMETRO/PLUVIONIVOMETRO', 'MADRID', 'Aranjuez', 'Madrid', 'Comunidad de Madrid')
+            (ST_SetSRID(ST_MakePoint(-2.5, 40.5), 4326), 'AR01', 'ESTACION RIO NORTE', 'AR', 'AFORO EN RIO', 'CABECERA', 'Sacedón', 'Guadalajara', 'Castilla La Mancha', true, false),
+            (ST_SetSRID(ST_MakePoint(-2.3, 40.7), 4326), 'E_01', 'EMBALSE NORTE', 'E', 'EMBALSE SAIH', 'CABECERA', 'Brihuega', 'Guadalajara', 'Castilla La Mancha', false, true),
+            (ST_SetSRID(ST_MakePoint(-3.5, 39.5), 4326), 'P01', 'PLUVIOMETRO SUR', 'P', 'PLUVIOMETRO/PLUVIONIVOMETRO', 'MADRID', 'Aranjuez', 'Madrid', 'Comunidad de Madrid', NULL, NULL)
     `);
 
     // Create enrichment tables joined by the sync station query (kept empty — LEFT JOINs)

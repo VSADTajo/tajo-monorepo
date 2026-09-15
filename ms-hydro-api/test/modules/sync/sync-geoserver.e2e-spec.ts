@@ -147,8 +147,8 @@ describe('Sync GeoServer (e2e)', () => {
         return request(app.getHttpServer()).get('/sub-basins');
     }
 
-    function listStations() {
-        return request(app.getHttpServer()).get('/stations');
+    function listStations(query: Record<string, string> = {}) {
+        return request(app.getHttpServer()).get('/stations').query(query);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -277,5 +277,62 @@ describe('Sync GeoServer (e2e)', () => {
         // P01 (-3.5, 39.5) falls inside zone 673701
         expect(byCode['P01'].meteoalertaZonaCode).toBe('673701');
         expect(byCode['P01'].meteoalertaZonaNombre).toBe('Meseta de Salamanca');
+    });
+
+    it('should populate hasCaudalNam / hasCaudalMike from cht_puntos_saih, defaulting NULL to false', async () => {
+        await syncGeoserver().expect(HttpStatus.CREATED);
+
+        const { body } = await listStations().expect(HttpStatus.OK);
+        const byCode: Record<string, { hasCaudalNam: boolean; hasCaudalMike: boolean }> = Object.fromEntries(
+            body.items.map((s: { stationCode: string }) => [s.stationCode, s]),
+        );
+
+        expect(byCode.AR01).toMatchObject({ hasCaudalNam: true, hasCaudalMike: false });
+        expect(byCode.E_01).toMatchObject({ hasCaudalNam: false, hasCaudalMike: true });
+        expect(byCode.P01).toMatchObject({ hasCaudalNam: false, hasCaudalMike: false });
+    });
+
+    it('should update caudal flags on re-sync when they change in GeoServer', async () => {
+        await syncGeoserver().expect(HttpStatus.CREATED);
+        await geoCtx.geoDataSource.query('UPDATE cht_puntos_saih SET hascaudalmike = $1 WHERE codigo = $2', [
+            true,
+            'AR01',
+        ]);
+
+        try {
+            await syncGeoserver().expect(HttpStatus.CREATED);
+
+            const { body } = await listStations({ stationCode: 'AR01' }).expect(HttpStatus.OK);
+            expect(body.items[0]).toMatchObject({ hasCaudalNam: true, hasCaudalMike: true });
+        } finally {
+            await geoCtx.geoDataSource.query('UPDATE cht_puntos_saih SET hascaudalmike = $1 WHERE codigo = $2', [
+                false,
+                'AR01',
+            ]);
+        }
+    });
+
+    it('should still sync stations (flags false) when GeoServer lacks the caudal columns', async () => {
+        const geo = geoCtx.geoDataSource;
+        await geo.query('ALTER TABLE cht_puntos_saih DROP COLUMN hascaudalnam, DROP COLUMN hascaudalmike');
+
+        try {
+            const { body: sync } = await syncGeoserver().expect(HttpStatus.CREATED);
+            expect(sync.stationsCreated).toBe(3);
+
+            const { body } = await listStations().expect(HttpStatus.OK);
+            for (const station of body.items) {
+                expect(station).toMatchObject({ hasCaudalNam: false, hasCaudalMike: false });
+            }
+        } finally {
+            await geo.query(
+                'ALTER TABLE cht_puntos_saih ADD COLUMN hascaudalnam boolean, ADD COLUMN hascaudalmike boolean',
+            );
+            await geo.query(`
+                UPDATE cht_puntos_saih
+                SET hascaudalnam = (codigo = 'AR01'), hascaudalmike = (codigo = 'E_01')
+                WHERE codigo IN ('AR01', 'E_01')
+            `);
+        }
     });
 });
