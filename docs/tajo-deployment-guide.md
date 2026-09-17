@@ -45,7 +45,7 @@ o IP; de acá salen las URLs que se inyectan en los frontends en runtime):
 | `PUBLIC_GEOSERVER_URL` | `https://tajo.cliente.com:8085/geoserver` | geoserver público |
 | `AEMET_API_KEY` | `<key AEMET>` | ingesta meteo |
 | `REGISTRY` | `ghcr.io/vsadtajo` | dejar por defecto |
-| `TAG` | `latest` | tag común publicado por el pipeline |
+| `TAG` | **no setear en `.env`** | vive en `infra/version.env`, pineado por CI. Sólo overridear en `.env` para rollback puntual (ej. `TAG=v2026.09.10.42`). |
 
 ## 4. Login a GHCR
 
@@ -116,26 +116,30 @@ bin/tajo down                    # parar (con -v también borra los volúmenes)
 
 ### Actualizar a la última versión
 
+La versión pineada de la plataforma vive en `infra/version.env` (managed por
+`infra/Jenkinsfile.release`, bumpeado en cada merge a main con `TAG=vYYYY.MM.DD.N`).
+
 ```bash
-git pull
-bin/tajo up          # pull de las imágenes :latest + recrea lo que cambió
-bin/tajo migrate     # por si hay migraciones nuevas
+git pull             # trae el nuevo TAG en infra/version.env
+bin/tajo doctor      # (recomendado) valida GHCR login, imágenes disponibles, .env
+bin/tajo up          # pull del set completo pineado + recrea lo que cambió
+bin/tajo migrate     # sólo si anunciamos migraciones nuevas
 ```
 
 ### Auto-update por cron (recomendado en VMs de cliente)
 
-Nuestro pipeline publica a GHCR pero **no hace push automático** a la VM
-del cliente. Para cerrar el bucle, un cron simple:
+Un cron que combina `git pull` (para traer la nueva versión pineada) con
+`bin/tajo up`:
 
 ```bash
 # /etc/cron.d/tajo-autoupdate  (o `sudo crontab -e`)
-*/10 * * * * root cd /opt/tajo && /opt/tajo/bin/tajo up >> /var/log/tajo-autoupdate.log 2>&1
+*/10 * * * * root cd /opt/tajo && git pull --quiet && /opt/tajo/bin/tajo up >> /var/log/tajo-autoupdate.log 2>&1
 ```
 
-`bin/tajo up` (modo prod, default) hace `docker compose pull` seguido de
-`docker compose up -d --pull always`. Si el digest de una imagen cambió,
-compose recrea ese único contenedor. Si no cambió nada, no reinicia nada
-(el log muestra `stack is up` y sale).
+Cuando publicamos un release, `Jenkinsfile.release` hace commit al monorepo
+bumpeando `infra/version.env`. El próximo `git pull` del cron trae ese commit,
+`bin/tajo up` levanta el nuevo TAG. Si no hubo release desde la última corrida,
+`git pull` no trae nada y `bin/tajo up` confirma que ya está actualizado.
 
 - Log de auditoría: `/var/log/tajo-autoupdate.log`.
 - Un pull fallido (`unauthorized`, red caída) aborta la corrida con mensaje

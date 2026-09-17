@@ -1,0 +1,192 @@
+// =============================================================================
+// Jenkinsfile.release — coordinated release of the whole VSAD Tajo platform.
+//
+// Triggered on every push to monorepo/main (configure the Jenkins multibranch
+// job to watch VSADTajo/tajo-monorepo and point at this file).
+//
+// One RELEASE_TAG (e.g. v2026.09.17.42) is applied to every service image.
+// Client's `bin/tajo up` reads infra/version.env (bumped at the end of this
+// pipeline) → guaranteed coherent set of images, no more per-service drift.
+//
+// Loop prevention: this pipeline commits back to main to bump version.env. To
+// avoid an infinite loop, the first stage aborts when the head commit is a
+// release-bump commit (starts with 'chore(release):' or contains '[skip ci]').
+// =============================================================================
+
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY        = 'ghcr.io/vsadtajo'
+        // vsad-tajo-frontend lives in its own repo (dropped from monorepo in
+        // 040f47c). We clone it on-the-fly so one release tag spans backend + frontend.
+        FRONTEND_REPO   = 'github.com/VSADTajo/vsad-tajo-frontend.git'
+        FRONTEND_BRANCH = 'main'
+        MONOREPO_REPO   = 'github.com/VSADTajo/tajo-monorepo.git'
+    }
+
+    options {
+        timeout(time: 60, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.COMMIT_MSG = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+                    env.COMMIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                }
+            }
+        }
+
+        // The bump commit at the end of this pipeline pushes back to main. If
+        // Jenkins picks it up as a new build, we loop forever. Detect and skip.
+        stage('Skip our own release-bump commits') {
+            when {
+                anyOf {
+                    expression { env.COMMIT_MSG?.contains('[skip ci]') }
+                    expression { env.COMMIT_MSG?.startsWith('chore(release):') }
+                }
+            }
+            steps {
+                script {
+                    currentBuild.result = 'ABORTED'
+                    currentBuild.description = "skipped: ${env.COMMIT_MSG.split('\n')[0]}"
+                    error('Aborting — this commit is a release bump, not new work.')
+                }
+            }
+        }
+
+        stage('Compute RELEASE_TAG') {
+            steps {
+                script {
+                    // v2026.09.17.42 — date-sortable, unique per build number,
+                    // human-readable at a glance. Bumps monotonically forever.
+                    def today = sh(script: 'date -u +%Y.%m.%d', returnStdout: true).trim()
+                    env.RELEASE_TAG = "v${today}.${env.BUILD_NUMBER}"
+                    currentBuild.description = "${env.RELEASE_TAG} (@ ${env.COMMIT_SHA})"
+                    echo "Release TAG: ${env.RELEASE_TAG}"
+                }
+            }
+        }
+
+        stage('GHCR login') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'ghcr',
+                                  usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
+                    sh 'echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin'
+                }
+            }
+        }
+
+        stage('Build & push backend services') {
+            steps {
+                script {
+                    // Every entry maps a GHCR image name to its build context.
+                    // The 'df' path is RELATIVE to 'ctx' — matches `docker build -f`.
+                    def services = [
+                        [name: 'ms-gateway-api',        ctx: 'ms-gateway-api',        df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-user-api',           ctx: 'ms-user-api',           df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-authentication-api', ctx: 'ms-authentication-api', df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-sftp-api',           ctx: 'ms-sftp-api',           df: 'Dockerfile',    target: 'prod'],
+                        [name: 'sftp-frontend',         ctx: 'ms-sftp-api/frontend',  df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-logs-api',           ctx: 'ms-logs-api',           df: 'Dockerfile',    target: 'prod'],
+                        // ms-logs-ui Dockerfile references ui/ paths; context is ms-logs-api/, dockerfile at ui/Dockerfile.
+                        [name: 'ms-logs-ui',            ctx: 'ms-logs-api',           df: 'ui/Dockerfile', target: 'prod'],
+                        [name: 'ms-hydro-api',          ctx: 'ms-hydro-api',          df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-predictions-api',    ctx: 'ms-predictions-api',    df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-model-api',          ctx: 'ms-model-api',          df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-notifications-api',  ctx: 'ms-notifications-api',  df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-meteo-api',          ctx: 'ms-meteo-api',          df: 'Dockerfile',    target: 'prod'],
+                        [name: 'ms-calculator-api',     ctx: 'ms-calculator-api',     df: 'Dockerfile',    target: 'prod'],
+                    ]
+
+                    def builds = [:]
+                    for (svc in services) {
+                        def s = svc
+                        builds["${s.name}"] = {
+                            sh """
+                                set -e
+                                cd '${s.ctx}'
+                                DOCKER_BUILDKIT=1 docker build \\
+                                    --target ${s.target} \\
+                                    -f '${s.df}' \\
+                                    -t ${REGISTRY}/${s.name}:${RELEASE_TAG} \\
+                                    .
+                                docker push ${REGISTRY}/${s.name}:${RELEASE_TAG}
+                            """
+                        }
+                    }
+                    parallel builds
+                }
+            }
+        }
+
+        stage('Build & push vsad-tajo-frontend') {
+            steps {
+                // Fresh temp dir; --depth 1 keeps the clone cheap. Fails
+                // loudly if the FE repo main is broken → whole release aborts,
+                // which is what we want (no half-baked coherent set).
+                dir("vsad-tajo-frontend-src-${env.BUILD_NUMBER}") {
+                    withCredentials([usernamePassword(credentialsId: 'monorepo-push',
+                                      usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                        sh """
+                            set -e
+                            git clone --depth 1 --branch ${FRONTEND_BRANCH} \\
+                                https://x-access-token:\${GIT_TOKEN}@${FRONTEND_REPO} .
+                            DOCKER_BUILDKIT=1 docker build \\
+                                --target prod \\
+                                -t ${REGISTRY}/vsad-tajo-frontend:${RELEASE_TAG} \\
+                                .
+                            docker push ${REGISTRY}/vsad-tajo-frontend:${RELEASE_TAG}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Bump infra/version.env & push to monorepo main') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'monorepo-push',
+                                  usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                    // In-place replace of TAG=... — preserves the header comments
+                    // that document what this file is for. The commit message MUST
+                    // start with 'chore(release):' so the Skip stage at the top
+                    // aborts the loop on the next Jenkins scan.
+                    sh """
+                        set -e
+                        sed -i 's|^TAG=.*|TAG=${RELEASE_TAG}|' infra/version.env
+                        git config user.email 'jenkins@vsadtajo.local'
+                        git config user.name  'Jenkins (release)'
+                        git add infra/version.env
+                        # If the file was already at the target TAG (rare — same
+                        # build number after a manual bump), skip the commit.
+                        if git diff --cached --quiet; then
+                            echo 'version.env already at ${RELEASE_TAG} — nothing to commit'
+                            exit 0
+                        fi
+                        git commit -m 'chore(release): bump platform TAG to ${RELEASE_TAG} [skip ci]'
+                        git push https://x-access-token:\${GIT_TOKEN}@${MONOREPO_REPO} HEAD:main
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✓ Release ${env.RELEASE_TAG} published to GHCR + version.env bumped in monorepo main."
+        }
+        failure {
+            echo "✗ Release FAILED. If images were partially pushed, they are orphaned but harmless (version.env NOT bumped, so clients still see the previous release)."
+        }
+        always {
+            // Clean workspace to reclaim disk. Docker images stay in the daemon
+            // cache — that's what makes subsequent builds fast.
+            deleteDir()
+        }
+    }
+}
