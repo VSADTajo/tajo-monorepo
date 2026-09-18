@@ -58,7 +58,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-gateway-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-gateway-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-gateway-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-gateway-api
         environment:
             <<: *common-infra-env
@@ -90,7 +90,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-user-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-user-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-user-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-user-api
         environment:
             <<: [*common-db-env, *common-infra-env]
@@ -117,7 +117,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-authentication-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-authentication-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-authentication-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-authentication-api
         environment:
             <<: *common-infra-env
@@ -145,7 +145,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-sftp-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-sftp-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-sftp-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-sftp-api
         environment:
             <<: [*common-db-env, *common-infra-env]
@@ -190,7 +190,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     sftp-frontend:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/sftp-frontend:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/sftp-frontend:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: sftp-frontend
         # Runtime config: the image ships with a URL placeholder; the entrypoint
         # substitutes AUTH_API_URL into the built assets at start, so ONE image
@@ -208,7 +208,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-logs-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-logs-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-logs-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-logs-api
         environment:
             NODE_ENV: ${NODE_ENV:-production}
@@ -225,7 +225,7 @@ services:
 
     ms-logs-ui:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-logs-ui:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-logs-ui:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-logs-ui
         # Runtime config: the entrypoint substitutes these into the built assets
         # at start, so ONE image works on any host (see ui/docker-entrypoint.sh).
@@ -245,7 +245,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-hydro-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-hydro-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-hydro-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-hydro-api
         environment:
             <<: [*common-db-env, *common-infra-env]
@@ -279,7 +279,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-predictions-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-predictions-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-predictions-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-predictions-api
         environment:
             <<: [*common-db-env, *common-infra-env]
@@ -311,7 +311,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-model-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-model-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-model-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-model-api
         environment:
             <<: [*common-db-env, *common-infra-env]
@@ -371,7 +371,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-notifications-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-notifications-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-notifications-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-notifications-api
         environment:
             <<: [*common-db-env, *common-infra-env]
@@ -397,7 +397,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-meteo-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-meteo-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-meteo-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-meteo-api
         environment:
             <<: [*common-db-env, *common-infra-env]
@@ -439,7 +439,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     ms-calculator-api:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-calculator-api:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/ms-calculator-api:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: ms-calculator-api
         environment:
             <<: *common-infra-env
@@ -460,7 +460,7 @@ services:
     # ──────────────────────────────────────────────────────────────────────
     vsad-tajo-frontend:
         <<: *app-defaults
-        image: ${REGISTRY:-ghcr.io/vsadtajo}/vsad-tajo-frontend:${TAG:-latest}
+        image: ${REGISTRY:-ghcr.io/vsadtajo}/vsad-tajo-frontend:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: vsad-tajo-frontend
         # Runtime config: the entrypoint substitutes these into the built assets
         # at start, so ONE image works on any host (see the frontend's

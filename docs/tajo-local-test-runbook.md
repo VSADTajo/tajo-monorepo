@@ -41,9 +41,10 @@ RABBITMQ_PASSWORD=guest
 PUBLIC_API_URL=http://localhost:3000
 PUBLIC_LOGS_API_URL=http://localhost:3004
 
-# Imágenes GHCR — usar un tag que EXISTA (los deploys publican main-<sha>):
+# Imágenes GHCR — TAG lo lee `bin/tajo` de infra/version.env por default
+# (bumpeado en cada release). Setear acá SOLO para probar un tag específico:
 REGISTRY=ghcr.io/vsadtajo
-TAG=latest
+# TAG=v2026.09.17.42
 ```
 
 ## 4. Login a GHCR (para poder pull)

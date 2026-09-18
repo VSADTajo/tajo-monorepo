@@ -28,15 +28,14 @@ REGISTRY="${REGISTRY:-ghcr.io/vsadtajo}"
 TAG="${TAG:-latest}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-echo "=== 1. push $SERVICE -> $REGISTRY/$SERVICE:$TAG (+ :latest) ==="
+echo "=== 1. push $SERVICE -> $REGISTRY/$SERVICE:$TAG ==="
+# NOTE: no more :latest publish. Coherent client-facing releases are published
+# by infra/Jenkinsfile.release with tag :vYYYY.MM.DD.N — that's what
+# `bin/tajo up` reads from infra/version.env. Per-service pipelines still push
+# :main-<sha> for on-demand hotfix rebuilds + our own VM's redeploy.sh.
 docker tag "$LOCAL_IMAGE" "$REGISTRY/$SERVICE:$TAG"
-# Also publish :latest so the whole stack shares one pullable tag. `tajo up` on a
-# fresh/client host uses TAG=latest; without this each service has a different
-# main-<sha> and there is no single tag to bring the stack up.
-docker tag "$LOCAL_IMAGE" "$REGISTRY/$SERVICE:latest"
 echo "${GHCR_TOKEN:?GHCR_TOKEN is required}" | docker login ghcr.io -u "${GHCR_USER:?GHCR_USER is required}" --password-stdin
 docker push "$REGISTRY/$SERVICE:$TAG"
-docker push "$REGISTRY/$SERVICE:latest"
 
 echo "=== 2. deploy on OUR server (image-swap, auto-rollback) ==="
 REGISTRY="$REGISTRY" TAG="$TAG" bash "$HERE/redeploy.sh" "$SERVICE"

@@ -21,6 +21,9 @@ APPS_COMPOSE="${INFRA_DIR}/docker-compose.apps.yml"
 DEV_COMPOSE="${INFRA_DIR}/docker-compose.dev.yml"
 PROD_COMPOSE="${INFRA_DIR}/docker-compose.prod.yml"
 ENV_FILE="${INFRA_DIR}/.env"
+# Versioned pin (in git). Bumped by Jenkinsfile.release on every merge to main.
+# Sourced BEFORE .env so the client's .env can override TAG for rollback/testing.
+VERSION_ENV="${INFRA_DIR}/version.env"
 
 PROJECT_NAME="tajo"
 
@@ -41,6 +44,10 @@ docker compose version >/dev/null 2>&1 || die "docker compose v2 plugin not inst
 # Backend services that own a Postgres database (used by `migrate` and `psql`).
 NEST_DB_SERVICES=(ms-user-api ms-sftp-api ms-hydro-api ms-predictions-api ms-model-api ms-notifications-api ms-meteo-api)
 NEST_NO_DB_SERVICES=(ms-gateway-api ms-authentication-api)
+# Every service that ships a GHCR image — used by `doctor` to verify the whole
+# set exists at the pinned TAG. Keep in sync with docker-compose.apps.yml and
+# infra/Jenkinsfile.release.
+GHCR_SERVICES=(ms-gateway-api ms-user-api ms-authentication-api ms-sftp-api sftp-frontend ms-logs-api ms-logs-ui ms-hydro-api ms-predictions-api ms-model-api ms-notifications-api ms-meteo-api ms-calculator-api vsad-tajo-frontend)
 DATA_VOLUMES=(redis-data rabbitmq-data mongo-logs-data db-user-data db-sftp-data db-geoserver-data db-predictions-data db-hydro-data db-model-data db-notifications-data db-meteo-data sftp-files sftp-keys logs-files-results geoserver-data)
 
 # Service → container DB name (for psql shortcut).
@@ -87,13 +94,23 @@ compose() {
 }
 
 ensure_env() {
+    # Source version.env FIRST — pin managed by CI, updated on every merge to
+    # main. Provides TAG so all services resolve to the same coherent release.
+    [ -f "${VERSION_ENV}" ] || die "missing ${VERSION_ENV} — run 'git pull' or check the repo checkout"
+    # shellcheck disable=SC1090
+    set -a; . "${VERSION_ENV}"; set +a
+
     if [ ! -f "${ENV_FILE}" ]; then
         warn ".env not found at ${ENV_FILE}"
         warn "copying .env.example → .env (REMEMBER TO CUSTOMIZE SECRETS)"
         cp "${INFRA_DIR}/.env.example" "${ENV_FILE}"
     fi
+    # .env sourced AFTER version.env so the client can override TAG for rollback
+    # or testing (e.g. TAG=v2026.09.10.42 in .env pins to a previous release).
     # shellcheck disable=SC1090
     set -a; . "${ENV_FILE}"; set +a
+
+    [ -n "${TAG:-}" ] || die "TAG is not set — check ${VERSION_ENV} (or override with TAG=... in ${ENV_FILE})"
 }
 
 # apps.yml references `infra-network` as external, so it must exist before the
@@ -107,6 +124,93 @@ ensure_network() {
 }
 
 # ─── commands ─────────────────────────────────────────────────────────────────
+# Pre-flight validation. Runs a series of independent checks and reports each
+# with ✓/✗/!. Returns non-zero if any critical check failed — safe to call
+# before `up` on a fresh install to catch problems while it's still cheap.
+cmd_doctor() {
+    ensure_env
+    local fails=0 warns=0
+    local placeholder_re='change-me|change_me|<TU-|your-token-here'
+
+    _check() { # _check <status ok|warn|fail> <message>
+        case "$1" in
+            ok)   printf "${GREEN}  ✓${NC} %s\n" "$2" ;;
+            warn) printf "${YELLOW}  !${NC} %s\n" "$2"; warns=$((warns+1)) ;;
+            fail) printf "${RED}  ✗${NC} %s\n" "$2"; fails=$((fails+1)) ;;
+        esac
+    }
+
+    log "1. Docker + compose plugin"
+    if command -v docker >/dev/null; then _check ok "docker binary present"
+    else _check fail "docker not installed — see https://docs.docker.com/engine/install/"; fi
+    if docker compose version >/dev/null 2>&1; then _check ok "docker compose v2 plugin present"
+    else _check fail "docker compose v2 plugin missing"; fi
+    if docker info >/dev/null 2>&1; then _check ok "current user can reach the docker daemon"
+    else _check fail "cannot reach docker daemon — run 'sudo usermod -aG docker \$USER' + re-login, or run tajo with sudo"; fi
+
+    log "2. Docker network"
+    if docker network inspect infra-network >/dev/null 2>&1; then _check ok "infra-network exists"
+    else _check warn "infra-network missing — 'tajo up' will create it"; fi
+
+    log "3. Version pin"
+    _check ok "TAG=${TAG} (from ${VERSION_ENV})"
+
+    log "4. GHCR login + image availability (${#GHCR_SERVICES[@]} images at :${TAG})"
+    local missing=()
+    for svc in "${GHCR_SERVICES[@]}"; do
+        if docker manifest inspect "${REGISTRY:-ghcr.io/vsadtajo}/${svc}:${TAG}" >/dev/null 2>&1; then
+            _check ok "${svc}:${TAG}"
+        else
+            _check fail "${svc}:${TAG} not found on GHCR (or you are not logged in)"
+            missing+=("${svc}")
+        fi
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        warn "  possible causes:"
+        warn "    - GHCR login expired: 'docker login ghcr.io -u <user>'"
+        warn "    - TAG in ${VERSION_ENV} points to a release that failed to publish"
+        warn "    - Missing services above never had this tag pushed"
+    fi
+
+    log "5. Required env vars in .env"
+    local required_secrets=(JWT_SECRET POSTGRES_PASSWORD MONGO_INITDB_ROOT_PASSWORD GEOSERVER_ADMIN_PASSWORD X_API_KEY)
+    for var in "${required_secrets[@]}"; do
+        local val="${!var:-}"
+        if [ -z "${val}" ]; then
+            _check fail "${var} is empty — set it in ${ENV_FILE}"
+        elif printf '%s' "${val}" | grep -Eq "${placeholder_re}"; then
+            _check fail "${var} still has the placeholder default — replace it in ${ENV_FILE}"
+        else
+            _check ok "${var} customized"
+        fi
+    done
+
+    log "6. Public URL"
+    if [ -z "${PUBLIC_API_URL:-}" ]; then
+        _check fail "PUBLIC_API_URL is empty"
+    elif printf '%s' "${PUBLIC_API_URL}" | grep -q 'localhost'; then
+        _check warn "PUBLIC_API_URL points to localhost — that's fine for local dev, wrong for a real deployment"
+    else
+        _check ok "PUBLIC_API_URL=${PUBLIC_API_URL}"
+    fi
+
+    log "7. Optional integrations"
+    if [ -z "${AEMET_API_KEY:-}" ]; then _check warn "AEMET_API_KEY empty — meteo data ingest is off"
+    else _check ok "AEMET_API_KEY set"; fi
+
+    echo
+    if [ ${fails} -gt 0 ]; then
+        printf "${RED}✗ ${fails} critical failure(s), ${warns} warning(s) — fix the ✗ items before 'tajo up'${NC}\n" >&2
+        return 1
+    elif [ ${warns} -gt 0 ]; then
+        printf "${YELLOW}! ${warns} warning(s) — you can run 'tajo up' but review the ! items${NC}\n"
+        return 0
+    else
+        printf "${GREEN}✓ all checks passed — safe to run 'tajo up'${NC}\n"
+        return 0
+    fi
+}
+
 cmd_up() {
     ensure_env
     ensure_network
@@ -355,20 +459,24 @@ Commands:
     backup                            Tar all data volumes to backups/<timestamp>/
     restore <backup-dir>              Restore data volumes from a backup directory
     create-admin <email> <pass> [name]  Create the FIRST platform admin (runs once)
+    doctor                            Pre-flight checks: docker, network, GHCR login, TAG, images, .env
     help                              This message
 
 Environment overrides:
     TAJO_MODE=dev|prod                Default for compose overrides (default: prod)
     REGISTRY=ghcr.io/vsadtajo         GHCR namespace for prod images
-    TAG=latest                        Image tag to deploy (e.g. v1.2.3 or sha-a1b2c3d)
+    TAG=v2026.09.17.42                Image tag — normally read from infra/version.env
+                                      (bumped by CI on every merge to main).
+                                      Export TAG=... to override for rollback/testing.
 
 Examples:
-    tajo up                           Pull latest GHCR images and start everything
+    tajo doctor                       Verify install BEFORE running 'up' (fresh hosts especially)
+    tajo up                           Pull the pinned release + start everything
     tajo up --dev                     Build from source + bring up with hot-reload
     tajo migrate ms-user-api          Run pending migrations for ms-user-api
     tajo psql ms-predictions-api      Open psql into the predictions DB
     tajo create-admin me@acme.com S3cret42 "Jane Doe"   Seed the first admin
-    TAG=v1.2.3 tajo up                Deploy a specific version
+    TAG=v2026.09.10.42 tajo up        Rollback: pin to a previous release manually
 EOF
 }
 
@@ -401,6 +509,7 @@ case "${cmd}" in
     backup)   cmd_backup "$@" ;;
     restore)  cmd_restore "$@" ;;
     create-admin) cmd_create_admin "$@" ;;
+    doctor)   cmd_doctor "$@" ;;
     help|-h|--help) cmd_help ;;
     *) die "unknown command: ${cmd} (run 'tajo help')" ;;
 esac

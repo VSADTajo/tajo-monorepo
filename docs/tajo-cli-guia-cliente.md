@@ -110,7 +110,22 @@ Si dice `Login Succeeded`, listo. 👍
 
 ---
 
-## 6. ¡Arrancar! 🚀
+## 6. Chequeo pre-arranque (nuevo, evita sorpresas) 🩺
+
+Antes de levantar nada, corré:
+
+```bash
+bin/tajo doctor
+```
+
+Esto valida en un solo paso: Docker está bien, la red interna existe, el login
+a GHCR está vivo, la versión pineada está disponible (todas las 14 imágenes de
+la plataforma existen en el registry) y tu `.env` tiene los secretos
+customizados (no los placeholder). Si algo falla lo dice con el fix concreto.
+
+Si termina con `✓ all checks passed`, arrancá.
+
+## 7. ¡Arrancar! 🚀
 
 ```bash
 bin/tajo up
@@ -123,6 +138,12 @@ rato (está descargando). Cuando termina, vas a ver:
 ✓ stack is up — run 'tajo status' to see health
 ```
 
+**Por qué esto es determinístico ahora:** la versión de la plataforma vive en
+`infra/version.env` (dentro del repo). Cada vez que hacemos `git pull`, esa
+línea se actualiza al último release probado, y `bin/tajo up` baja **exactamente
+ese set coherente de imágenes** — nunca más un "mix" donde un servicio quedó
+viejo respecto a otro.
+
 Después, preparar la base de datos (esto se hace **una sola vez**):
 
 ```bash
@@ -131,7 +152,7 @@ bin/tajo migrate
 
 ---
 
-## 7. Creá tu usuario administrador 👤
+## 8. Creá tu usuario administrador 👤
 
 La plataforma arranca **sin ningún usuario**. Creá el tuyo (el primer admin, con
 acceso total) con un comando — reemplazá el email, la clave y tu nombre:
@@ -148,7 +169,7 @@ Cuando termine vas a ver `✓ admin created`. Con ese email y clave entrás a la
 
 ---
 
-## 8. Comprobar que todo está vivo
+## 9. Comprobar que todo está vivo
 
 ```bash
 bin/tajo status
@@ -171,7 +192,7 @@ Entrá a la aplicación principal con el **usuario admin que creaste en el paso 
 
 ---
 
-## 9. El día a día (los 4 comandos que vas a usar)
+## 10. El día a día (los 4 comandos que vas a usar)
 
 ```bash
 bin/tajo status              # ¿cómo está todo?
@@ -182,20 +203,34 @@ bin/tajo down                # apagar todo (los datos quedan guardados)
 
 ### Actualizar a una versión nueva
 
-Cuando te avisemos que hay novedades:
+Nosotros publicamos una versión nueva cada vez que mergeamos algo a `main`. La
+versión pineada (`TAG`) vive en `infra/version.env` dentro del repo. Para
+actualizar:
 
 ```bash
-git pull
-bin/tajo up          # baja lo nuevo y reemplaza lo que cambió
-bin/tajo migrate     # por si hubo cambios en la base
+git pull             # trae la nueva versión pineada en infra/version.env
+bin/tajo doctor      # confirma que la versión nueva es alcanzable y todo está OK
+bin/tajo up          # baja las imágenes de esa versión y las levanta
+bin/tajo migrate     # solo si te avisamos de un cambio de base de datos
 ```
+
+### Rollback (volver a una versión anterior)
+
+Si algo salió mal con el release nuevo, podés forzar una versión anterior
+específica sin hacer `git`:
+
+```bash
+TAG=v2026.09.10.42 bin/tajo up
+```
+
+O de forma persistente para tu VM: descomentá `TAG=v2026.09.10.42` en tu
+`infra/.env`. Eso overridea la versión de `version.env` hasta que lo saques.
 
 ### Actualización automática (opcional pero recomendada) ⏰
 
 Si querés que la VM se actualice sola cada vez que publicamos una versión
-nueva, dejá un cron corriendo `bin/tajo up`. La instalación es de un solo
-comando; hace `pull` de las imágenes GHCR más nuevas y recrea los
-contenedores que cambiaron. Los que no cambiaron no los toca.
+nueva, dejá un cron que haga **primero `git pull`** (para traer la nueva
+versión pineada) y **después `bin/tajo up`**:
 
 1. Editá el crontab de root:
 
@@ -206,11 +241,10 @@ contenedores que cambiaron. Los que no cambiaron no los toca.
 2. Pegá esta línea al final (revisa cada 10 min; ajustá el intervalo a gusto):
 
     ```
-    */10 * * * * cd /ruta/a/tajo && /ruta/a/tajo/bin/tajo up >> /var/log/tajo-autoupdate.log 2>&1
+    */10 * * * * cd /ruta/a/tajo && git pull --quiet && bin/tajo up >> /var/log/tajo-autoupdate.log 2>&1
     ```
 
-    Reemplazá `/ruta/a/tajo` por la carpeta donde clonaste el repo (la que
-    tiene `bin/tajo` adentro).
+    Reemplazá `/ruta/a/tajo` por la carpeta donde clonaste el repo.
 
 3. Verificá que el cron esté activo:
 
@@ -218,9 +252,14 @@ contenedores que cambiaron. Los que no cambiaron no los toca.
     sudo tail -f /var/log/tajo-autoupdate.log
     ```
 
-    Vas a ver una entrada cada 10 min. Si no hay imágenes nuevas, dice algo
-    como `stack is up` y no reinicia nada. Si sí hubo cambios, vas a ver el
-    pull de la imagen nueva y la recreación del contenedor afectado.
+    Vas a ver una entrada cada 10 min. Si no hay versión nueva, `git pull`
+    no trae nada y `bin/tajo up` confirma que el stack está corriendo con la
+    versión actual. Si sí hubo release, `git pull` actualiza `version.env` y
+    `bin/tajo up` baja el nuevo TAG y recrea los containers afectados.
+
+    **Importante**: como el cron hace `git pull`, si estás editando algo local
+    en la carpeta del repo (no debería, pero por si acaso), esa edición se
+    puede sobrescribir. Mantené la carpeta del repo limpia.
 
 > **Migraciones**: si publicamos un cambio de base de datos, te vamos a
 > avisar por separado — `bin/tajo migrate` no está en el cron a propósito
@@ -239,16 +278,22 @@ bin/tajo backup      # guarda todo en la carpeta backups/
 
 ---
 
-## 10. Si algo no funciona 🔧
+## 11. Si algo no funciona 🔧
+
+**Primer paso siempre**: `bin/tajo doctor`. Te dice puntualmente qué está mal
+(imagen que no bajó, login vencido, secret no customizado, red que falta...).
 
 | Lo que ves | Qué suele ser |
 |------------|---------------|
+| `TAG must be set` al hacer `up` | Falta el `infra/version.env` o quedó vacío. Corré `git pull` y volvé a probar. |
 | `unauthorized` al arrancar | La clave de GitHub venció o no tiene permisos. Volvé al paso 5 con una clave nueva. |
+| Doctor dice `<svc>:<TAG> not found on GHCR` | El release pineado en `version.env` no terminó de publicar todos los servicios. Reintentá en unos minutos o avisanos. |
 | Un servicio se reinicia solo | Falta completar algún dato en `infra/.env`. El mensaje de `bin/tajo logs` te dice cuál. |
 | `mapas` / `hidro` no llegan a verde | Falta cargar los datos de mapas (el archivo que te pasamos). |
 | No abre en el navegador | Revisá que la IP/dominio de `PUBLIC_API_URL` sea el correcto y que el firewall deje pasar los puertos. |
-| Entrás pero no ves nada / "sin permisos" | Iniciá sesión con el **usuario admin del paso 7**. Un usuario común no tiene permisos hasta que el admin se los da. |
+| Entrás pero no ves nada / "sin permisos" | Iniciá sesión con el **usuario admin del paso 8**. Un usuario común no tiene permisos hasta que el admin se los da. |
 | `create-admin` dice que ya existe un admin | Correcto: solo corre una vez. Usá el admin que ya creaste. |
+| Backoffice quedó viejo tras `git pull` + `bin/tajo up` | Hard refresh en el navegador (Ctrl+Shift+R) o modo incógnito. La UI está cacheada, no el container. |
 
 ---
 
