@@ -131,7 +131,7 @@ pipeline {
                 // loudly if the FE repo main is broken → whole release aborts,
                 // which is what we want (no half-baked coherent set).
                 dir("vsad-tajo-frontend-src-${env.BUILD_NUMBER}") {
-                    withCredentials([usernamePassword(credentialsId: 'monorepo-push',
+                    withCredentials([usernamePassword(credentialsId: 'github-credentials',
                                       usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                         sh """
                             set -e
@@ -150,7 +150,7 @@ pipeline {
 
         stage('Bump infra/version.env & push to monorepo main') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'monorepo-push',
+                withCredentials([usernamePassword(credentialsId: 'github-credentials',
                                   usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                     // In-place replace of TAG=... — preserves the header comments
                     // that document what this file is for. The commit message MUST
