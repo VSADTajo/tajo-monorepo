@@ -7,6 +7,7 @@ import { ProviderConfig } from '@domain/entities/provider-config.entity';
 import { NormalizedTimeSeriesResult, TimeSeriesEventResult } from '@domain/results/normalized-timeseries.result';
 import { ProviderError } from '@domain/errors/provider.error';
 import { SftpApiConfigService } from '@config/sftp-api/sftp-api-config.service';
+import { toIngestionSeriesId } from '@infrastructure/services/ingestion-parameter-id';
 
 // ─────────────────────────────────────────────────────────────
 // Internal interfaces (in-memory only, not persisted)
@@ -324,7 +325,7 @@ export class CsvFileProviderService implements IDataProvider {
         const firstTimestamp = validEvents[0].timestamp;
         const lastTimestamp = validEvents[validEvents.length - 1].timestamp;
 
-        const seriesId = block.timeSeriesName.split('.')[0] || block.parameterType;
+        const seriesId = toIngestionSeriesId(block.timeSeriesName) || block.parameterType;
         if (!seriesId) {
             throw new Error(`Block for station "${block.stationNumber}" has no usable series identifier`);
         }

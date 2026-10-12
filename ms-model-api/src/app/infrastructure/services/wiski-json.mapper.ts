@@ -14,7 +14,7 @@
  * The two output shapes exist because the two consumers already disagree on the
  * parameterId convention, and this mapper must not be the place where that
  * changes:
- *   - ingestion  -> NormalizedTimeSeriesResult, parameterId `<first segment>.historical`,
+ *   - ingestion  -> NormalizedTimeSeriesResult, parameterId `<signal code>.historical`,
  *                   exactly what CsvFileProviderService produces from the same series.
  *   - v.obs      -> WiskiTimeSeriesResult, parameterId verbatim, as parseWiskiCsv produces.
  */
@@ -23,6 +23,7 @@ import { DateTime } from 'luxon';
 
 import { NormalizedTimeSeriesResult, TimeSeriesEventResult } from '@domain/results/normalized-timeseries.result';
 import { WiskiEventResult, WiskiTimeSeriesResult } from '@domain/results/wiski-timeseries.result';
+import { toIngestionParameterId } from '@infrastructure/services/ingestion-parameter-id';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -204,15 +205,7 @@ export function toWiskiTimeSeries(
     return { series, ...report };
 }
 
-/**
- * The parameterId the ingestion path uses. Kept identical to what
- * CsvFileProviderService derives from the same "Time series Name", so a series
- * arriving over the API lands on the same key it did over the CSV.
- */
-export function toIngestionParameterId(seriesName: string): string {
-    const head = seriesName.split('.')[0];
-    return `${head || seriesName}.historical`;
-}
+export { toIngestionParameterId };
 
 /**
  * Splits one `variable` and derives its unit. Returns null when the name follows
