@@ -233,6 +233,76 @@ describe('Predictions Proxy — Manual Simulation (e2e)', () => {
         });
     });
 
+    describe('GET /predictions/precip-accumulated — proxies to predictions-api', () => {
+        function getPrecipAccumulated(query: Record<string, string>) {
+            return request(app.getHttpServer()).get('/predictions/precip-accumulated').query(query);
+        }
+
+        it('should forward source and hours and return the accumulation payload', async () => {
+            const payload = {
+                source: 'observed',
+                hours: 12,
+                predictionType: 'WI__01.historical',
+                simulationDate: null,
+                referenceDate: '2026-10-12T18:20:00.000Z',
+                items: [
+                    {
+                        stationId: 'P_30',
+                        stationName: 'P_30 CERRO HORNILLO - CERCEDILLA',
+                        accumulated: 41.2,
+                        windowStart: '2026-10-12T06:00:00.000Z',
+                        windowEnd: '2026-10-12T18:00:00.000Z',
+                        lastDate: '2026-10-12T18:00:00.000Z',
+                        isStale: false,
+                    },
+                ],
+            };
+            mockProxyService.forward.mockResolvedValue({ status: 200, data: payload });
+
+            const { body } = await getPrecipAccumulated({ source: 'observed', hours: '12' }).expect(HttpStatus.OK);
+
+            expect(body).toEqual(payload);
+            expect(mockProxyService.forward).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'GET',
+                    baseUrl: 'http://predictions-api:3007',
+                    path: '/predictions/precip-accumulated',
+                    query: { source: 'observed', hours: '12' },
+                    headers: { 'x-internal-caller': 'ms-gateway-api' },
+                }),
+            );
+        });
+
+        it('should drop query params other than source and hours', async () => {
+            mockProxyService.forward.mockResolvedValue({ status: 200, data: { items: [] } });
+
+            await getPrecipAccumulated({ source: 'eps', hours: '24', predictionType: 'Q.historical' }).expect(
+                HttpStatus.OK,
+            );
+
+            expect(mockProxyService.forward).toHaveBeenCalledWith(
+                expect.objectContaining({ query: { source: 'eps', hours: '24' } }),
+            );
+        });
+
+        it('should propagate a 400 from predictions-api for an invalid window', async () => {
+            mockProxyService.forward.mockResolvedValue({
+                status: 400,
+                data: {
+                    StatusCode: 400,
+                    ErrorCode: 'TR999',
+                    ErrorDescription: 'hours must be one of the following values',
+                },
+            });
+
+            const { body } = await getPrecipAccumulated({ source: 'observed', hours: '3' }).expect(
+                HttpStatus.BAD_REQUEST,
+            );
+
+            expect(body.StatusCode).toBe(400);
+        });
+    });
+
     describe('GET /simulations/manual/:id/results — proxies to predictions-api results endpoint', () => {
         const SIM_ID = '7f2a8b3c-9d1e-4f5a-b6c7-8d9e0f1a2b3c';
 

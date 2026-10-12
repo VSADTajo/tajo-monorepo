@@ -181,6 +181,70 @@ export class HistoricalPredictionsResponseDto {
 }
 
 // ─────────────────────────────────────────────────────────────
+// PrecipAccumulation — accumulated rain per station over N hours
+// ─────────────────────────────────────────────────────────────
+
+export const PRECIP_ACCUMULATION_SOURCES = ['observed', 'harmonie', 'eps'] as const;
+
+/** Horizons of the AEMET rain warning thresholds. */
+export const PRECIP_ACCUMULATION_HOURS = [1, 2, 4, 8, 12, 24] as const;
+
+export class PrecipAccumulationItemDto {
+    @ApiProperty({ description: 'Station ID', example: 'AC01' }) stationId: string;
+    @ApiProperty({
+        description: 'Station name',
+        type: String,
+        nullable: true,
+        example: 'AC01 ENTREPENAS-BUENDIA_PLUVIO',
+    })
+    stationName: string | null;
+    @ApiProperty({ description: 'Accumulated precipitation over the window (mm)', example: 41.2 })
+    accumulated: number;
+    @ApiProperty({
+        description: 'Exclusive lower bound of the accumulation window (UTC)',
+        example: '2026-10-12T06:00:00.000Z',
+    })
+    windowStart: string;
+    @ApiProperty({
+        description:
+            'Inclusive upper bound of the accumulation window (UTC). Observed: the last measurement. Forecast: the end of the wettest window.',
+        example: '2026-10-12T18:00:00.000Z',
+    })
+    windowEnd: string;
+    @ApiProperty({ description: 'Last timestamp of the station series (UTC)', example: '2026-10-12T18:00:00.000Z' })
+    lastDate: string;
+    @ApiProperty({
+        description:
+            'True when the last observed measurement is more than 3 hours older than referenceDate, so the value is not live. Always false for forecasts.',
+        example: false,
+    })
+    isStale: boolean;
+}
+
+export class PrecipAccumulationResponseDto {
+    @ApiProperty({ description: 'Echoed source', enum: PRECIP_ACCUMULATION_SOURCES, example: 'observed' })
+    source: string;
+    @ApiProperty({ description: 'Echoed accumulation window in hours', example: 12 }) hours: number;
+    @ApiProperty({ description: 'Prediction type the values were read from', example: 'WI__01.historical' })
+    predictionType: string;
+    @ApiProperty({
+        description: 'Forecast simulation the values come from (latest finalized). Null for observed data.',
+        type: String,
+        nullable: true,
+        example: '20261012120000',
+    })
+    simulationDate: string | null;
+    @ApiProperty({ description: 'Instant the accumulation was computed at (UTC)', example: '2026-10-12T18:20:00.000Z' })
+    referenceDate: string;
+    @ApiProperty({
+        description:
+            'One entry per station with data. Observed: rain in the `hours` hours ending at the last measurement. Forecast: the highest rain over any `hours` consecutive hours of the simulation.',
+        type: [PrecipAccumulationItemDto],
+    })
+    items: PrecipAccumulationItemDto[];
+}
+
+// ─────────────────────────────────────────────────────────────
 // ForecastPredictions
 // ─────────────────────────────────────────────────────────────
 

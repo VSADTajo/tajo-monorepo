@@ -15,6 +15,9 @@ import {
     PredictionAvailableDatesResponseDto,
     MaxAndLatestValuesResponseDto,
     HistoricalPredictionsResponseDto,
+    PrecipAccumulationResponseDto,
+    PRECIP_ACCUMULATION_HOURS,
+    PRECIP_ACCUMULATION_SOURCES,
     ForecastPredictionsResponseDto,
     ListPredictionTypesResponseDto,
     StationPredictionTypesResponseDto,
@@ -48,6 +51,9 @@ const FORECAST_ALLOWED_QUERY_PARAMS = [
     'startDate',
     'endDate',
 ] as const;
+
+// Only these query params are forwarded downstream to /predictions/precip-accumulated.
+const PRECIP_ACCUMULATED_ALLOWED_QUERY_PARAMS = ['source', 'hours'] as const;
 
 function pickAllowedQuery(
     query: Record<string, unknown>,
@@ -842,6 +848,52 @@ export class PredictionsProxyController {
             baseUrl: this.servicesConfig.predictionsApiUrl,
             path: '/predictions/historical',
             query: req.query as Record<string, string | string[]>,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Precipitation accumulation
+    // ─────────────────────────────────────────────────────────────
+
+    @Get('predictions/precip-accumulated')
+    @ApiEndpoint({
+        summary: 'Get the accumulated precipitation per station over a window of N hours',
+        description:
+            'observed: rain fallen in the last `hours` hours up to the last measurement of each station (live map). ' +
+            'harmonie / eps: the highest rain the latest finalized forecast expects over any `hours` consecutive hours. ' +
+            'Values are meant to be compared with the AEMET rain warning thresholds of the same horizon.',
+        response: {
+            status: 200,
+            type: PrecipAccumulationResponseDto,
+            description: 'Accumulated precipitation per station',
+        },
+        errors: [{ status: 400, description: 'Invalid source or hours' }],
+    })
+    @ApiQuery({
+        name: 'source',
+        required: true,
+        enum: [...PRECIP_ACCUMULATION_SOURCES],
+        description:
+            'Series to accumulate. observed = SAIH rain gauges, harmonie = Harmonie forecast, eps = EPS mean forecast',
+        example: 'observed',
+    })
+    @ApiQuery({
+        name: 'hours',
+        required: true,
+        enum: [...PRECIP_ACCUMULATION_HOURS],
+        description: 'Accumulation window in hours (AEMET rain warning horizons)',
+        example: 12,
+    })
+    async getPrecipAccumulated(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.predictionsApiUrl,
+            path: '/predictions/precip-accumulated',
+            query: pickAllowedQuery(req.query, PRECIP_ACCUMULATED_ALLOWED_QUERY_PARAMS),
             headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
             user: (req as any).user,
             traceId: (req as any).id,
