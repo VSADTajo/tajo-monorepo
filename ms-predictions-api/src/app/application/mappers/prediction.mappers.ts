@@ -7,18 +7,22 @@ import {
     AvailableDatesResponseDto,
     MaxAndLatestValuesQueryDto,
     MaxAndLatestValuesResponseDto,
+    PrecipAccumulationQueryDto,
+    PrecipAccumulationResponseDto,
 } from '@api/dtos/prediction.dtos';
 import {
     GetHistoricalPredictionsQuery,
     GetRawPredictionsQuery,
     GetForecastPredictionsQuery,
     GetMaxAndLatestValuesQuery,
+    GetPrecipAccumulationQuery,
     GetSimulationDatesByStationQuery,
 } from '@application/queries/prediction.queries';
 import { GetAvailableDatesQuery } from '@application/queries/simulation.queries';
 import { HistoricalPredictionsResult } from '@domain/results/historical-predictions.result';
 import { LegacyPredictionsResult } from '@domain/results/legacy-predictions.result';
 import { MaxAndLatestValuesResult } from '@domain/results/max-and-latest-values.result';
+import { PrecipAccumulationResult } from '@domain/results/precip-accumulation.result';
 
 // ─────────────────────────────────────────────────────────────
 // HistoricalPredictions
@@ -155,6 +159,35 @@ export class MaxAndLatestValuesMapper {
                 latestDate: v.latestDate instanceof Date ? v.latestDate.toISOString() : String(v.latestDate),
                 predictionTypeName: v.predictionTypeName,
                 simulationDate: v.simulationDate,
+            })),
+        };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// PrecipAccumulation
+// ─────────────────────────────────────────────────────────────
+
+export class PrecipAccumulationMapper {
+    static toQuery(dto: PrecipAccumulationQueryDto): GetPrecipAccumulationQuery {
+        return new GetPrecipAccumulationQuery({ source: dto.source, hours: dto.hours });
+    }
+
+    static toResponseDto(result: PrecipAccumulationResult): PrecipAccumulationResponseDto {
+        return {
+            source: result.source,
+            hours: result.hours,
+            predictionType: result.predictionType,
+            simulationDate: result.simulationDate,
+            referenceDate: result.referenceDate,
+            items: result.items.map((item) => ({
+                stationId: item.stationId,
+                stationName: item.stationName,
+                accumulated: item.accumulated,
+                windowStart: item.windowStart,
+                windowEnd: item.windowEnd,
+                lastDate: item.lastDate,
+                isStale: item.isStale,
             })),
         };
     }

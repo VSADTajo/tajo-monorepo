@@ -14,7 +14,9 @@ import {
 import { HistoricalPredictionsResult } from '@domain/results/historical-predictions.result';
 import { LegacyPredictionsResult, ILegacyPredictionItem } from '@domain/results/legacy-predictions.result';
 import { MaxAndLatestValuesResult } from '@domain/results/max-and-latest-values.result';
+import { PrecipAccumulationResult } from '@domain/results/precip-accumulation.result';
 import { Prediction } from '@domain/entities/prediction.entity';
+import { PrecipAccumulationWindowValueObject } from '@domain/value-objects/precip-accumulation-window.value-object';
 
 // ─────────────────────────────────────────────────────────────
 // Helper: map Prediction entity to legacy nested item (used by Raw / Forecast)
@@ -185,6 +187,71 @@ export class GetMaxAndLatestValuesHandler implements IQueryHandler<
         const values = await this.predictionRepository.findMaxAndLatestValues(query.filters);
 
         return new MaxAndLatestValuesResult(values);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// GetPrecipAccumulation
+// ─────────────────────────────────────────────────────────────
+
+export interface IGetPrecipAccumulationQuery {
+    source: string;
+    hours: number;
+}
+
+export class GetPrecipAccumulationQuery {
+    constructor(private readonly parameters: IGetPrecipAccumulationQuery) {}
+
+    get source(): string {
+        return this.parameters.source;
+    }
+
+    get hours(): number {
+        return this.parameters.hours;
+    }
+}
+
+@QueryHandler(GetPrecipAccumulationQuery)
+export class GetPrecipAccumulationHandler implements IQueryHandler<
+    GetPrecipAccumulationQuery,
+    PrecipAccumulationResult
+> {
+    constructor(
+        @Inject(Logger)
+        private readonly logger: Logger,
+        private readonly predictionRepository: IPredictionRepository,
+    ) {}
+
+    async execute(query: GetPrecipAccumulationQuery): Promise<PrecipAccumulationResult> {
+        // 1. Validate the requested window (throws EntityError)
+        const window = new PrecipAccumulationWindowValueObject(query.source, query.hours);
+        const referenceDate = new Date();
+        const filters = { predictionType: window.predictionType, hours: window.hours, referenceDate };
+
+        this.logger.debug(`Computing ${window.hours}h precipitation accumulation for source=${window.source}`);
+
+        // 2. Read the accumulations of the requested series
+        const { simulationDate, items } = window.isObserved
+            ? { simulationDate: null, items: await this.predictionRepository.findObservedPrecipAccumulation(filters) }
+            : await this.predictionRepository.findForecastPrecipAccumulation(filters);
+
+        // 3. Build the result; dates are kept as ISO strings so a cached copy reads the same
+        return new PrecipAccumulationResult({
+            source: window.source,
+            hours: window.hours,
+            predictionType: window.predictionType,
+            simulationDate,
+            referenceDate: referenceDate.toISOString(),
+            items: items.map((item) => ({
+                stationId: item.stationId,
+                stationName: item.stationName,
+                accumulated: item.accumulated,
+                windowStart: item.windowStart.toISOString(),
+                windowEnd: item.windowEnd.toISOString(),
+                lastDate: item.lastDate.toISOString(),
+                isStale: window.isStale(item.lastDate, referenceDate),
+            })),
+        });
     }
 }
 

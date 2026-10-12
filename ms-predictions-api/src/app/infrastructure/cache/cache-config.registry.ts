@@ -11,6 +11,7 @@ import {
     GetRawPredictionsQuery,
     GetForecastPredictionsQuery,
     GetMaxAndLatestValuesQuery,
+    GetPrecipAccumulationQuery,
 } from '@app/application/queries/prediction.queries';
 import {
     ListPredictionTypesQuery,
@@ -58,6 +59,7 @@ export const PredictionTypeCacheKeys = {
 export const PredictionCacheKeys = {
     historical: (params: string) => `predictions:historical:${params}`,
     maxAndLatest: (params: string) => `predictions:max-latest:${params}`,
+    precipAccumulated: (source: string, hours: number) => `predictions:precip-accumulated:${source}:${hours}`,
     rawByProvider: (provider: string, date: string) => `predictions:raw:${provider}:${date}`,
     forecast: (params: string) => `predictions:forecast:${params}`,
     availableDates: () => 'predictions:available-dates',
@@ -169,6 +171,15 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
         {
             ttl: 60,
             key: (q: GetMaxAndLatestValuesQuery) => PredictionCacheKeys.maxAndLatest(JSON.stringify(q.filters)),
+        },
+    ],
+    [
+        GetPrecipAccumulationQuery.name,
+        {
+            // Short TTL like the other prediction reads: observed data is re-ingested
+            // every hour and a new forecast replaces the previous one on finalize.
+            ttl: 60,
+            key: (q: GetPrecipAccumulationQuery) => PredictionCacheKeys.precipAccumulated(q.source, q.hours),
         },
     ],
     [

@@ -35,6 +35,28 @@ export interface MaxAndLatestValueItem {
     simulationDate: string;
 }
 
+export interface PrecipAccumulationFilters {
+    predictionType: string;
+    hours: number;
+    /** Instant the accumulation is computed at; observed data after it is ignored. */
+    referenceDate: Date;
+}
+
+export interface PrecipAccumulationItem {
+    stationId: string;
+    stationName: string | null;
+    accumulated: number;
+    windowStart: Date;
+    windowEnd: Date;
+    lastDate: Date;
+}
+
+export interface ForecastPrecipAccumulation {
+    /** Latest finalized simulation of the type, or null when there is none. */
+    simulationDate: string | null;
+    items: PrecipAccumulationItem[];
+}
+
 export interface SimulationDateSummaryItem {
     simulationDate: string;
     modmeteo: string | null;
@@ -66,6 +88,16 @@ export abstract class IPredictionRepository {
     abstract findByProviderAndDate(provider: string, simulationDate: string): Promise<Prediction[]>;
     abstract findForecast(filters: ForecastFilters): Promise<Prediction[]>;
     abstract findMaxAndLatestValues(filters: MaxAndLatestFilters): Promise<MaxAndLatestValueItem[]>;
+    /**
+     * Rain fallen at each observed station over the `hours` hours ending at its last
+     * measurement. Points are deduplicated across ingestions (latest createdAt wins).
+     */
+    abstract findObservedPrecipAccumulation(filters: PrecipAccumulationFilters): Promise<PrecipAccumulationItem[]>;
+    /**
+     * Highest rain each station is forecast to receive over any `hours` consecutive hours
+     * of the latest finalized simulation of the type (deterministic member, no percentile).
+     */
+    abstract findForecastPrecipAccumulation(filters: PrecipAccumulationFilters): Promise<ForecastPrecipAccumulation>;
     abstract findSimulationDatesByStation(
         stationId: string,
         predictionTypes?: string[],

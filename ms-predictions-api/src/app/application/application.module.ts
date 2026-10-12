@@ -39,6 +39,7 @@ import {
     GetRawPredictionsHandler,
     GetForecastPredictionsHandler,
     GetMaxAndLatestValuesHandler,
+    GetPrecipAccumulationHandler,
     GetSimulationDatesByStationHandler,
 } from '@application/queries/prediction.queries';
 import {
@@ -96,6 +97,7 @@ import { SimulationManualBalanceComputedConsumer } from '@application/consumers/
         GetRawPredictionsHandler,
         GetForecastPredictionsHandler,
         GetMaxAndLatestValuesHandler,
+        GetPrecipAccumulationHandler,
         GetSimulationDatesByStationHandler,
         GetManualSimulationByIdHandler,
         ListManualSimulationsHandler,

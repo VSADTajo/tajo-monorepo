@@ -9,6 +9,9 @@ import {
     HistoricalTimelineFilters,
     MaxAndLatestFilters,
     MaxAndLatestValueItem,
+    PrecipAccumulationFilters,
+    PrecipAccumulationItem,
+    ForecastPrecipAccumulation,
     SimulationDateSummaryItem,
     StationPredictionTypeItem,
     TypeCoverageCell,
@@ -16,6 +19,40 @@ import {
 import { Prediction } from '@domain/entities/prediction.entity';
 import { IHistoricalTimelinePoint } from '@domain/results/historical-predictions.result';
 import { RepositoryError } from '@domain/errors/repository.error';
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * Observed series are re-ingested every hour, each time with several days of
+ * history, so prediction_results holds many copies of every point. Reading only
+ * the ingestions of the last OBSERVED_INGESTION_LOOKBACK_HOURS keeps the scan on
+ * the (predictionTypeId, createdAt) index; a station silent for longer than that
+ * simply has no live accumulation to report.
+ */
+const OBSERVED_INGESTION_LOOKBACK_HOURS = 48;
+
+/** Points older than this cannot fall inside any window of a station still reported. */
+const OBSERVED_DATA_LOOKBACK_HOURS = OBSERVED_INGESTION_LOOKBACK_HOURS + 24;
+
+interface PrecipAccumulationRow {
+    stationId: string;
+    stationName: string | null;
+    accumulated: number | string;
+    windowStart: Date;
+    windowEnd: Date;
+    lastDate: Date;
+}
+
+function toPrecipAccumulationItem(row: PrecipAccumulationRow): PrecipAccumulationItem {
+    return {
+        stationId: row.stationId,
+        stationName: row.stationName,
+        accumulated: typeof row.accumulated === 'string' ? Number(row.accumulated) : row.accumulated,
+        windowStart: row.windowStart,
+        windowEnd: row.windowEnd,
+        lastDate: row.lastDate,
+    };
+}
 
 @Injectable()
 export class PredictionRepository implements IPredictionRepository {
@@ -291,6 +328,174 @@ export class PredictionRepository implements IPredictionRepository {
                 error: String(error),
             });
             throw new RepositoryError('Error finding max and latest values', error);
+        }
+    }
+
+    async findObservedPrecipAccumulation(filters: PrecipAccumulationFilters): Promise<PrecipAccumulationItem[]> {
+        const reference = filters.referenceDate.getTime();
+        const ingestedSince = new Date(reference - OBSERVED_INGESTION_LOOKBACK_HOURS * HOUR_MS).toISOString();
+        const dataSince = new Date(reference - OBSERVED_DATA_LOOKBACK_HOURS * HOUR_MS).toISOString();
+
+        try {
+            // Each point is the rain of the hour ending at its timestamp, so the
+            // window (lastDate - hours, lastDate] holds exactly `hours` hourly points.
+            const rows: PrecipAccumulationRow[] = await this.predictionRepository.manager.query(
+                `
+                WITH points AS (
+                    SELECT DISTINCT ON (p."stationId", r.date)
+                        p."stationId"   AS "stationId",
+                        p."stationName" AS "stationName",
+                        r.date          AS "date",
+                        r.value::float8 AS "value"
+                    FROM predictions p
+                    INNER JOIN prediction_types pt  ON pt.id = p."predictionTypeId"
+                    INNER JOIN prediction_results r ON r."predictionId" = p.id
+                    WHERE pt.name        = $1
+                      AND p."createdAt" >= $3
+                      AND r.date        >= $4
+                      AND r.date        <= $5
+                    ORDER BY p."stationId", r.date, r."createdAt" DESC, r.id DESC
+                ),
+                stations AS (
+                    SELECT
+                        "stationId",
+                        MAX("date") AS "lastDate",
+                        (array_agg("stationName" ORDER BY "date" DESC))[1] AS "stationName"
+                    FROM points
+                    GROUP BY "stationId"
+                )
+                SELECT
+                    s."stationId",
+                    s."stationName",
+                    ROUND(SUM(pts."value")::numeric, 2)::float8  AS "accumulated",
+                    s."lastDate" - make_interval(hours => $2)    AS "windowStart",
+                    s."lastDate"                                 AS "windowEnd",
+                    s."lastDate"                                 AS "lastDate"
+                FROM stations s
+                INNER JOIN points pts
+                        ON pts."stationId" = s."stationId"
+                       AND pts."date"      > s."lastDate" - make_interval(hours => $2)
+                GROUP BY s."stationId", s."stationName", s."lastDate"
+                ORDER BY s."stationId"
+                `,
+                [filters.predictionType, filters.hours, ingestedSince, dataSince, filters.referenceDate.toISOString()],
+            );
+
+            return rows.map(toPrecipAccumulationItem);
+        } catch (error) {
+            this.logger.error({
+                msg: 'Error computing observed precipitation accumulation',
+                entity: 'Predictions',
+                error: String(error),
+            });
+            throw new RepositoryError('Error computing observed precipitation accumulation', error);
+        }
+    }
+
+    async findForecastPrecipAccumulation(filters: PrecipAccumulationFilters): Promise<ForecastPrecipAccumulation> {
+        try {
+            const latest: Array<{ id: string; simulationDate: string }> = await this.predictionRepository.manager.query(
+                `
+                SELECT s.id, s."simulationDate"
+                FROM simulations s
+                WHERE s.status = 'FINALIZED'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM predictions p
+                      INNER JOIN prediction_types pt ON pt.id = p."predictionTypeId"
+                      WHERE p."simulationId" = s.id
+                        AND pt.name = $1
+                        AND p.percentile IS NULL
+                  )
+                ORDER BY s."simulationDate" DESC, s."createdAt" DESC
+                LIMIT 1
+                `,
+                [filters.predictionType],
+            );
+
+            if (latest.length === 0) {
+                return { simulationDate: null, items: [] };
+            }
+
+            // Forecast steps are not always hourly (EPS moves to 3h and 6h further
+            // out). Every value is the rain of the step ending at its timestamp, so
+            // it is spread evenly over the hours of that step before summing; a
+            // `hours` window then always adds up whole hours. The first point has no
+            // previous one, so it takes the length of the step that follows it.
+            const rows: PrecipAccumulationRow[] = await this.predictionRepository.manager.query(
+                `
+                WITH points AS (
+                    SELECT DISTINCT ON (p."stationId", r.date)
+                        p."stationId"   AS "stationId",
+                        p."stationName" AS "stationName",
+                        r.date          AS "date",
+                        r.value::float8 AS "value"
+                    FROM predictions p
+                    INNER JOIN prediction_types pt  ON pt.id = p."predictionTypeId"
+                    INNER JOIN prediction_results r ON r."predictionId" = p.id
+                    WHERE p."simulationId" = $1
+                      AND pt.name          = $2
+                      AND p.percentile IS NULL
+                    ORDER BY p."stationId", r.date, r."createdAt" DESC, r.id DESC
+                ),
+                steps AS (
+                    SELECT
+                        "stationId",
+                        "stationName",
+                        "date",
+                        "value",
+                        GREATEST(1, ROUND(COALESCE(
+                            EXTRACT(EPOCH FROM "date" - LAG("date") OVER w),
+                            EXTRACT(EPOCH FROM LEAD("date") OVER w - "date"),
+                            3600
+                        ) / 3600))::int AS "stepHours"
+                    FROM points
+                    WINDOW w AS (PARTITION BY "stationId" ORDER BY "date")
+                ),
+                hourly AS (
+                    SELECT
+                        st."stationId",
+                        st."stationName",
+                        st."date" - make_interval(hours => h.i) AS "hour",
+                        st."value" / st."stepHours"              AS "value",
+                        MAX(st."date") OVER (PARTITION BY st."stationId") AS "lastDate"
+                    FROM steps st
+                    CROSS JOIN LATERAL generate_series(0, st."stepHours" - 1) AS h(i)
+                ),
+                rolling AS (
+                    SELECT
+                        "stationId",
+                        "stationName",
+                        "hour",
+                        "lastDate",
+                        SUM("value") OVER (
+                            PARTITION BY "stationId"
+                            ORDER BY "hour"
+                            RANGE BETWEEN make_interval(hours => $3 - 1) PRECEDING AND CURRENT ROW
+                        ) AS "accumulated"
+                    FROM hourly
+                )
+                SELECT DISTINCT ON ("stationId")
+                    "stationId",
+                    "stationName",
+                    ROUND("accumulated"::numeric, 2)::float8 AS "accumulated",
+                    "hour" - make_interval(hours => $3)    AS "windowStart",
+                    "hour"                                  AS "windowEnd",
+                    "lastDate"
+                FROM rolling
+                ORDER BY "stationId", "accumulated" DESC, "hour" ASC
+                `,
+                [latest[0].id, filters.predictionType, filters.hours],
+            );
+
+            return { simulationDate: latest[0].simulationDate, items: rows.map(toPrecipAccumulationItem) };
+        } catch (error) {
+            this.logger.error({
+                msg: 'Error computing forecast precipitation accumulation',
+                entity: 'Predictions',
+                error: String(error),
+            });
+            throw new RepositoryError('Error computing forecast precipitation accumulation', error);
         }
     }
 

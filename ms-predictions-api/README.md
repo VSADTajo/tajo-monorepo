@@ -77,6 +77,7 @@ npm run start:dev
 |--------|------|-------------|
 | `GET` | `/predictions/available-dates` | Obtener fechas de simulacion disponibles |
 | `GET` | `/predictions/max-and-latest-values` | Valores maximos y ultimos por estacion |
+| `GET` | `/predictions/precip-accumulated?source=observed\|harmonie\|eps&hours=1\|2\|4\|8\|12\|24` | Precipitacion acumulada por estacion en N horas (observado: ultimas N horas; prediccion: maximo de N horas seguidas). Se compara con los umbrales de aviso de lluvia de AEMET |
 | `GET` | `/predictions/raw/:provider/:simulationDate` | Predicciones raw por proveedor y fecha |
 | `GET` | `/predictions/by-percentile/:simulationDate` | Predicciones agrupadas por percentil |
 | `GET` | `/predictions/historical/:stationId` | Historico de predicciones por estacion |
@@ -211,6 +212,7 @@ src/
 | `GetRawPredictionsQuery` | 60s | `predictions:raw:{provider}:{date}` |
 | `GetByPercentileQuery` | 60s | `predictions:percentile:{date}:{percentile}` |
 | `GetMaxAndLatestValuesQuery` | 60s | `predictions:max-latest:{filters}` |
+| `GetPrecipAccumulationQuery` | 60s | `predictions:precip-accumulated:{source}:{hours}` |
 | `ListNotificationsQuery` | 60s | `notifications:list:{filters}` |
 
 ### Invalidacion

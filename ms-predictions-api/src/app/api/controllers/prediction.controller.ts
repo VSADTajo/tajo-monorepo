@@ -14,6 +14,8 @@ import {
     AvailableDatesResponseDto,
     MaxAndLatestValuesQueryDto,
     MaxAndLatestValuesResponseDto,
+    PrecipAccumulationQueryDto,
+    PrecipAccumulationResponseDto,
 } from '@api/dtos/prediction.dtos';
 
 // Mappers
@@ -23,6 +25,7 @@ import {
     ForecastPredictionsMapper,
     AvailableDatesMapper,
     MaxAndLatestValuesMapper,
+    PrecipAccumulationMapper,
     SimulationDatesByStationMapper,
 } from '@application/mappers/prediction.mappers';
 
@@ -30,10 +33,12 @@ import {
 import { HistoricalPredictionsResult } from '@domain/results/historical-predictions.result';
 import { LegacyPredictionsResult } from '@domain/results/legacy-predictions.result';
 import { MaxAndLatestValuesResult } from '@domain/results/max-and-latest-values.result';
+import { PrecipAccumulationResult } from '@domain/results/precip-accumulation.result';
 import { SimulationDateSummaryItem } from '@domain/ports/prediction-repository.port';
 
 // Errors
 import { ApiError } from '@domain/errors/api.error';
+import { EntityError } from '@domain/errors/entity.error';
 import { ApiEndpoint } from '@swagger/api-endpoint.decorator';
 
 @ApiTags('Predictions')
@@ -89,6 +94,42 @@ export class PredictionController {
                 throw new HttpException(error.message, error.statusCode);
             }
             this.logger.error({ msg: 'Get max and latest values error', entity: 'Predictions', error: String(error) });
+            throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Get('precip-accumulated')
+    @ApiEndpoint({
+        summary: 'Get the accumulated precipitation per station over a window of N hours',
+        description:
+            'observed: rain fallen in the last `hours` hours up to the last measurement of each station (live map). ' +
+            'harmonie / eps: the highest rain the latest finalized forecast expects over any `hours` consecutive hours. ' +
+            'Values are meant to be compared with the AEMET rain warning thresholds of the same horizon.',
+        response: {
+            status: 200,
+            type: PrecipAccumulationResponseDto,
+            description: 'Accumulated precipitation per station',
+        },
+        errors: [{ status: 400, description: 'Invalid source or hours' }],
+    })
+    async getPrecipAccumulated(@Query() dto: PrecipAccumulationQueryDto): Promise<PrecipAccumulationResponseDto> {
+        this.logger.log(`Get precipitation accumulation request: ${JSON.stringify(dto)}`);
+        try {
+            const query = PrecipAccumulationMapper.toQuery(dto);
+            const result = await this.cachingQueryBus.execute<PrecipAccumulationResult>(query);
+            return PrecipAccumulationMapper.toResponseDto(result);
+        } catch (error) {
+            if (error instanceof EntityError) {
+                throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+            }
+            if (error instanceof ApiError) {
+                throw new HttpException(error.message, error.statusCode);
+            }
+            this.logger.error({
+                msg: 'Get precipitation accumulation error',
+                entity: 'Predictions',
+                error: String(error),
+            });
             throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
