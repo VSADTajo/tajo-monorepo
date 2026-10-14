@@ -133,6 +133,39 @@ describe('Update Station Threshold (e2e)', () => {
             expect(body.threshold.umbralCaudal1).toBe(6.06);
         });
 
+        it('should update precipitation thresholds (1h and 12h)', async () => {
+            const station = await setupStation();
+            const precip = {
+                umbral1Precip1h: 15,
+                umbral2Precip1h: 30,
+                umbral3Precip1h: 60,
+                umbral1Precip12h: 40,
+                umbral2Precip12h: 80,
+                umbral3Precip12h: 120,
+            };
+
+            const { body } = await updateThreshold(station.id, precip).expect(HttpStatus.OK);
+            expect(body.threshold).toMatchObject(precip);
+
+            const { body: fetched } = await getThreshold(station.id).expect(HttpStatus.OK);
+            expect(fetched.threshold).toMatchObject(precip);
+        });
+
+        it('should keep precipitation thresholds when updating other fields', async () => {
+            const station = await setupStation();
+            await updateThreshold(station.id, { umbral1Precip1h: 15 }).expect(HttpStatus.OK);
+
+            const { body } = await updateThreshold(station.id, { umbralNivel1: 1.5 }).expect(HttpStatus.OK);
+
+            expect(body.threshold).toMatchObject({ umbralNivel1: 1.5, umbral1Precip1h: 15 });
+        });
+
+        it('should reject a non-numeric precipitation threshold', async () => {
+            const station = await setupStation();
+
+            await updateThreshold(station.id, { umbral1Precip12h: 'mucho' }).expect(HttpStatus.BAD_REQUEST);
+        });
+
         it('should verify GET reflects updated threshold', async () => {
             const station = await setupStation();
 

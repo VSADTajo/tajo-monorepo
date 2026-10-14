@@ -128,31 +128,46 @@ export class GeoserverRepository implements IGeoserverRepository {
     async findAllThresholds(): Promise<GeoserverThresholdData[]> {
         this.logger.log('Reading all thresholds from GeoServer');
         try {
+            // Precipitation columns are read through to_jsonb so the sync keeps working
+            // against GeoServer databases that do not have them yet (they come back NULL).
             const rows = await this.dataSource.query(`
-                SELECT
-                    codigo,
-                    parametro,
-                    senal,
-                    umbral_nivel_1  AS "umbralNivel1",
-                    umbral_caudal_1 AS "umbralCaudal1",
-                    umbral_nivel_2  AS "umbralNivel2",
-                    umbral_caudal_2 AS "umbralCaudal2",
-                    umbral_nivel_3  AS "umbralNivel3",
-                    umbral_caudal_3 AS "umbralCaudal3",
-                    max_nivel_muro  AS "maxNivelMuro",
-                    max_nivel_caseta AS "maxNivelCaseta",
-                    umbral_1_volumen AS "umbralVolumen1",
-                    umbral_2_volumen AS "umbralVolumen2",
-                    umbral_3_volumen AS "umbralVolumen3",
-                    caudal_entrada  AS "caudalEntrada",
-                    caudal_salida   AS "caudalSalida",
-                    capacidad
-                FROM cht_puntos_saih_umbrales
-                WHERE umbral_nivel_1 IS NOT NULL
-                   OR umbral_caudal_1 IS NOT NULL
-                   OR umbral_caudal_2 IS NOT NULL
-                   OR umbral_caudal_3 IS NOT NULL
-                   OR umbral_1_volumen IS NOT NULL
+                SELECT *
+                FROM (
+                    SELECT
+                        u.codigo,
+                        u.parametro,
+                        u.senal,
+                        u.umbral_nivel_1  AS "umbralNivel1",
+                        u.umbral_caudal_1 AS "umbralCaudal1",
+                        u.umbral_nivel_2  AS "umbralNivel2",
+                        u.umbral_caudal_2 AS "umbralCaudal2",
+                        u.umbral_nivel_3  AS "umbralNivel3",
+                        u.umbral_caudal_3 AS "umbralCaudal3",
+                        u.max_nivel_muro  AS "maxNivelMuro",
+                        u.max_nivel_caseta AS "maxNivelCaseta",
+                        u.umbral_1_volumen AS "umbralVolumen1",
+                        u.umbral_2_volumen AS "umbralVolumen2",
+                        u.umbral_3_volumen AS "umbralVolumen3",
+                        u.caudal_entrada  AS "caudalEntrada",
+                        u.caudal_salida   AS "caudalSalida",
+                        u.capacidad,
+                        (to_jsonb(u) ->> 'umbral1_precip1h')::double precision  AS "umbral1Precip1h",
+                        (to_jsonb(u) ->> 'umbral2_precip1h')::double precision  AS "umbral2Precip1h",
+                        (to_jsonb(u) ->> 'umbral3_precip1h')::double precision  AS "umbral3Precip1h",
+                        (to_jsonb(u) ->> 'umbral1_precip12h')::double precision AS "umbral1Precip12h",
+                        (to_jsonb(u) ->> 'umbral2_precip12h')::double precision AS "umbral2Precip12h",
+                        (to_jsonb(u) ->> 'umbral3_precip12h')::double precision AS "umbral3Precip12h"
+                    FROM cht_puntos_saih_umbrales u
+                ) t
+                WHERE "umbralNivel1" IS NOT NULL
+                   OR "umbralCaudal1" IS NOT NULL
+                   OR "umbralCaudal2" IS NOT NULL
+                   OR "umbralCaudal3" IS NOT NULL
+                   OR "umbralVolumen1" IS NOT NULL
+                   OR COALESCE(
+                        "umbral1Precip1h", "umbral2Precip1h", "umbral3Precip1h",
+                        "umbral1Precip12h", "umbral2Precip12h", "umbral3Precip12h"
+                      ) IS NOT NULL
                 ORDER BY codigo
             `);
             this.logger.log(`Found ${rows.length} stations with thresholds in GeoServer`);

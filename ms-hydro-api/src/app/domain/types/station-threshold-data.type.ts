@@ -17,4 +17,10 @@ export interface StationThresholdData {
     caudalEntrada: string | null;
     caudalSalida: string | null;
     capacidad: number | null;
+    umbral1Precip1h: number | null;
+    umbral2Precip1h: number | null;
+    umbral3Precip1h: number | null;
+    umbral1Precip12h: number | null;
+    umbral2Precip12h: number | null;
+    umbral3Precip12h: number | null;
 }

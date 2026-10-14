@@ -53,6 +53,12 @@ export class StationThresholdRepository implements IStationThresholdRepository {
                     caudalEntrada: data.caudalEntrada,
                     caudalSalida: data.caudalSalida,
                     capacidad: data.capacidad,
+                    umbral1Precip1h: data.umbral1Precip1h,
+                    umbral2Precip1h: data.umbral2Precip1h,
+                    umbral3Precip1h: data.umbral3Precip1h,
+                    umbral1Precip12h: data.umbral1Precip12h,
+                    umbral2Precip12h: data.umbral2Precip12h,
+                    umbral3Precip12h: data.umbral3Precip12h,
                 });
                 return await this.thresholdRepository.save(existing);
             }

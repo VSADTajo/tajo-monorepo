@@ -150,17 +150,24 @@ export async function createGeoserverTestDb(): Promise<GeoserverTestContext> {
             umbral_3_volumen double precision,
             caudal_entrada varchar(20),
             caudal_salida varchar(20),
-            capacidad double precision
+            capacidad double precision,
+            umbral1_precip12h numeric(3),
+            umbral2_precip12h numeric(3),
+            umbral3_precip12h numeric(10),
+            umbral1_precip1h numeric(3),
+            umbral2_precip1h numeric(3),
+            umbral3_precip1h numeric(10)
         )
     `);
 
-    // Seed thresholds — AR01 (aforo: nivel + caudal), E_01 (embalse: volumen)
+    // Seed thresholds — AR01 (aforo: nivel + caudal + precip), E_01 (embalse: volumen, no precip)
     await geoDataSource.query(`
         INSERT INTO cht_puntos_saih_umbrales
-            (codigo, parametro, senal, umbral_nivel_1, umbral_caudal_1, umbral_nivel_2, umbral_caudal_2, umbral_nivel_3, umbral_caudal_3, umbral_1_volumen, umbral_2_volumen, umbral_3_volumen, caudal_entrada, caudal_salida, capacidad)
+            (codigo, parametro, senal, umbral_nivel_1, umbral_caudal_1, umbral_nivel_2, umbral_caudal_2, umbral_nivel_3, umbral_caudal_3, umbral_1_volumen, umbral_2_volumen, umbral_3_volumen, caudal_entrada, caudal_salida, capacidad,
+             umbral1_precip12h, umbral2_precip12h, umbral3_precip12h, umbral1_precip1h, umbral2_precip1h, umbral3_precip1h)
         VALUES
-            ('AR01', 'NIVEL', 'AR01LI__01', 0.95, 6.06, 1.2, 11.53, 1.4, 17.65, NULL, NULL, NULL, NULL, NULL, NULL),
-            ('E_01', 'VOLUMEN', 'E_01VE__01', NULL, NULL, NULL, NULL, NULL, NULL, 10.5, 20.5, 30.5, 'E_01QE__01', 'E_01QS__01', 50.0)
+            ('AR01', 'NIVEL', 'AR01LI__01', 0.95, 6.06, 1.2, 11.53, 1.4, 17.65, NULL, NULL, NULL, NULL, NULL, NULL, 40, 80, 120, 15, 30, 60),
+            ('E_01', 'VOLUMEN', 'E_01VE__01', NULL, NULL, NULL, NULL, NULL, NULL, 10.5, 20.5, 30.5, 'E_01QE__01', 'E_01QS__01', 50.0, NULL, NULL, NULL, NULL, NULL, NULL)
     `);
 
     return { geoDataSource, geoContainer };

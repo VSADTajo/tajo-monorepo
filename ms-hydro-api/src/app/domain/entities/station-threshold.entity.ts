@@ -78,6 +78,28 @@ export class StationThreshold extends BaseAuditEntity implements IValidable {
     capacidad: number | null;
 
     // ─────────────────────────────────────────────────────────────
+    // Umbrales de precipitación acumulada en 1h y 12h (3 niveles, mm)
+    // ─────────────────────────────────────────────────────────────
+
+    @Column('double precision', { nullable: true })
+    umbral1Precip1h: number | null;
+
+    @Column('double precision', { nullable: true })
+    umbral2Precip1h: number | null;
+
+    @Column('double precision', { nullable: true })
+    umbral3Precip1h: number | null;
+
+    @Column('double precision', { nullable: true })
+    umbral1Precip12h: number | null;
+
+    @Column('double precision', { nullable: true })
+    umbral2Precip12h: number | null;
+
+    @Column('double precision', { nullable: true })
+    umbral3Precip12h: number | null;
+
+    // ─────────────────────────────────────────────────────────────
     // Relación 1:1 con Station
     // ─────────────────────────────────────────────────────────────
 

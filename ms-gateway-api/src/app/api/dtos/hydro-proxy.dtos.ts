@@ -90,6 +90,18 @@ export class StationThresholdDto {
     @ApiProperty({ nullable: true }) caudalEntrada: string | null;
     @ApiProperty({ nullable: true }) caudalSalida: string | null;
     @ApiProperty({ nullable: true }) capacidad: number | null;
+    @ApiProperty({ nullable: true, example: 15, description: 'Precipitation 1h threshold 1 (pre-alert), mm' })
+    umbral1Precip1h: number | null;
+    @ApiProperty({ nullable: true, example: 30, description: 'Precipitation 1h threshold 2 (alert), mm' })
+    umbral2Precip1h: number | null;
+    @ApiProperty({ nullable: true, example: 60, description: 'Precipitation 1h threshold 3 (alarm), mm' })
+    umbral3Precip1h: number | null;
+    @ApiProperty({ nullable: true, example: 40, description: 'Precipitation 12h threshold 1 (pre-alert), mm' })
+    umbral1Precip12h: number | null;
+    @ApiProperty({ nullable: true, example: 80, description: 'Precipitation 12h threshold 2 (alert), mm' })
+    umbral2Precip12h: number | null;
+    @ApiProperty({ nullable: true, example: 120, description: 'Precipitation 12h threshold 3 (alarm), mm' })
+    umbral3Precip12h: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────

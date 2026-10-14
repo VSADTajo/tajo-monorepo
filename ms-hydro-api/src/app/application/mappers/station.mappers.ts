@@ -76,6 +76,12 @@ export function toThresholdDto(t: StationThresholdData | null | undefined): Stat
         caudalEntrada: t.caudalEntrada,
         caudalSalida: t.caudalSalida,
         capacidad: t.capacidad,
+        umbral1Precip1h: t.umbral1Precip1h,
+        umbral2Precip1h: t.umbral2Precip1h,
+        umbral3Precip1h: t.umbral3Precip1h,
+        umbral1Precip12h: t.umbral1Precip12h,
+        umbral2Precip12h: t.umbral2Precip12h,
+        umbral3Precip12h: t.umbral3Precip12h,
     };
 }
 

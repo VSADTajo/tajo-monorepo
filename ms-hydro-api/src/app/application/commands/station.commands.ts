@@ -186,6 +186,12 @@ export interface IUpdateStationThresholdCommand {
     caudalEntrada?: string | null;
     caudalSalida?: string | null;
     capacidad?: number | null;
+    umbral1Precip1h?: number | null;
+    umbral2Precip1h?: number | null;
+    umbral3Precip1h?: number | null;
+    umbral1Precip12h?: number | null;
+    umbral2Precip12h?: number | null;
+    umbral3Precip12h?: number | null;
 }
 
 export class UpdateStationThresholdCommand {
@@ -241,6 +247,24 @@ export class UpdateStationThresholdCommand {
     get capacidad(): number | null | undefined {
         return this.parameters.capacidad;
     }
+    get umbral1Precip1h(): number | null | undefined {
+        return this.parameters.umbral1Precip1h;
+    }
+    get umbral2Precip1h(): number | null | undefined {
+        return this.parameters.umbral2Precip1h;
+    }
+    get umbral3Precip1h(): number | null | undefined {
+        return this.parameters.umbral3Precip1h;
+    }
+    get umbral1Precip12h(): number | null | undefined {
+        return this.parameters.umbral1Precip12h;
+    }
+    get umbral2Precip12h(): number | null | undefined {
+        return this.parameters.umbral2Precip12h;
+    }
+    get umbral3Precip12h(): number | null | undefined {
+        return this.parameters.umbral3Precip12h;
+    }
 }
 
 @CommandHandler(UpdateStationThresholdCommand)
@@ -294,6 +318,12 @@ export class UpdateStationThresholdHandler implements ICommandHandler<
         if (command.caudalEntrada !== undefined) threshold.caudalEntrada = command.caudalEntrada;
         if (command.caudalSalida !== undefined) threshold.caudalSalida = command.caudalSalida;
         if (command.capacidad !== undefined) threshold.capacidad = command.capacidad;
+        if (command.umbral1Precip1h !== undefined) threshold.umbral1Precip1h = command.umbral1Precip1h;
+        if (command.umbral2Precip1h !== undefined) threshold.umbral2Precip1h = command.umbral2Precip1h;
+        if (command.umbral3Precip1h !== undefined) threshold.umbral3Precip1h = command.umbral3Precip1h;
+        if (command.umbral1Precip12h !== undefined) threshold.umbral1Precip12h = command.umbral1Precip12h;
+        if (command.umbral2Precip12h !== undefined) threshold.umbral2Precip12h = command.umbral2Precip12h;
+        if (command.umbral3Precip12h !== undefined) threshold.umbral3Precip12h = command.umbral3Precip12h;
 
         threshold.validate();
         const saved = await this.stationThresholdRepository.upsert(threshold);

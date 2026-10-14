@@ -234,6 +234,113 @@ describe('Sync GeoServer (e2e)', () => {
         }
     });
 
+    it('should sync precipitation thresholds (1h and 12h) from GeoServer', async () => {
+        await syncGeoserver().expect(HttpStatus.CREATED);
+
+        const { body } = await listStations({ stationCode: 'AR01' }).expect(HttpStatus.OK);
+        expect(body.items[0].threshold).toMatchObject({
+            umbral1Precip1h: 15,
+            umbral2Precip1h: 30,
+            umbral3Precip1h: 60,
+            umbral1Precip12h: 40,
+            umbral2Precip12h: 80,
+            umbral3Precip12h: 120,
+        });
+    });
+
+    it('should return null precipitation thresholds for stations without them', async () => {
+        await syncGeoserver().expect(HttpStatus.CREATED);
+
+        const { body } = await listStations({ stationCode: 'E_01' }).expect(HttpStatus.OK);
+        expect(body.items[0].threshold).toMatchObject({
+            umbralVolumen1: 10.5,
+            umbral1Precip1h: null,
+            umbral2Precip1h: null,
+            umbral3Precip1h: null,
+            umbral1Precip12h: null,
+            umbral2Precip12h: null,
+            umbral3Precip12h: null,
+        });
+    });
+
+    it('should sync precipitation-only thresholds (no nivel / caudal / volumen) from GeoServer', async () => {
+        const geo = geoCtx.geoDataSource;
+        await geo.query(
+            `INSERT INTO cht_puntos_saih_umbrales (codigo, parametro, umbral1_precip1h, umbral2_precip1h, umbral3_precip1h, umbral1_precip12h, umbral2_precip12h, umbral3_precip12h)
+             VALUES ('P01', 'PRECIPITACION', 10, 20, 40, 30, 60, 90)`,
+        );
+
+        try {
+            await syncGeoserver().expect(HttpStatus.CREATED);
+
+            const { body } = await listStations({ stationCode: 'P01' }).expect(HttpStatus.OK);
+            expect(body.items[0].threshold).toMatchObject({
+                umbralNivel1: null,
+                umbralCaudal1: null,
+                umbralVolumen1: null,
+                umbral1Precip1h: 10,
+                umbral2Precip1h: 20,
+                umbral3Precip1h: 40,
+                umbral1Precip12h: 30,
+                umbral2Precip12h: 60,
+                umbral3Precip12h: 90,
+            });
+        } finally {
+            await geo.query('DELETE FROM cht_puntos_saih_umbrales WHERE codigo = $1', ['P01']);
+        }
+    });
+
+    it('should clear precipitation thresholds on re-sync when GeoServer removes them', async () => {
+        const geo = geoCtx.geoDataSource;
+        await syncGeoserver().expect(HttpStatus.CREATED);
+        await geo.query('UPDATE cht_puntos_saih_umbrales SET umbral1_precip1h = $1 WHERE codigo = $2', [null, 'AR01']);
+
+        try {
+            await syncGeoserver().expect(HttpStatus.CREATED);
+
+            const { body } = await listStations({ stationCode: 'AR01' }).expect(HttpStatus.OK);
+            expect(body.items[0].threshold).toMatchObject({ umbral1Precip1h: null, umbral2Precip1h: 30 });
+        } finally {
+            await geo.query('UPDATE cht_puntos_saih_umbrales SET umbral1_precip1h = $1 WHERE codigo = $2', [
+                15,
+                'AR01',
+            ]);
+        }
+    });
+
+    it('should still sync thresholds (precip null) when GeoServer lacks the precipitation columns', async () => {
+        const geo = geoCtx.geoDataSource;
+        await geo.query(`
+            ALTER TABLE cht_puntos_saih_umbrales
+                DROP COLUMN umbral1_precip12h, DROP COLUMN umbral2_precip12h, DROP COLUMN umbral3_precip12h,
+                DROP COLUMN umbral1_precip1h, DROP COLUMN umbral2_precip1h, DROP COLUMN umbral3_precip1h
+        `);
+
+        try {
+            const { body: sync } = await syncGeoserver().expect(HttpStatus.CREATED);
+            expect(sync.errors).toEqual([]);
+
+            const { body } = await listStations({ stationCode: 'AR01' }).expect(HttpStatus.OK);
+            expect(body.items[0].threshold).toMatchObject({
+                umbralNivel1: 0.95,
+                umbral1Precip1h: null,
+                umbral1Precip12h: null,
+            });
+        } finally {
+            await geo.query(`
+                ALTER TABLE cht_puntos_saih_umbrales
+                    ADD COLUMN umbral1_precip12h numeric(3), ADD COLUMN umbral2_precip12h numeric(3), ADD COLUMN umbral3_precip12h numeric(10),
+                    ADD COLUMN umbral1_precip1h numeric(3), ADD COLUMN umbral2_precip1h numeric(3), ADD COLUMN umbral3_precip1h numeric(10)
+            `);
+            await geo.query(`
+                UPDATE cht_puntos_saih_umbrales
+                SET umbral1_precip12h = 40, umbral2_precip12h = 80, umbral3_precip12h = 120,
+                    umbral1_precip1h = 15, umbral2_precip1h = 30, umbral3_precip1h = 60
+                WHERE codigo = 'AR01'
+            `);
+        }
+    });
+
     // ─────────────────────────────────────────────────────────────
     // US2: Enriched station responses
     // ─────────────────────────────────────────────────────────────

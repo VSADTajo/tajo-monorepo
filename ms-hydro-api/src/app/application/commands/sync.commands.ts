@@ -271,6 +271,12 @@ export class SyncGeoserverHandler implements ICommandHandler<SyncGeoserverComman
                     caudalEntrada: geoThreshold.caudalEntrada,
                     caudalSalida: geoThreshold.caudalSalida,
                     capacidad: geoThreshold.capacidad,
+                    umbral1Precip1h: geoThreshold.umbral1Precip1h,
+                    umbral2Precip1h: geoThreshold.umbral2Precip1h,
+                    umbral3Precip1h: geoThreshold.umbral3Precip1h,
+                    umbral1Precip12h: geoThreshold.umbral1Precip12h,
+                    umbral2Precip12h: geoThreshold.umbral2Precip12h,
+                    umbral3Precip12h: geoThreshold.umbral3Precip12h,
                 });
                 threshold.validate();
                 await this.stationThresholdRepository.upsert(threshold);

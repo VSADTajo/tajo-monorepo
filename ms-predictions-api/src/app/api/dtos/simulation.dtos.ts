@@ -731,6 +731,24 @@ export class StationThresholdSnapshotDto {
 
     @ApiProperty({ description: 'Reservoir capacity (hm3)', nullable: true, example: 31 })
     capacidad: number | null;
+
+    @ApiProperty({ description: 'Precipitation 1h threshold 1 (pre-alert), mm', nullable: true, example: 15 })
+    umbral1Precip1h: number | null;
+
+    @ApiProperty({ description: 'Precipitation 1h threshold 2 (alert), mm', nullable: true, example: 30 })
+    umbral2Precip1h: number | null;
+
+    @ApiProperty({ description: 'Precipitation 1h threshold 3 (alarm), mm', nullable: true, example: 60 })
+    umbral3Precip1h: number | null;
+
+    @ApiProperty({ description: 'Precipitation 12h threshold 1 (pre-alert), mm', nullable: true, example: 40 })
+    umbral1Precip12h: number | null;
+
+    @ApiProperty({ description: 'Precipitation 12h threshold 2 (alert), mm', nullable: true, example: 80 })
+    umbral2Precip12h: number | null;
+
+    @ApiProperty({ description: 'Precipitation 12h threshold 3 (alarm), mm', nullable: true, example: 120 })
+    umbral3Precip12h: number | null;
 }
 
 // Nested station snapshot resolved from ms-hydro-api (via IStationCatalogService).

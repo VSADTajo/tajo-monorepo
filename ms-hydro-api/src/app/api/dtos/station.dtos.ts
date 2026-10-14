@@ -72,6 +72,48 @@ export class StationThresholdDto {
 
     @ApiProperty({ description: 'Reservoir capacity', nullable: true })
     capacidad: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 1h, threshold 1 (pre-alert), mm',
+        example: 15,
+        nullable: true,
+    })
+    umbral1Precip1h: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 1h, threshold 2 (alert), mm',
+        example: 30,
+        nullable: true,
+    })
+    umbral2Precip1h: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 1h, threshold 3 (alarm), mm',
+        example: 60,
+        nullable: true,
+    })
+    umbral3Precip1h: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 12h, threshold 1 (pre-alert), mm',
+        example: 40,
+        nullable: true,
+    })
+    umbral1Precip12h: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 12h, threshold 2 (alert), mm',
+        example: 80,
+        nullable: true,
+    })
+    umbral2Precip12h: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 12h, threshold 3 (alarm), mm',
+        example: 120,
+        nullable: true,
+    })
+    umbral3Precip12h: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -450,6 +492,72 @@ export class UpdateThresholdRequestDto {
     @ValidateIf((_obj, value) => value !== null)
     @IsNumber()
     capacidad?: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 1h, threshold 1 (pre-alert), mm',
+        example: 15,
+        required: false,
+        nullable: true,
+    })
+    @IsOptional()
+    @ValidateIf((_obj, value) => value !== null)
+    @IsNumber()
+    umbral1Precip1h?: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 1h, threshold 2 (alert), mm',
+        example: 30,
+        required: false,
+        nullable: true,
+    })
+    @IsOptional()
+    @ValidateIf((_obj, value) => value !== null)
+    @IsNumber()
+    umbral2Precip1h?: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 1h, threshold 3 (alarm), mm',
+        example: 60,
+        required: false,
+        nullable: true,
+    })
+    @IsOptional()
+    @ValidateIf((_obj, value) => value !== null)
+    @IsNumber()
+    umbral3Precip1h?: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 12h, threshold 1 (pre-alert), mm',
+        example: 40,
+        required: false,
+        nullable: true,
+    })
+    @IsOptional()
+    @ValidateIf((_obj, value) => value !== null)
+    @IsNumber()
+    umbral1Precip12h?: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 12h, threshold 2 (alert), mm',
+        example: 80,
+        required: false,
+        nullable: true,
+    })
+    @IsOptional()
+    @ValidateIf((_obj, value) => value !== null)
+    @IsNumber()
+    umbral2Precip12h?: number | null;
+
+    @ApiProperty({
+        description: 'Accumulated precipitation over 12h, threshold 3 (alarm), mm',
+        example: 120,
+        required: false,
+        nullable: true,
+    })
+    @IsOptional()
+    @ValidateIf((_obj, value) => value !== null)
+    @IsNumber()
+    umbral3Precip12h?: number | null;
 }
 
 export class UpdateThresholdResponseDto {
