@@ -50,6 +50,13 @@ export const GeoDataCacheKeys = {
     pattern: () => 'geo-data:*',
 };
 
+// Coordinates rounded to 5 decimals (~1 m) so near-identical requests share an entry.
+export const MeteoalertaZoneCacheKeys = {
+    thresholdsByPoint: (latitude: number, longitude: number) =>
+        `meteoalerta-zone:thresholds:${latitude.toFixed(5)}:${longitude.toFixed(5)}`,
+    pattern: () => 'meteoalerta-zone:*',
+};
+
 export const ResguardoCacheKeys = {
     byStation: (stationCode: string) => `resguardo:station:${stationCode}`,
     byStationAndDate: (stationCode: string, date: string) => `resguardo:station:${stationCode}:${date}`,
@@ -92,6 +99,12 @@ export const CACHE_REGISTRY = new Map<string, CacheEntryConfig>([
 
     // GeoData
     ['SearchGeoDataQuery', { ttl: 600, key: (q: any) => GeoDataCacheKeys.search(q.query) }],
+
+    // Meteoalerta zones
+    [
+        'GetMeteoalertaZoneThresholdsByPointQuery',
+        { ttl: 600, key: (q: any) => MeteoalertaZoneCacheKeys.thresholdsByPoint(q.latitude, q.longitude) },
+    ],
 
     // Resguardo
     ['GetResguardosByStationQuery', { ttl: 600, key: (q: any) => ResguardoCacheKeys.byStation(q.stationCode) }],

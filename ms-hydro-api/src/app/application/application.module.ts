@@ -45,6 +45,7 @@ import {
     GetDownstreamStationsHandler,
 } from '@application/queries/station.queries';
 import { SearchGeoDataHandler } from '@application/queries/geo-data.queries';
+import { GetMeteoalertaZoneThresholdsByPointHandler } from '@application/queries/meteoalerta-zone.queries';
 import { GetResguardosByStationHandler, GetResguardoByDateHandler } from '@application/queries/resguardo.queries';
 import { GetScenarioByIdHandler, ListScenariosHandler } from '@application/queries/scenario.queries';
 import { DownloadScenarioFileHandler } from '@application/queries/scenario-file.queries';
@@ -55,6 +56,7 @@ import { SubBasinController } from '@api/controllers/sub-basin.controller';
 import { StationController } from '@api/controllers/station.controller';
 import { SyncController } from '@api/controllers/sync.controller';
 import { GeoDataController } from '@api/controllers/geo-data.controller';
+import { MeteoalertaZoneController } from '@api/controllers/meteoalerta-zone.controller';
 import { ResguardoController } from '@api/controllers/resguardo.controller';
 import { ScenarioController } from '@api/controllers/scenario.controller';
 import { ScenarioFileController } from '@api/controllers/scenario-file.controller';
@@ -67,6 +69,7 @@ import { ScenarioFileController } from '@api/controllers/scenario-file.controlle
         StationController,
         SyncController,
         GeoDataController,
+        MeteoalertaZoneController,
         ResguardoController,
         ScenarioController,
         ScenarioFileController,
@@ -96,6 +99,7 @@ import { ScenarioFileController } from '@api/controllers/scenario-file.controlle
         DeleteSubBasinHandler,
         DeleteStationHandler,
         SearchGeoDataHandler,
+        GetMeteoalertaZoneThresholdsByPointHandler,
         ImportResguardosHandler,
         UpdateResguardoHandler,
         GetResguardosByStationHandler,

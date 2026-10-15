@@ -170,5 +170,39 @@ export async function createGeoserverTestDb(): Promise<GeoserverTestContext> {
             ('E_01', 'VOLUMEN', 'E_01VE__01', NULL, NULL, NULL, NULL, NULL, NULL, 10.5, 20.5, 30.5, 'E_01QE__01', 'E_01QS__01', 50.0, NULL, NULL, NULL, NULL, NULL, NULL)
     `);
 
+    // Create zonas_meteoalerta (AEMET zones with 1h/12h precipitation thresholds), same shape as prod:
+    // EPSG:4326 MultiPolygon in wkb_geometry and numeric threshold columns.
+    await geoDataSource.query(`
+        CREATE TABLE zonas_meteoalerta (
+            ogc_fid SERIAL PRIMARY KEY,
+            wkb_geometry geometry(MultiPolygon, 4326),
+            cod_z varchar,
+            nom_z varchar,
+            cod_prov varchar,
+            nom_prov varchar,
+            cod_ccaa varchar,
+            nom_ccaa varchar,
+            umbral1_precip12h numeric,
+            umbral2_precip12h numeric,
+            umbral3_precip12h numeric,
+            umbral1_precip1h numeric,
+            umbral2_precip1h numeric,
+            umbral3_precip1h numeric
+        )
+    `);
+    await geoDataSource.query('CREATE INDEX ON zonas_meteoalerta USING gist (wkb_geometry)');
+
+    // Seed two adjacent zones sharing the lon=-3 border:
+    //   681901 (east)  → lon -3..-2, lat 40..41, thresholds 15/30/60 (1h) and 40/80/120 (12h)
+    //   674002 (west)  → lon -4..-3, lat 40..41, thresholds 20/40/70 (1h) and 50/90/150 (12h)
+    await geoDataSource.query(`
+        INSERT INTO zonas_meteoalerta
+            (wkb_geometry, cod_z, nom_z, cod_prov, nom_prov, cod_ccaa, nom_ccaa,
+             umbral1_precip12h, umbral2_precip12h, umbral3_precip12h, umbral1_precip1h, umbral2_precip1h, umbral3_precip1h)
+        VALUES
+            (ST_Multi(ST_GeomFromText('POLYGON((-3 40, -2 40, -2 41, -3 41, -3 40))', 4326)), '681901', 'Serranía de Guadalajara', '6819', 'Guadalajara', '68', 'Castilla - La Mancha', 40, 80, 120, 15, 30, 60),
+            (ST_Multi(ST_GeomFromText('POLYGON((-4 40, -3 40, -3 41, -4 41, -4 40))', 4326)), '674002', 'Sistema Central de Segovia', '6740', 'Segovia', '67', 'Castilla y León', 50, 90, 150, 20, 40, 70)
+    `);
+
     return { geoDataSource, geoContainer };
 }

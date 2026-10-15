@@ -267,6 +267,54 @@ export class SearchGeoDataResponseDto {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Meteoalerta zones
+// ─────────────────────────────────────────────────────────────
+
+export class GetMeteoalertaZoneThresholdsResponseDto {
+    @ApiProperty({ example: '681901', description: 'Meteoalerta zone code (cod_z)' })
+    zonaCode: string;
+
+    @ApiProperty({ example: 'Serranía de Guadalajara', description: 'Meteoalerta zone name (nom_z)' })
+    zonaNombre: string;
+
+    @ApiProperty({ nullable: true, example: 'Guadalajara' })
+    provincia: string | null;
+
+    @ApiProperty({ nullable: true, example: 'Castilla - La Mancha' })
+    ccaa: string | null;
+
+    @ApiProperty({ nullable: true, example: 15, description: 'Precipitation threshold level 1 accumulated in 1h (mm)' })
+    umbral1Precip1h: number | null;
+
+    @ApiProperty({ nullable: true, example: 30, description: 'Precipitation threshold level 2 accumulated in 1h (mm)' })
+    umbral2Precip1h: number | null;
+
+    @ApiProperty({ nullable: true, example: 60, description: 'Precipitation threshold level 3 accumulated in 1h (mm)' })
+    umbral3Precip1h: number | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: 40,
+        description: 'Precipitation threshold level 1 accumulated in 12h (mm)',
+    })
+    umbral1Precip12h: number | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: 80,
+        description: 'Precipitation threshold level 2 accumulated in 12h (mm)',
+    })
+    umbral2Precip12h: number | null;
+
+    @ApiProperty({
+        nullable: true,
+        example: 120,
+        description: 'Precipitation threshold level 3 accumulated in 12h (mm)',
+    })
+    umbral3Precip12h: number | null;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Resguardos
 // ─────────────────────────────────────────────────────────────
 
@@ -380,7 +428,12 @@ export class GetScenarioResponseDto extends ScenarioMetadataDto {
     @ApiProperty({ type: [ScenarioFileMetadataDto], description: 'Files belonging to this scenario' })
     files: ScenarioFileMetadataDto[];
 
-    @ApiProperty({ type: 'object', additionalProperties: true, nullable: true, description: 'Legacy raw JSON payload (deprecated)' })
+    @ApiProperty({
+        type: 'object',
+        additionalProperties: true,
+        nullable: true,
+        description: 'Legacy raw JSON payload (deprecated)',
+    })
     payload: Record<string, unknown> | null;
 }
 

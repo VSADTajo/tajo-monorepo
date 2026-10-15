@@ -22,6 +22,7 @@ import {
     UpdateThresholdResponseDto,
     SyncGeoserverResponseDto,
     SearchGeoDataResponseDto,
+    GetMeteoalertaZoneThresholdsResponseDto,
     GetResguardosByStationResponseDto,
     GetResguardoByDateResponseDto,
     UpdateResguardoRequestDto,
@@ -786,6 +787,38 @@ export class HydroProxyController {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // Meteoalerta zones
+    // ─────────────────────────────────────────────────────────────
+
+    @Get('meteoalerta-zones/thresholds')
+    @ApiEndpoint({
+        summary: 'Get the 1h/12h precipitation thresholds of the meteoalerta zone containing a coordinate',
+        response: {
+            status: 200,
+            type: GetMeteoalertaZoneThresholdsResponseDto,
+            description: 'Zone and its precipitation thresholds',
+        },
+        errors: [
+            { status: 400, description: 'Validation error (missing or out-of-range lat/lon)' },
+            { status: 404, description: 'The coordinate is outside every meteoalerta zone' },
+        ],
+    })
+    @ApiQuery({ name: 'lat', required: true, type: Number, description: 'Latitude (WGS84)', example: 40.4811 })
+    @ApiQuery({ name: 'lon', required: true, type: Number, description: 'Longitude (WGS84)', example: -2.7277 })
+    async getMeteoalertaZoneThresholds(@Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+        const result = await this.proxyService.forward({
+            method: 'GET',
+            baseUrl: this.servicesConfig.hydroApiUrl,
+            path: '/meteoalerta-zones/thresholds',
+            query: req.query as Record<string, string | string[]>,
+            headers: { 'x-internal-caller': INTERNAL_CALLER_HEADER_VALUE },
+            user: (req as any).user,
+            traceId: (req as any).id,
+        });
+        res.status(result.status).json(result.data);
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // Scenarios (test datasets — raw JSON storage)
     // ─────────────────────────────────────────────────────────────
 
@@ -900,7 +933,11 @@ export class HydroProxyController {
             { status: 404, description: 'Scenario not found' },
         ],
     })
-    async addScenarioFiles(@Param('id') id: string, @Req() req: express.Request, @Res() res: express.Response): Promise<void> {
+    async addScenarioFiles(
+        @Param('id') id: string,
+        @Req() req: express.Request,
+        @Res() res: express.Response,
+    ): Promise<void> {
         const result = await this.proxyService.forward({
             method: 'POST',
             baseUrl: this.servicesConfig.hydroApiUrl,

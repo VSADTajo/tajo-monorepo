@@ -16,6 +16,7 @@ import { IScenarioRepository } from '@domain/ports/scenario-repository.port';
 import { IScenarioFileRepository } from '@domain/ports/scenario-file-repository.port';
 import { IGeoserverRepository } from '@domain/ports/geoserver-repository.port';
 import { IGeoDataRepository } from '@domain/ports/geo-data-repository.port';
+import { IMeteoalertaZoneRepository } from '@domain/ports/meteoalerta-zone-repository.port';
 import { IDownstreamStationsRepository } from '@domain/ports/downstream-stations-repository.port';
 import { INotificationService } from '@domain/ports/notification-service.port';
 import { ICacheService } from '@domain/ports/cache-service.port';
@@ -30,6 +31,7 @@ import { StationThresholdRepository } from '@infrastructure/persistence/station-
 import { StationResguardoRepository } from '@infrastructure/persistence/station-resguardo.repository';
 import { GeoserverRepository } from '@infrastructure/persistence/geoserver.repository';
 import { GeoDataRepository } from '@infrastructure/persistence/geo-data.repository';
+import { MeteoalertaZoneRepository } from '@infrastructure/persistence/meteoalerta-zone.repository';
 import { DownstreamStationsRepository } from '@infrastructure/persistence/downstream-stations.repository';
 import { NotificationService } from '@infrastructure/services/notification.service';
 import { TransactionManagerService } from '@infrastructure/services/transaction-manager.service';
@@ -62,7 +64,15 @@ import { ScenarioFile } from '@domain/entities/scenario-file.entity';
         GeoserverDatabaseProviderModule,
         RedisConfigModule,
         RabbitmqConfigModule,
-        TypeOrmModule.forFeature([Basin, SubBasin, Station, StationThreshold, StationResguardo, Scenario, ScenarioFile]),
+        TypeOrmModule.forFeature([
+            Basin,
+            SubBasin,
+            Station,
+            StationThreshold,
+            StationResguardo,
+            Scenario,
+            ScenarioFile,
+        ]),
     ],
     controllers: [],
     providers: [
@@ -103,6 +113,10 @@ import { ScenarioFile } from '@domain/entities/scenario-file.entity';
             useClass: GeoDataRepository,
         },
         {
+            provide: IMeteoalertaZoneRepository,
+            useClass: MeteoalertaZoneRepository,
+        },
+        {
             provide: IDownstreamStationsRepository,
             useClass: DownstreamStationsRepository,
         },
@@ -132,6 +146,7 @@ import { ScenarioFile } from '@domain/entities/scenario-file.entity';
         IStationThresholdRepository,
         IGeoserverRepository,
         IGeoDataRepository,
+        IMeteoalertaZoneRepository,
         IDownstreamStationsRepository,
         INotificationService,
         ITransactionManagerService,
