@@ -5,35 +5,35 @@ export interface StationCatalogItem {
 
 /**
  * Station threshold snapshot returned by ms-hydro-api under Station.threshold.
- * Each numeric field is individually nullable because a station usually
- * populates only the metrics that apply to it (an EMBALSE fills volume/capacity,
- * a river gauge fills level/flow, etc.).
+ * Each metric field is optional: a station populates only the metrics that apply
+ * to it (an EMBALSE fills volume/capacity, a river gauge fills level/flow, etc.)
+ * and hydro-api omits the ones without a value.
  */
 export interface StationThresholdSnapshot {
     id: string;
     stationId: string;
-    parametro: string | null;
-    senal: string | null;
-    umbralNivel1: number | null;
-    umbralCaudal1: number | null;
-    umbralNivel2: number | null;
-    umbralCaudal2: number | null;
-    umbralNivel3: number | null;
-    umbralCaudal3: number | null;
-    maxNivelMuro: number | null;
-    maxNivelCaseta: number | null;
-    umbralVolumen1: number | null;
-    umbralVolumen2: number | null;
-    umbralVolumen3: number | null;
-    caudalEntrada: string | null;
-    caudalSalida: string | null;
-    capacidad: number | null;
-    umbral1Precip1h: number | null;
-    umbral2Precip1h: number | null;
-    umbral3Precip1h: number | null;
-    umbral1Precip12h: number | null;
-    umbral2Precip12h: number | null;
-    umbral3Precip12h: number | null;
+    parametro?: string;
+    senal?: string;
+    umbralNivel1?: number;
+    umbralCaudal1?: number;
+    umbralNivel2?: number;
+    umbralCaudal2?: number;
+    umbralNivel3?: number;
+    umbralCaudal3?: number;
+    maxNivelMuro?: number;
+    maxNivelCaseta?: number;
+    umbralVolumen1?: number;
+    umbralVolumen2?: number;
+    umbralVolumen3?: number;
+    caudalEntrada?: string;
+    caudalSalida?: string;
+    capacidad?: number;
+    umbral1Precip1h?: number;
+    umbral2Precip1h?: number;
+    umbral3Precip1h?: number;
+    umbral1Precip12h?: number;
+    umbral2Precip12h?: number;
+    umbral3Precip12h?: number;
 }
 
 /**

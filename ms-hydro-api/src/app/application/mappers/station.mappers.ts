@@ -55,9 +55,17 @@ type GetStationByCodeResult = GetStationResult;
 // Threshold entity → DTO
 // ─────────────────────────────────────────────────────────────
 
+type Nullable<T> = { [K in keyof T]-?: T[K] | null };
+
+function omitNullish<T extends object>(obj: Nullable<T>): T {
+    return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== null && value !== undefined)) as T;
+}
+
+// Each station type fills only its own metrics (a reservoir has volume/capacity, a river gauge
+// level/flow, ...), so fields without a value are omitted instead of returned as null.
 export function toThresholdDto(t: StationThresholdData | null | undefined): StationThresholdDto | null {
     if (!t) return null;
-    return {
+    return omitNullish<StationThresholdDto>({
         id: t.id,
         stationId: t.stationId,
         parametro: t.parametro,
@@ -82,7 +90,7 @@ export function toThresholdDto(t: StationThresholdData | null | undefined): Stat
         umbral1Precip12h: t.umbral1Precip12h,
         umbral2Precip12h: t.umbral2Precip12h,
         umbral3Precip12h: t.umbral3Precip12h,
-    };
+    });
 }
 
 // ─────────────────────────────────────────────────────────────

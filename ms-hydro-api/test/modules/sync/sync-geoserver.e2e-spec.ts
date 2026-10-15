@@ -33,7 +33,11 @@ import { CachingQueryBus } from '../../../src/app/infrastructure/cache/caching-q
 import { SyncGeoserverHandler } from '../../../src/app/application/commands/sync.commands';
 import { ListBasinsHandler } from '../../../src/app/application/queries/basin.queries';
 import { ListSubBasinsHandler } from '../../../src/app/application/queries/sub-basin.queries';
-import { ListStationsHandler } from '../../../src/app/application/queries/station.queries';
+import {
+    ListStationsHandler,
+    GetStationByIdHandler,
+    GetStationByCodeHandler,
+} from '../../../src/app/application/queries/station.queries';
 import { SyncController } from '../../../src/app/api/controllers/sync.controller';
 import { BasinController } from '../../../src/app/api/controllers/basin.controller';
 import { SubBasinController } from '../../../src/app/api/controllers/sub-basin.controller';
@@ -104,6 +108,8 @@ describe('Sync GeoServer (e2e)', () => {
                 ListBasinsHandler,
                 ListSubBasinsHandler,
                 ListStationsHandler,
+                GetStationByIdHandler,
+                GetStationByCodeHandler,
                 CachingQueryBus,
                 { provide: IBasinRepository, useClass: BasinRepository },
                 { provide: ISubBasinRepository, useClass: SubBasinRepository },
@@ -224,11 +230,11 @@ describe('Sync GeoServer (e2e)', () => {
             expect(body.items[0].threshold).toMatchObject({
                 parametro: 'CAUDAL',
                 senal: 'P01FICT98',
-                umbralNivel1: null,
                 umbralCaudal1: 24.988,
                 umbralCaudal2: 36.89,
                 umbralCaudal3: 48.392,
             });
+            expect(body.items[0].threshold).not.toHaveProperty('umbralNivel1');
         } finally {
             await geo.query('DELETE FROM cht_puntos_saih_umbrales WHERE codigo = $1', ['P01']);
         }
@@ -248,19 +254,58 @@ describe('Sync GeoServer (e2e)', () => {
         });
     });
 
-    it('should return null precipitation thresholds for stations without them', async () => {
+    it('should return only the fields a reservoir has (no level / flow / precipitation)', async () => {
         await syncGeoserver().expect(HttpStatus.CREATED);
 
         const { body } = await listStations({ stationCode: 'E_01' }).expect(HttpStatus.OK);
-        expect(body.items[0].threshold).toMatchObject({
+        expect(body.items[0].threshold).toEqual({
+            id: expect.any(String),
+            stationId: body.items[0].id,
+            parametro: 'VOLUMEN',
+            senal: 'E_01VE__01',
             umbralVolumen1: 10.5,
-            umbral1Precip1h: null,
-            umbral2Precip1h: null,
-            umbral3Precip1h: null,
-            umbral1Precip12h: null,
-            umbral2Precip12h: null,
-            umbral3Precip12h: null,
+            umbralVolumen2: 20.5,
+            umbralVolumen3: 30.5,
+            caudalEntrada: 'E_01QE__01',
+            caudalSalida: 'E_01QS__01',
+            capacidad: 50,
         });
+    });
+
+    it('should return only the fields a river gauge has (no volume / capacity)', async () => {
+        await syncGeoserver().expect(HttpStatus.CREATED);
+
+        const { body } = await listStations({ stationCode: 'AR01' }).expect(HttpStatus.OK);
+        expect(body.items[0].threshold).toEqual({
+            id: expect.any(String),
+            stationId: body.items[0].id,
+            parametro: 'NIVEL',
+            senal: 'AR01LI__01',
+            umbralNivel1: 0.95,
+            umbralCaudal1: 6.06,
+            umbralNivel2: 1.2,
+            umbralCaudal2: 11.53,
+            umbralNivel3: 1.4,
+            umbralCaudal3: 17.65,
+            umbral1Precip1h: 15,
+            umbral2Precip1h: 30,
+            umbral3Precip1h: 60,
+            umbral1Precip12h: 40,
+            umbral2Precip12h: 80,
+            umbral3Precip12h: 120,
+        });
+    });
+
+    it('should return the same trimmed threshold from every station endpoint', async () => {
+        await syncGeoserver().expect(HttpStatus.CREATED);
+
+        const { body: list } = await listStations({ stationCode: 'E_01' }).expect(HttpStatus.OK);
+        const listed = list.items[0];
+        const { body: byId } = await request(app.getHttpServer()).get(`/stations/${listed.id}`).expect(HttpStatus.OK);
+        const { body: byCode } = await request(app.getHttpServer()).get('/stations/by-code/E_01').expect(HttpStatus.OK);
+
+        expect(byId.threshold).toEqual(listed.threshold);
+        expect(byCode.threshold).toEqual(listed.threshold);
     });
 
     it('should sync precipitation-only thresholds (no nivel / caudal / volumen) from GeoServer', async () => {
@@ -274,10 +319,10 @@ describe('Sync GeoServer (e2e)', () => {
             await syncGeoserver().expect(HttpStatus.CREATED);
 
             const { body } = await listStations({ stationCode: 'P01' }).expect(HttpStatus.OK);
-            expect(body.items[0].threshold).toMatchObject({
-                umbralNivel1: null,
-                umbralCaudal1: null,
-                umbralVolumen1: null,
+            expect(body.items[0].threshold).toEqual({
+                id: expect.any(String),
+                stationId: body.items[0].id,
+                parametro: 'PRECIPITACION',
                 umbral1Precip1h: 10,
                 umbral2Precip1h: 20,
                 umbral3Precip1h: 40,
@@ -299,7 +344,8 @@ describe('Sync GeoServer (e2e)', () => {
             await syncGeoserver().expect(HttpStatus.CREATED);
 
             const { body } = await listStations({ stationCode: 'AR01' }).expect(HttpStatus.OK);
-            expect(body.items[0].threshold).toMatchObject({ umbral1Precip1h: null, umbral2Precip1h: 30 });
+            expect(body.items[0].threshold).toMatchObject({ umbral2Precip1h: 30 });
+            expect(body.items[0].threshold).not.toHaveProperty('umbral1Precip1h');
         } finally {
             await geo.query('UPDATE cht_puntos_saih_umbrales SET umbral1_precip1h = $1 WHERE codigo = $2', [
                 15,
@@ -308,7 +354,7 @@ describe('Sync GeoServer (e2e)', () => {
         }
     });
 
-    it('should still sync thresholds (precip null) when GeoServer lacks the precipitation columns', async () => {
+    it('should still sync thresholds (without precip) when GeoServer lacks the precipitation columns', async () => {
         const geo = geoCtx.geoDataSource;
         await geo.query(`
             ALTER TABLE cht_puntos_saih_umbrales
@@ -321,11 +367,9 @@ describe('Sync GeoServer (e2e)', () => {
             expect(sync.errors).toEqual([]);
 
             const { body } = await listStations({ stationCode: 'AR01' }).expect(HttpStatus.OK);
-            expect(body.items[0].threshold).toMatchObject({
-                umbralNivel1: 0.95,
-                umbral1Precip1h: null,
-                umbral1Precip12h: null,
-            });
+            expect(body.items[0].threshold).toMatchObject({ umbralNivel1: 0.95 });
+            expect(body.items[0].threshold).not.toHaveProperty('umbral1Precip1h');
+            expect(body.items[0].threshold).not.toHaveProperty('umbral1Precip12h');
         } finally {
             await geo.query(`
                 ALTER TABLE cht_puntos_saih_umbrales

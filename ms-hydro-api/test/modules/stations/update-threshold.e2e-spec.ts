@@ -181,7 +181,11 @@ describe('Update Station Threshold (e2e)', () => {
 
             const { body } = await updateThreshold(station.id, { umbralNivel1: null }).expect(HttpStatus.OK);
 
-            expect(body.threshold.umbralNivel1).toBeNull();
+            // Cleared values are omitted from the response, not returned as null
+            expect(body.threshold).not.toHaveProperty('umbralNivel1');
+
+            const { body: fetched } = await getThreshold(station.id).expect(HttpStatus.OK);
+            expect(fetched.threshold).not.toHaveProperty('umbralNivel1');
         });
 
         it('should set threshold to zero (valid value)', async () => {

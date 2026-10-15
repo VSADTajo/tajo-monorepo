@@ -74,34 +74,34 @@ export class GetSubBasinResponseDto extends SubBasinItemDto {
 export class StationThresholdDto {
     @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' }) id: string;
     @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' }) stationId: string;
-    @ApiProperty({ nullable: true, example: 'NIVEL' }) parametro: string | null;
-    @ApiProperty({ nullable: true, example: 'AR01LI__01' }) senal: string | null;
-    @ApiProperty({ nullable: true, example: 0.95 }) umbralNivel1: number | null;
-    @ApiProperty({ nullable: true, example: 6.06 }) umbralCaudal1: number | null;
-    @ApiProperty({ nullable: true, example: 1.2 }) umbralNivel2: number | null;
-    @ApiProperty({ nullable: true, example: 11.53 }) umbralCaudal2: number | null;
-    @ApiProperty({ nullable: true, example: 1.4 }) umbralNivel3: number | null;
-    @ApiProperty({ nullable: true, example: 17.65 }) umbralCaudal3: number | null;
-    @ApiProperty({ nullable: true }) maxNivelMuro: number | null;
-    @ApiProperty({ nullable: true }) maxNivelCaseta: number | null;
-    @ApiProperty({ nullable: true }) umbralVolumen1: number | null;
-    @ApiProperty({ nullable: true }) umbralVolumen2: number | null;
-    @ApiProperty({ nullable: true }) umbralVolumen3: number | null;
-    @ApiProperty({ nullable: true }) caudalEntrada: string | null;
-    @ApiProperty({ nullable: true }) caudalSalida: string | null;
-    @ApiProperty({ nullable: true }) capacidad: number | null;
-    @ApiProperty({ nullable: true, example: 15, description: 'Precipitation 1h threshold 1 (pre-alert), mm' })
-    umbral1Precip1h: number | null;
-    @ApiProperty({ nullable: true, example: 30, description: 'Precipitation 1h threshold 2 (alert), mm' })
-    umbral2Precip1h: number | null;
-    @ApiProperty({ nullable: true, example: 60, description: 'Precipitation 1h threshold 3 (alarm), mm' })
-    umbral3Precip1h: number | null;
-    @ApiProperty({ nullable: true, example: 40, description: 'Precipitation 12h threshold 1 (pre-alert), mm' })
-    umbral1Precip12h: number | null;
-    @ApiProperty({ nullable: true, example: 80, description: 'Precipitation 12h threshold 2 (alert), mm' })
-    umbral2Precip12h: number | null;
-    @ApiProperty({ nullable: true, example: 120, description: 'Precipitation 12h threshold 3 (alarm), mm' })
-    umbral3Precip12h: number | null;
+    @ApiProperty({ required: false, example: 'NIVEL' }) parametro?: string;
+    @ApiProperty({ required: false, example: 'AR01LI__01' }) senal?: string;
+    @ApiProperty({ required: false, example: 0.95 }) umbralNivel1?: number;
+    @ApiProperty({ required: false, example: 6.06 }) umbralCaudal1?: number;
+    @ApiProperty({ required: false, example: 1.2 }) umbralNivel2?: number;
+    @ApiProperty({ required: false, example: 11.53 }) umbralCaudal2?: number;
+    @ApiProperty({ required: false, example: 1.4 }) umbralNivel3?: number;
+    @ApiProperty({ required: false, example: 17.65 }) umbralCaudal3?: number;
+    @ApiProperty({ required: false }) maxNivelMuro?: number;
+    @ApiProperty({ required: false }) maxNivelCaseta?: number;
+    @ApiProperty({ required: false }) umbralVolumen1?: number;
+    @ApiProperty({ required: false }) umbralVolumen2?: number;
+    @ApiProperty({ required: false }) umbralVolumen3?: number;
+    @ApiProperty({ required: false }) caudalEntrada?: string;
+    @ApiProperty({ required: false }) caudalSalida?: string;
+    @ApiProperty({ required: false }) capacidad?: number;
+    @ApiProperty({ required: false, example: 15, description: 'Precipitation 1h threshold 1 (pre-alert), mm' })
+    umbral1Precip1h?: number;
+    @ApiProperty({ required: false, example: 30, description: 'Precipitation 1h threshold 2 (alert), mm' })
+    umbral2Precip1h?: number;
+    @ApiProperty({ required: false, example: 60, description: 'Precipitation 1h threshold 3 (alarm), mm' })
+    umbral3Precip1h?: number;
+    @ApiProperty({ required: false, example: 40, description: 'Precipitation 12h threshold 1 (pre-alert), mm' })
+    umbral1Precip12h?: number;
+    @ApiProperty({ required: false, example: 80, description: 'Precipitation 12h threshold 2 (alert), mm' })
+    umbral2Precip12h?: number;
+    @ApiProperty({ required: false, example: 120, description: 'Precipitation 12h threshold 3 (alarm), mm' })
+    umbral3Precip12h?: number;
 }
 
 // ─────────────────────────────────────────────────────────────
