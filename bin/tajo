@@ -289,7 +289,7 @@ cmd_up() {
                 warn "build failed (attempt ${attempt}/3) — retrying, finished images are cached"
             done
             seed_empty
-            compose up -d --remove-orphans "$@"
+            start_stack "$@"
             ;;
         ghcr)
             # Pull first so a network/auth error is loud, not silent. Then up with
@@ -302,14 +302,28 @@ cmd_up() {
                 die "aborting to avoid running stale images silently"
             fi
             seed_empty
-            compose up -d --remove-orphans --pull always "$@"
+            start_stack --pull always "$@"
             ;;
         *)
             seed_empty
-            compose up -d --remove-orphans "$@"
+            start_stack "$@"
             ;;
     esac
     ok "stack is up — open ${PUBLIC_API_URL%:*}:8080 · run 'tajo status' to see health"
+}
+
+# `compose up` aborts the whole stack when a dependency is not healthy in time.
+# On a first boot that happens transiently (RabbitMQ can crash once on its
+# .erlang.cookie permissions and recover on the automatic restart), so give the
+# stack a couple more chances before failing. `up` is idempotent.
+start_stack() {
+    local attempt
+    for attempt in 1 2 3; do
+        compose up -d --remove-orphans "$@" && return 0
+        [ "${attempt}" -lt 3 ] || die "the stack did not come up healthy — check 'tajo status' and 'tajo logs <service>'"
+        warn "some containers were not healthy yet (attempt ${attempt}/3) — retrying in 15s"
+        sleep 15
+    done
 }
 
 # Clone vsad-tajo-frontend (or fast-forward it to the tip of its branch) into
@@ -579,22 +593,33 @@ seed_geoserver_files() {
     local force="${1:-0}"
     ls "${SEED_DIR}"/geoserver/*.tar.gz* >/dev/null 2>&1 || return 0
     log "checking GeoServer files against the seed"
-    # On a fresh host GeoServer is not running yet; only a forced reload has to
-    # stop it before replacing its data dir.
-    if [ "${force}" = 1 ]; then compose stop geoserver >/dev/null 2>&1 || true; fi
-    compose run --rm --no-deps -T -v "${SEED_DIR}/geoserver:/seed:ro" --entrypoint sh geoserver -c '
-        force="$1"
+    # "Empty" cannot be tested: Docker pre-fills a new volume with the image's
+    # demo data dir. A marker file records that our seed was loaded instead.
+    local marker=".tajo-seeded"
+    if [ "${force}" != 1 ] && gs_files_run "test -f /opt/geoserver_data/${marker} && test -f /opt/datasets/${marker}"; then
+        log " · GeoServer files already seeded — left untouched"
+        return 0
+    fi
+    # GeoServer must not run while its data dir is replaced.
+    compose stop geoserver >/dev/null 2>&1 || true
+    gs_files_run '
         restore() { # restore <dest> <archive name>
             ls /seed/"$2".tar.gz* >/dev/null 2>&1 || return 0
-            if [ -n "$(ls -A "$1" 2>/dev/null)" ]; then
-                if [ "${force}" != 1 ]; then echo "  · $1 already has data — left untouched"; return 0; fi
-                find "$1" -mindepth 1 -delete
+            if [ -f "$1/'"${marker}"'" ] && [ "'"${force}"'" != 1 ]; then
+                echo "  · $1 already seeded — left untouched"; return 0
             fi
             echo "  → loading $2 into $1"
-            cat /seed/"$2".tar.gz* | tar -xzpf - --numeric-owner -C "$1"
+            find "$1" -mindepth 1 -delete
+            cat /seed/"$2".tar.gz* | tar -xzpf - --numeric-owner -C "$1" && touch "$1/'"${marker}"'"
         }
-        restore /opt/geoserver_data data && restore /opt/datasets datasets' -- "${force}" \
+        restore /opt/geoserver_data data && restore /opt/datasets datasets' \
         || die "could not load the GeoServer files"
+}
+
+# Run a shell snippet in a throwaway geoserver container (no deps) with the
+# GeoServer volumes and the seed mounted — compose creates/labels the volumes.
+gs_files_run() {
+    compose run --rm --no-deps -T -v "${SEED_DIR}/geoserver:/seed:ro" --entrypoint sh geoserver -c "$1" >&2
 }
 
 cmd_dump() {
