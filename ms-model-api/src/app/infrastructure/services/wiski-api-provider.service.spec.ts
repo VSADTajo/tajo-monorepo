@@ -38,8 +38,7 @@ function buildConfigService(overrides: Partial<WiskiApiConfigService> = {}): Wis
         timezone: 'Europe/Madrid',
         requestTimeoutMs: 5000,
         maxResponseBytes: 1024 * 1024,
-        username: '',
-        password: '',
+        token: '',
         mockBaseUrl: 'http://127.0.0.1:3008',
         ...overrides,
     } as unknown as WiskiApiConfigService;
@@ -119,6 +118,25 @@ describe('WiskiApiProviderService', () => {
         mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
         await expect(buildService().fetch(buildConfig())).resolves.toEqual([]);
+    });
+
+    it('authenticates with an "Authorization: Token <token>" header, never basic auth', async () => {
+        mockedAxios.get.mockResolvedValueOnce({ data: PAYLOAD });
+
+        await buildService(buildConfigService({ token: 'abc123' })).fetch(buildConfig());
+
+        const [, options] = mockedAxios.get.mock.calls[0];
+        expect(options?.headers).toEqual(expect.objectContaining({ Authorization: 'Token abc123' }));
+        expect(options?.auth).toBeUndefined();
+    });
+
+    it('sends no Authorization header when no token is configured', async () => {
+        mockedAxios.get.mockResolvedValueOnce({ data: PAYLOAD });
+
+        await buildService().fetch(buildConfig());
+
+        const [, options] = mockedAxios.get.mock.calls[0];
+        expect(options?.headers).not.toHaveProperty('Authorization');
     });
 
 

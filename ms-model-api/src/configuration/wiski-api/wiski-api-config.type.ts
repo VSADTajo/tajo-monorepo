@@ -20,9 +20,11 @@ export type WiskiApiConfig = {
      * process memory.
      */
     maxResponseBytes: number;
-    /** Optional HTTP basic auth. Empty means the service is called unauthenticated. */
-    username: string;
-    password: string;
+    /**
+     * API token, sent as `Authorization: Token <token>`. Empty means the
+     * service is called unauthenticated.
+     */
+    token: string;
     /**
      * Where the fake WISKI endpoint used for local verification lives. It runs
      * inside this same process, so the default is loopback: the mock needs no

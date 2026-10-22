@@ -20,7 +20,15 @@ BASE_COMPOSE="${INFRA_DIR}/docker-compose.base.yml"
 APPS_COMPOSE="${INFRA_DIR}/docker-compose.apps.yml"
 DEV_COMPOSE="${INFRA_DIR}/docker-compose.dev.yml"
 PROD_COMPOSE="${INFRA_DIR}/docker-compose.prod.yml"
+BUILD_COMPOSE="${INFRA_DIR}/docker-compose.build.yml"
 ENV_FILE="${INFRA_DIR}/.env"
+ENV_LOCAL_FILE="${INFRA_DIR}/.env.local"
+# Postgres dumps committed to the repo; loaded into EMPTY databases by `tajo up`.
+SEED_DIR="${INFRA_DIR}/seed"
+# vsad-tajo-frontend lives in its own repo; cloned here to build it from source.
+FRONTEND_REPO="https://github.com/VSADTajo/vsad-tajo-frontend.git"
+FRONTEND_BRANCH="main"
+FRONTEND_DIR="${REPO_ROOT}/vendor/vsad-tajo-frontend"
 # Versioned pin (in git). Bumped by Jenkinsfile.release on every merge to main.
 # Sourced BEFORE .env so the client's .env can override TAG for rollback/testing.
 VERSION_ENV="${INFRA_DIR}/version.env"
@@ -48,7 +56,7 @@ NEST_NO_DB_SERVICES=(ms-gateway-api ms-authentication-api)
 # set exists at the pinned TAG. Keep in sync with docker-compose.apps.yml and
 # infra/Jenkinsfile.release.
 GHCR_SERVICES=(ms-gateway-api ms-user-api ms-authentication-api ms-sftp-api sftp-frontend ms-logs-api ms-logs-ui ms-hydro-api ms-predictions-api ms-model-api ms-notifications-api ms-meteo-api ms-calculator-api vsad-tajo-frontend)
-DATA_VOLUMES=(redis-data rabbitmq-data mongo-logs-data db-user-data db-sftp-data db-geoserver-data db-predictions-data db-hydro-data db-model-data db-notifications-data db-meteo-data sftp-files sftp-keys logs-files-results geoserver-data)
+DATA_VOLUMES=(redis-data rabbitmq-data mongo-logs-data db-user-data db-sftp-data db-geoserver-data db-predictions-data db-hydro-data db-model-data db-notifications-data db-meteo-data sftp-files sftp-keys logs-files-results geoserver-data geoserver-datasets)
 
 # Service → container DB name (for psql shortcut).
 db_container_for() {
@@ -81,34 +89,77 @@ db_name_for() {
 
 # ─── compose wrapper ──────────────────────────────────────────────────────────
 # `MODE` is set per-command (default: prod). Affects which override is layered
-# on top of base + apps.
+# on top of base + apps:
+#   prod (default) — build images from this checkout (target prod)
+#   ghcr           — pull prebuilt images from GHCR at the pinned TAG
+#   dev            — build dev images with hot-reload bind mounts
 MODE="${TAJO_MODE:-prod}"
 
 compose() {
+    # Every compose call interpolates apps.yml, which requires TAG — so even
+    # `logs`/`status` need version.env loaded, not just `up`.
+    load_env
     local files=(-f "${BASE_COMPOSE}" -f "${APPS_COMPOSE}")
     case "${MODE}" in
         dev)  files+=(-f "${DEV_COMPOSE}") ;;
-        prod) [ -f "${PROD_COMPOSE}" ] && files+=(-f "${PROD_COMPOSE}") ;;
+        prod) files+=(-f "${PROD_COMPOSE}" -f "${BUILD_COMPOSE}") ;;
+        ghcr) files+=(-f "${PROD_COMPOSE}") ;;
+        *) die "unknown mode: ${MODE} (expected prod, ghcr or dev)" ;;
     esac
     docker compose -p "${PROJECT_NAME}" "${files[@]}" "$@"
 }
 
-ensure_env() {
-    # Source version.env FIRST — pin managed by CI, updated on every merge to
-    # main. Provides TAG so all services resolve to the same coherent release.
-    [ -f "${VERSION_ENV}" ] || die "missing ${VERSION_ENV} — run 'git pull' or check the repo checkout"
+# Loads version.env then .env (whichever exist), once. TAG precedence is
+# shell > .env > version.env, so `TAG=v... tajo up` really pins a release.
+ENV_LOADED=0
+load_env() {
+    [ "${ENV_LOADED}" = 1 ] && return 0
+    local shell_tag="${TAG:-}"
+    # version.env FIRST — pin managed by CI, updated on every merge to main.
+    # Provides TAG so all services resolve to the same coherent release.
     # shellcheck disable=SC1090
-    set -a; . "${VERSION_ENV}"; set +a
+    [ -f "${VERSION_ENV}" ] && { set -a; . "${VERSION_ENV}"; set +a; }
+    # .env AFTER version.env so the client can override TAG for rollback or
+    # testing (e.g. TAG=v2026.09.10.42 in .env pins to a previous release).
+    # shellcheck disable=SC1090
+    [ -f "${ENV_FILE}" ] && { set -a; . "${ENV_FILE}"; set +a; }
+    # .env.local LAST: this host's own values and secrets (PUBLIC_HOST, WISKI
+    # credentials, ...). Not committed, so `git pull` never conflicts with it.
+    # shellcheck disable=SC1090
+    [ -f "${ENV_LOCAL_FILE}" ] && { set -a; . "${ENV_LOCAL_FILE}"; set +a; }
+    [ -n "${shell_tag}" ] && export TAG="${shell_tag}"
+    detect_public_urls
+    ENV_LOADED=1
+}
 
+# The browser reaches the platform through PUBLIC_* URLs, so they must point at
+# THIS host, never at the server the .env was copied from. Unless set
+# explicitly, derive them from PUBLIC_HOST, or from the host's primary IP.
+detect_public_urls() {
+    local host="${PUBLIC_HOST:-}"
+    if [ -z "${host}" ]; then
+        # Linux: hostname -I · macOS: ipconfig. Either may be missing.
+        host="$( (hostname -I 2>/dev/null || ipconfig getifaddr en0 2>/dev/null || true) | awk '{print $1}')"
+        if [ -z "${host}" ]; then host="localhost"; fi
+    fi
+    export PUBLIC_HOST="${host}"
+    export PUBLIC_API_URL="${PUBLIC_API_URL:-http://${host}:3000}"
+    export PUBLIC_GEOSERVER_URL="${PUBLIC_GEOSERVER_URL:-http://${host}:8085/geoserver}"
+    export PUBLIC_LOGS_API_URL="${PUBLIC_LOGS_API_URL:-http://${host}:3004}"
+    # Both are served through the gateway (same default as apps.yml).
+    export PUBLIC_PREDICTIONS_URL="${PUBLIC_PREDICTIONS_URL:-${PUBLIC_API_URL}}"
+    export PUBLIC_SCHEDULER_URL="${PUBLIC_SCHEDULER_URL:-${PUBLIC_API_URL}}"
+}
+
+ensure_env() {
+    [ -f "${VERSION_ENV}" ] || die "missing ${VERSION_ENV} — run 'git pull' or check the repo checkout"
     if [ ! -f "${ENV_FILE}" ]; then
         warn ".env not found at ${ENV_FILE}"
         warn "copying .env.example → .env (REMEMBER TO CUSTOMIZE SECRETS)"
         cp "${INFRA_DIR}/.env.example" "${ENV_FILE}"
+        ENV_LOADED=0
     fi
-    # .env sourced AFTER version.env so the client can override TAG for rollback
-    # or testing (e.g. TAG=v2026.09.10.42 in .env pins to a previous release).
-    # shellcheck disable=SC1090
-    set -a; . "${ENV_FILE}"; set +a
+    load_env
 
     [ -n "${TAG:-}" ] || die "TAG is not set — check ${VERSION_ENV} (or override with TAG=... in ${ENV_FILE})"
 }
@@ -155,16 +206,30 @@ cmd_doctor() {
     log "3. Version pin"
     _check ok "TAG=${TAG} (from ${VERSION_ENV})"
 
-    log "4. GHCR login + image availability (${#GHCR_SERVICES[@]} images at :${TAG})"
-    local missing=()
-    for svc in "${GHCR_SERVICES[@]}"; do
-        if docker manifest inspect "${REGISTRY:-ghcr.io/vsadtajo}/${svc}:${TAG}" >/dev/null 2>&1; then
-            _check ok "${svc}:${TAG}"
+    local missing=() svc
+    if [ "${MODE}" != "ghcr" ]; then
+        log "4. Sources to build (mode=${MODE})"
+        if [ -d "${FRONTEND_DIR}/.git" ] || git ls-remote --exit-code "${FRONTEND_REPO}" "${FRONTEND_BRANCH}" >/dev/null 2>&1; then
+            _check ok "vsad-tajo-frontend reachable (${FRONTEND_REPO})"
         else
-            _check fail "${svc}:${TAG} not found on GHCR (or you are not logged in)"
-            missing+=("${svc}")
+            _check fail "cannot reach ${FRONTEND_REPO} — this host needs GitHub access to VSADTajo (same credentials used to clone this repo)"
         fi
-    done
+        if ls "${SEED_DIR}"/*.dump* >/dev/null 2>&1; then
+            _check ok "database seed present (${SEED_DIR}) — loaded into empty databases on 'tajo up'"
+        else
+            _check warn "no database seed in ${SEED_DIR} — databases will start empty"
+        fi
+    else
+        log "4. GHCR login + image availability (${#GHCR_SERVICES[@]} images at :${TAG})"
+        for svc in "${GHCR_SERVICES[@]}"; do
+            if docker manifest inspect "${REGISTRY:-ghcr.io/vsadtajo}/${svc}:${TAG}" >/dev/null 2>&1; then
+                _check ok "${svc}:${TAG}"
+            else
+                _check fail "${svc}:${TAG} not found on GHCR (or you are not logged in)"
+                missing+=("${svc}")
+            fi
+        done
+    fi
     if [ ${#missing[@]} -gt 0 ]; then
         warn "  possible causes:"
         warn "    - GHCR login expired: 'docker login ghcr.io -u <user>'"
@@ -214,22 +279,72 @@ cmd_doctor() {
 cmd_up() {
     ensure_env
     ensure_network
-    log "starting stack (mode=${MODE})"
-    if [ "${MODE}" = "prod" ]; then
-        # Pull first so a network/auth error is loud, not silent. Then up with
-        # --pull always so compose swaps a container when only the digest of a
-        # rolling tag (e.g. :latest) changed — otherwise it keeps the old one
-        # because the `image:` string is identical.
-        if ! compose pull "$@"; then
-            warn "pull failed for one or more images"
-            warn "if this is expected (local-only pinned image), re-run with TAJO_MODE=dev"
-            die "aborting to avoid running stale images silently"
-        fi
-        compose up -d --remove-orphans --pull always "$@"
+    log "starting stack (mode=${MODE}, public URL ${PUBLIC_API_URL})"
+    case "${MODE}" in
+        prod)
+            # Build from this checkout so the stack always runs the repo's code.
+            ensure_frontend_src
+            log "building images from source (the first run takes a while)"
+            # npm/Docker Hub downloads can time out on a flaky link; finished
+            # layers are cached, so a retry resumes where the build failed.
+            local attempt
+            for attempt in 1 2 3; do
+                compose build "$@" && break
+                [ "${attempt}" -lt 3 ] || die "build failed 3 times — check this host's access to npm/Docker Hub and re-run 'tajo up'"
+                warn "build failed (attempt ${attempt}/3) — retrying, finished images are cached"
+            done
+            seed_empty
+            start_stack "$@"
+            ;;
+        ghcr)
+            # Pull first so a network/auth error is loud, not silent. Then up with
+            # --pull always so compose swaps a container when only the digest of a
+            # rolling tag (e.g. :latest) changed — otherwise it keeps the old one
+            # because the `image:` string is identical.
+            if ! compose pull "$@"; then
+                warn "pull failed for one or more images"
+                warn "drop TAJO_MODE=ghcr to build the images from source instead"
+                die "aborting to avoid running stale images silently"
+            fi
+            seed_empty
+            start_stack --pull always "$@"
+            ;;
+        *)
+            seed_empty
+            start_stack "$@"
+            ;;
+    esac
+    ok "stack is up — open ${PUBLIC_API_URL%:*}:8080 · run 'tajo status' to see health"
+}
+
+# `compose up` aborts the whole stack when a dependency is not healthy in time.
+# On a first boot that happens transiently (RabbitMQ can crash once on its
+# .erlang.cookie permissions and recover on the automatic restart), so give the
+# stack a couple more chances before failing. `up` is idempotent.
+start_stack() {
+    local attempt
+    for attempt in 1 2 3; do
+        compose up -d --remove-orphans "$@" && return 0
+        [ "${attempt}" -lt 3 ] || die "the stack did not come up healthy — check 'tajo status' and 'tajo logs <service>'"
+        warn "some containers were not healthy yet (attempt ${attempt}/3) — retrying in 15s"
+        sleep 15
+    done
+}
+
+# Clone vsad-tajo-frontend (or fast-forward it to the tip of its branch) into
+# vendor/, so the build override can build it like any other service.
+ensure_frontend_src() {
+    if [ -d "${FRONTEND_DIR}/.git" ]; then
+        log "updating vsad-tajo-frontend (${FRONTEND_BRANCH})"
+        git -C "${FRONTEND_DIR}" fetch --quiet --depth 1 origin "${FRONTEND_BRANCH}" \
+            || die "cannot fetch ${FRONTEND_REPO} — check this host's GitHub access"
+        git -C "${FRONTEND_DIR}" reset --quiet --hard FETCH_HEAD
     else
-        compose up -d --remove-orphans "$@"
+        log "cloning vsad-tajo-frontend (${FRONTEND_BRANCH})"
+        mkdir -p "$(dirname "${FRONTEND_DIR}")"
+        git clone --quiet --depth 1 --branch "${FRONTEND_BRANCH}" "${FRONTEND_REPO}" "${FRONTEND_DIR}" \
+            || die "cannot clone ${FRONTEND_REPO} — this host needs GitHub access to VSADTajo"
     fi
-    ok "stack is up — run 'tajo status' to see health"
 }
 
 cmd_down() {
@@ -261,8 +376,8 @@ cmd_pull() {
 }
 
 cmd_build() {
-    MODE="dev"
     ensure_env
+    if [ "${MODE}" = "prod" ]; then ensure_frontend_src; fi
     compose build "$@"
 }
 
@@ -341,6 +456,279 @@ cmd_restore() {
             alpine sh -c "cd /data && tar -xzf /backup/${vol}.tar.gz"
     done
     ok "restore complete — run 'tajo up' to start"
+}
+
+# ─── dump / seed ──────────────────────────────────────────────────────────────
+# infra/seed/ holds one `pg_dump -Fc` per Postgres (<key>.dump), committed to
+# the repo. `tajo dump --from root@<server>` refreshes it from a live server;
+# `tajo up` loads it into every database that is still EMPTY, before the apps
+# start (they then apply only the migrations newer than the dump).
+#
+# GeoServer state that lives outside Postgres (data dir + datasets) travels in
+# infra/seed/geoserver/<name>.tar.gz and is unpacked into its volumes while they
+# are still empty.
+#
+# Files larger than SEED_PART_BYTES are stored split (<file>.part-aa, -ab…) to
+# stay under GitHub's 100 MB per-file limit.
+SEED_DBS=("${NEST_DB_SERVICES[@]}" geoserver)
+SEED_PART_BYTES=47185920 # 45 MiB
+SEED_TMP=""
+trap '[ -n "${SEED_TMP}" ] && rm -rf "${SEED_TMP}"' EXIT
+
+# GeoServer container name: `geoserver` in this stack, `vsad-tajo-geoserver` on
+# the legacy Hetzner VM.
+GEOSERVER_CONTAINERS=(geoserver vsad-tajo-geoserver)
+# <archive name>|<path inside the GeoServer container>. Logs are not shipped.
+GEOSERVER_TREES=("data|/opt/geoserver_data" "datasets|/opt/datasets")
+
+split_big() { # split_big <file>: replace a file over SEED_PART_BYTES by its parts
+    local size
+    size="$(wc -c <"$1" | tr -d ' ')"
+    if [ "${size}" -gt "${SEED_PART_BYTES}" ]; then
+        split -b "${SEED_PART_BYTES}" "$1" "$1.part-"
+        rm "$1"
+    fi
+}
+
+# Tables whose DATA stays out of the seed (structure only): huge time series
+# that the platform regenerates. bkp_* are ad-hoc manual backups.
+seed_dump_args() {
+    case "$1" in
+        ms-predictions-api) echo "--exclude-table-data=public.prediction_results --exclude-table=public.bkp_*" ;;
+        ms-meteo-api)       echo "--exclude-table-data=public.aerial_precipitation_events" ;;
+    esac
+}
+
+# docker on this host, or on DUMP_FROM (user@host) over ssh.
+DUMP_FROM=""
+dkr() {
+    if [ -n "${DUMP_FROM}" ]; then
+        ssh -o BatchMode=yes "${DUMP_FROM}" "docker $(printf '%q ' "$@")"
+    else
+        docker "$@"
+    fi
+}
+
+is_running() {
+    [ "$(dkr inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" = "true" ]
+}
+
+# Database a key really uses on the target host. Read from the live app
+# container when there is one (our VM uses ms_* names, not the .env.example
+# defaults); falls back to the configured name otherwise (e.g. a fresh host).
+live_db_name() {
+    local app="$1" var="DB_DATABASE" name=""
+    if [ "$1" = "geoserver" ]; then app="ms-hydro-api"; var="GEOSERVER_DB_DATABASE"; fi
+    name="$(dkr inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "${app}" 2>/dev/null | sed -n "s/^${var}=//p" | head -n1)"
+    if [ -n "${name}" ]; then echo "${name}"; else db_name_for "$1"; fi
+}
+
+seed_has_dump() { [ -f "${SEED_DIR}/$1.dump" ] || [ -f "${SEED_DIR}/$1.dump.part-aa" ]; }
+
+seed_cat() {
+    if [ -f "${SEED_DIR}/$1.dump" ]; then cat "${SEED_DIR}/$1.dump"; else cat "${SEED_DIR}/$1".dump.part-*; fi
+}
+
+# True when the database has no tables of its own (extension-owned tables such
+# as PostGIS' spatial_ref_sys do not count) — or does not exist yet.
+db_is_empty() {
+    local container="$1" db="$2" count
+    count="$(docker exec "${container}" sh -c 'psql -U "$POSTGRES_USER" -d "$1" -tAc "$2"' -- "${db}" \
+        "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE c.relkind IN ('r', 'p')
+           AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+           AND NOT EXISTS (SELECT 1 FROM pg_depend d
+                           WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid AND d.deptype = 'e')" \
+        2>/dev/null || true)"
+    [ "${count:-0}" = "0" ]
+}
+
+# Recreate the key's database and load its dump. Single transaction: the DB is
+# either fully restored or left empty, never half-loaded.
+restore_dump() {
+    local key="$1" container db
+    container="$(db_container_for "${key}")"
+    db="$(live_db_name "${key}")"
+    docker exec "${container}" sh -c \
+        'dropdb -U "$POSTGRES_USER" --if-exists --force "$1" && createdb -U "$POSTGRES_USER" -T template0 "$1"' \
+        -- "${db}" || { warn "${key}: could not recreate ${db}"; return 1; }
+    seed_cat "${key}" | docker exec -i "${container}" sh -c \
+        'pg_restore -U "$POSTGRES_USER" --no-owner --no-privileges --single-transaction --exit-on-error -d "$1"' \
+        -- "${db}" || { warn "${key}: restore failed — ${db} was left empty"; return 1; }
+}
+
+seed_keys() {
+    local key
+    for key in "${SEED_DBS[@]}"; do seed_has_dump "${key}" && echo "${key}"; done
+    return 0
+}
+
+start_seed_databases() { # start_seed_databases <key>...
+    local containers=() key
+    for key in "$@"; do containers+=("$(db_container_for "${key}")"); done
+    compose up -d --wait "${containers[@]}"
+}
+
+# Called by `tajo up`: load the seed into the databases and GeoServer volumes
+# that are still empty. Anything that already holds data is never touched.
+seed_empty() {
+    local keys=() key failed=""
+    while IFS= read -r key; do keys+=("${key}"); done < <(seed_keys)
+    [ ${#keys[@]} -gt 0 ] || return 0
+
+    log "checking databases against the seed in ${SEED_DIR}"
+    start_seed_databases "${keys[@]}"
+    for key in "${keys[@]}"; do
+        if db_is_empty "$(db_container_for "${key}")" "$(live_db_name "${key}")"; then
+            log " → ${key}: empty — loading seed"
+            restore_dump "${key}" || failed="${failed} ${key}"
+        else
+            log " · ${key}: already has data — left untouched"
+        fi
+    done
+    [ -z "${failed}" ] || die "seed failed for:${failed} — fix it and re-run 'tajo up'"
+    seed_geoserver_files
+}
+
+# Unpack infra/seed/geoserver/*.tar.gz into the GeoServer volumes. Without
+# --force a volume that already has content is left untouched. Runs in a
+# throwaway geoserver container (no deps) so compose creates/mounts the volumes.
+# Owners and permissions are kept: ms-meteo-api (uid 1000) writes into datasets.
+seed_geoserver_files() {
+    local force="${1:-0}"
+    ls "${SEED_DIR}"/geoserver/*.tar.gz* >/dev/null 2>&1 || return 0
+    log "checking GeoServer files against the seed"
+    # "Empty" cannot be tested: Docker pre-fills a new volume with the image's
+    # demo data dir. A marker file records that our seed was loaded instead.
+    local marker=".tajo-seeded"
+    if [ "${force}" != 1 ] && gs_files_run "test -f /opt/geoserver_data/${marker} && test -f /opt/datasets/${marker}"; then
+        log " · GeoServer files already seeded — left untouched"
+        return 0
+    fi
+    # GeoServer must not run while its data dir is replaced.
+    compose stop geoserver >/dev/null 2>&1 || true
+    gs_files_run '
+        restore() { # restore <dest> <archive name>
+            ls /seed/"$2".tar.gz* >/dev/null 2>&1 || return 0
+            if [ -f "$1/'"${marker}"'" ] && [ "'"${force}"'" != 1 ]; then
+                echo "  · $1 already seeded — left untouched"; return 0
+            fi
+            echo "  → loading $2 into $1"
+            find "$1" -mindepth 1 -delete
+            cat /seed/"$2".tar.gz* | tar -xzpf - --numeric-owner -C "$1" && touch "$1/'"${marker}"'"
+        }
+        restore /opt/geoserver_data data && restore /opt/datasets datasets' \
+        || die "could not load the GeoServer files"
+}
+
+# Run a shell snippet in a throwaway geoserver container (no deps) with the
+# GeoServer volumes and the seed mounted — compose creates/labels the volumes.
+gs_files_run() {
+    compose run --rm --no-deps -T -v "${SEED_DIR}/geoserver:/seed:ro" --entrypoint sh geoserver -c "$1" >&2
+}
+
+cmd_dump() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --from) DUMP_FROM="${2:-}"; [ -n "${DUMP_FROM}" ] || die "usage: tajo dump [--from user@host]"; shift 2 ;;
+            *) die "usage: tajo dump [--from user@host]" ;;
+        esac
+    done
+    load_env
+    local tmp key container db size extra=() dumped=0
+    tmp="$(mktemp -d "${INFRA_DIR}/.seed.XXXXXX")"
+    SEED_TMP="${tmp}"
+    {
+        echo "# Generated by 'tajo dump' — do not edit by hand."
+        echo "created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "source=${DUMP_FROM:-$(hostname)}"
+    } >"${tmp}/MANIFEST"
+
+    log "dumping databases from ${DUMP_FROM:-this host}"
+    for key in "${SEED_DBS[@]}"; do
+        container="$(db_container_for "${key}")"
+        if ! is_running "${container}"; then
+            warn "skip ${key} (${container} is not running)"
+            continue
+        fi
+        db="$(live_db_name "${key}")"
+        read -r -a extra <<<"$(seed_dump_args "${key}")"
+        log " → ${key} (${container}/${db})"
+        # User comes from the container's own env, so no credentials are needed here.
+        dkr exec "${container}" sh -c 'pg_dump -U "$POSTGRES_USER" -Fc --no-owner --no-privileges "$@"' \
+            -- "${extra[@]+"${extra[@]}"}" "${db}" >"${tmp}/${key}.dump" || die "pg_dump failed for ${key}"
+        split_big "${tmp}/${key}.dump"
+        echo "${key}=${db} ${extra[*]+"${extra[*]}"}" >>"${tmp}/MANIFEST"
+        dumped=$((dumped + 1))
+    done
+    [ "${dumped}" -gt 0 ] || die "no database container is running — nothing to dump"
+
+    local gs="" c entry name path
+    for c in "${GEOSERVER_CONTAINERS[@]}"; do
+        if is_running "${c}"; then gs="${c}"; break; fi
+    done
+    if [ -n "${gs}" ]; then
+        mkdir -p "${tmp}/geoserver"
+        for entry in "${GEOSERVER_TREES[@]}"; do
+            name="${entry%%|*}"
+            path="${entry#*|}"
+            log " → geoserver ${path} (${gs})"
+            # Archived from inside the container: works whatever the host paths are.
+            dkr exec "${gs}" tar -czf - -C "${path}" --exclude=./logs . \
+                >"${tmp}/geoserver/${name}.tar.gz" || die "could not archive ${path} from ${gs}"
+            split_big "${tmp}/geoserver/${name}.tar.gz"
+            echo "geoserver:${name}=${path}" >>"${tmp}/MANIFEST"
+        done
+    else
+        warn "skip GeoServer files (no ${GEOSERVER_CONTAINERS[*]} container running)"
+    fi
+
+    # Swap the whole seed at once: never a mix of old and new dumps.
+    rm -rf "${SEED_DIR}"
+    mv "${tmp}" "${SEED_DIR}"
+    chmod 755 "${SEED_DIR}"
+    SEED_TMP=""
+    ok "seed refreshed: ${SEED_DIR} ($(du -sh "${SEED_DIR}" | cut -f1))"
+    log "ship it: git add infra/seed && git commit -m 'chore(seed): refresh database seed'"
+}
+
+cmd_seed() {
+    local force=0 assume_yes=0 arg key failed=""
+    for arg in "$@"; do
+        case "${arg}" in
+            --force) force=1 ;;
+            -y | --yes) assume_yes=1 ;;
+            *) die "usage: tajo seed [--force [--yes]]" ;;
+        esac
+    done
+    ensure_env
+    ensure_network
+    if [ "${force}" != 1 ]; then
+        seed_empty
+        ok "seed check done"
+        return 0
+    fi
+
+    local keys=()
+    while IFS= read -r key; do keys+=("${key}"); done < <(seed_keys)
+    [ ${#keys[@]} -gt 0 ] || die "no dumps in ${SEED_DIR}"
+    warn "this REPLACES these databases with the seed: ${keys[*]}"
+    if [ "${assume_yes}" != 1 ]; then
+        read -r -p "type 'yes' to continue: " confirm
+        [ "${confirm}" = "yes" ] || die "aborted"
+    fi
+    # Apps run their migrations on boot: they must not touch a DB while it is
+    # being replaced. `tajo up` brings them back.
+    log "stopping apps that use these databases"
+    compose stop "${NEST_DB_SERVICES[@]}" geoserver >/dev/null 2>&1 || true
+    start_seed_databases "${keys[@]}"
+    for key in "${keys[@]}"; do
+        log " → ${key}"
+        restore_dump "${key}" || failed="${failed} ${key}"
+    done
+    [ -z "${failed}" ] || die "seed failed for:${failed}"
+    seed_geoserver_files 1
+    ok "seed loaded — run 'tajo up' to start the apps"
 }
 
 # ─── create-admin ─────────────────────────────────────────────────────────────
@@ -443,35 +831,40 @@ Usage:
     tajo <command> [args]
 
 Modes:
-    Default mode is prod. Override with TAJO_MODE=dev or the --dev/--prod flag.
+    Default mode is prod (build from source). Override with TAJO_MODE or the --dev/--ghcr flag.
 
 Commands:
-    up [--dev|--prod] [services...]   Start the stack (default: prod, pulls images first)
+    up [--dev|--ghcr] [services...]   Build from source, load the DB seed into empty DBs, start (default)
     down [-v]                         Stop the stack. With -v also wipes volumes.
     restart <service>                 Restart a single service
     logs [service]                    Tail logs (all services, or just one)
     status                            Show container status + health
-    pull                              Pull latest images for the configured TAG
-    build [service]                   Build images locally (implies --dev)
+    pull                              Pull GHCR images for the configured TAG (--ghcr mode)
+    build [service]                   Build images from source without starting them
     shell <service>                   Open a sh inside a running service
     migrate [service]                 Run TypeORM migrations on one service, or all DB services if none given
     psql <service>                    Open psql against the service's database
     backup                            Tar all data volumes to backups/<timestamp>/
     restore <backup-dir>              Restore data volumes from a backup directory
+    dump [--from user@host]           Refresh infra/seed/ with a pg_dump of every Postgres (commit it after)
+    seed [--force [--yes]]            Load infra/seed/ into empty DBs; --force replaces ALL seeded DBs
     create-admin <email> <pass> [name]  Create the FIRST platform admin (runs once)
-    doctor                            Pre-flight checks: docker, network, GHCR login, TAG, images, .env
+    doctor                            Pre-flight checks: docker, network, sources/GHCR, seed, .env
     help                              This message
 
 Environment overrides:
-    TAJO_MODE=dev|prod                Default for compose overrides (default: prod)
-    REGISTRY=ghcr.io/vsadtajo         GHCR namespace for prod images
+    TAJO_MODE=prod|ghcr|dev           prod = build from source (default) · ghcr = pull images · dev = hot-reload
+    PUBLIC_HOST=tajo.example.com      Host the browser uses (default: this machine's IP); sets PUBLIC_* URLs
+    REGISTRY=ghcr.io/vsadtajo         GHCR namespace for --ghcr images
     TAG=v2026.09.17.42                Image tag — normally read from infra/version.env
                                       (bumped by CI on every merge to main).
                                       Export TAG=... to override for rollback/testing.
 
 Examples:
+    git pull && tajo up               Client: run the repo's code with our data + config
+    tajo dump --from root@65.21.97.113  Refresh the seed from our Hetzner server
     tajo doctor                       Verify install BEFORE running 'up' (fresh hosts especially)
-    tajo up                           Pull the pinned release + start everything
+    tajo up --ghcr                    Pull the pinned GHCR release instead of building
     tajo up --dev                     Build from source + bring up with hot-reload
     tajo migrate ms-user-api          Run pending migrations for ms-user-api
     tajo psql ms-predictions-api      Open psql into the predictions DB
@@ -487,6 +880,7 @@ for arg in "$@"; do
     case "${arg}" in
         --dev)  MODE="dev" ;;
         --prod) MODE="prod" ;;
+        --ghcr) MODE="ghcr" ;;
         *)      ARGS+=("${arg}") ;;
     esac
 done
@@ -508,6 +902,8 @@ case "${cmd}" in
     psql)     cmd_psql "$@" ;;
     backup)   cmd_backup "$@" ;;
     restore)  cmd_restore "$@" ;;
+    dump)     cmd_dump "$@" ;;
+    seed)     cmd_seed "$@" ;;
     create-admin) cmd_create_admin "$@" ;;
     doctor)   cmd_doctor "$@" ;;
     help|-h|--help) cmd_help ;;

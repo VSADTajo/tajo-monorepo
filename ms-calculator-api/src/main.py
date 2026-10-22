@@ -45,19 +45,42 @@ def create_app() -> FastAPI:
         )
 
         conn = AmqpConnection(url=amqp_url)
-        try:
-            await conn.connect()
-            logger.info(
-                "startup.amqp_connected",
-                message="AMQP connection established",
-                host=settings.RABBITMQ_HOST,
-                port=settings.RABBITMQ_PORT,
-            )
-        except Exception as exc:
+        max_attempts = settings.RABBITMQ_CONNECT_MAX_ATTEMPTS
+        retry_delay = settings.RABBITMQ_CONNECT_RETRY_DELAY_MS / 1000
+        last_exc: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                await conn.connect()
+                last_exc = None
+                logger.info(
+                    "startup.amqp_connected",
+                    message="AMQP connection established",
+                    host=settings.RABBITMQ_HOST,
+                    port=settings.RABBITMQ_PORT,
+                    attempt=attempt,
+                )
+                break
+            except Exception as exc:
+                last_exc = exc
+                if attempt < max_attempts:
+                    logger.warning(
+                        "startup.amqp_retry",
+                        message=f"AMQP not ready, retrying in {retry_delay:.1f}s",
+                        host=settings.RABBITMQ_HOST,
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                    )
+                    await asyncio.sleep(retry_delay)
+
+        if last_exc is not None:
             logger.error(
                 "startup.amqp_failed",
-                message=f"Could not connect to AMQP: {exc}",
+                message=(
+                    f"Could not connect to AMQP after {max_attempts} attempts: "
+                    f"{last_exc}"
+                ),
                 host=settings.RABBITMQ_HOST,
+                exc_info=last_exc,
             )
             # Store None so health check reports degraded
             _amqp_connection = None

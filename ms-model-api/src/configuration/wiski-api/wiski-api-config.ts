@@ -29,11 +29,7 @@ class EnvVariablesValidator {
 
     @IsOptional()
     @IsString()
-    WISKI_API_USERNAME: string;
-
-    @IsOptional()
-    @IsString()
-    WISKI_API_PASSWORD: string;
+    WISKI_API_TOKEN: string;
 
     @IsOptional()
     @IsString()
@@ -49,8 +45,7 @@ export default registerAs<WiskiApiConfig>('wiski-api', () => {
         timezone: process.env.WISKI_API_TIMEZONE || 'Europe/Madrid',
         requestTimeoutMs: Number(process.env.WISKI_API_REQUEST_TIMEOUT_MS) || 120_000,
         maxResponseBytes: Number(process.env.WISKI_API_MAX_RESPONSE_BYTES) || 50 * 1024 * 1024,
-        username: process.env.WISKI_API_USERNAME || '',
-        password: process.env.WISKI_API_PASSWORD || '',
+        token: process.env.WISKI_API_TOKEN || '',
         mockBaseUrl: process.env.MOCK_WISKI_BASE_URL || `http://127.0.0.1:${Number(process.env.APP_PORT) || 3000}`,
     };
 });
