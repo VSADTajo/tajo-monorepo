@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     RABBITMQ_PASSWORD: str = "guest"
     RABBITMQ_VHOST: str = "/"
     RABBITMQ_PREFETCH: int = 10
+    # Startup connection retry. RabbitMQ's healthcheck can report ready a beat
+    # before its AMQP listener accepts connections, so the first connect races
+    # and the service would otherwise stay degraded until a manual restart.
+    # Retry with a fixed delay before giving up and running in degraded mode.
+    RABBITMQ_CONNECT_MAX_ATTEMPTS: int = 30
+    RABBITMQ_CONNECT_RETRY_DELAY_MS: int = 2000
 
     # Reservoir configuration
     RESERVOIR_CONFIG_PATH: str = "src/config/reservoir_parameters.json"
