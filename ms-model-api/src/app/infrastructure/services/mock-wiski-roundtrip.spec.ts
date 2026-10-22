@@ -58,8 +58,7 @@ describe('WISKI mock — full round trip over HTTP', () => {
             timezone: 'Europe/Madrid',
             requestTimeoutMs: 5000,
             maxResponseBytes: 5 * 1024 * 1024,
-            username: '',
-            password: '',
+            token: '',
             mockBaseUrl: origin,
         } as unknown as WiskiApiConfigService;
 
