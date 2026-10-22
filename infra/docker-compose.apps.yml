@@ -419,6 +419,10 @@ services:
             METEO_RETENTION_DAYS: ${METEO_RETENTION_DAYS:-7}
             METEO_RETENTION_MODE: ${METEO_RETENTION_MODE:-today}
             SFTP_API_INTERNAL_CALLER: ms-meteo-api
+        # GeoTIFFs written here (METEO_GEOTIFF_DIR) are published by GeoServer,
+        # which mounts the same volume at the same path.
+        volumes:
+            - geoserver-datasets:/opt/datasets
         expose:
             - '3010'
         depends_on:
@@ -489,8 +493,12 @@ services:
             INSTALL_EXTENSIONS: 'false'
             CORS_ENABLED: 'true'
             CORS_ALLOWED_ORIGINS: '*'
+        # Data dir (workspaces, stores, styles) + datasets (rasters/vectors the
+        # stores point at, incl. ms-meteo-api's GeoTIFFs). Both are loaded from
+        # infra/seed/geoserver/ by `tajo up` while still empty.
         volumes:
             - geoserver-data:/opt/geoserver_data
+            - geoserver-datasets:/opt/datasets
         ports:
             - '8085:8080'
         depends_on:
@@ -510,6 +518,7 @@ volumes:
     sftp-keys:
     logs-files-results:
     geoserver-data:
+    geoserver-datasets:
 
 networks:
     infra-network:

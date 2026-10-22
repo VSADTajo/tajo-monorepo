@@ -5,31 +5,42 @@ Single source of truth for running the VSAD Tajo platform via Docker Compose. Co
 ## TL;DR
 
 ```bash
-cd /path/to/tajo-monorepo
-
-# 1. Customize secrets
-cp infra/.env.example infra/.env
-$EDITOR infra/.env
-
-# 2. (Production only) Authenticate to GHCR so docker can pull images
-echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
-
-# 3. Bring everything up
-bin/tajo up                # default = production mode, pulls images from GHCR
-bin/tajo up --dev          # local build with hot-reload (no GHCR required)
-
-# 4. Check health
+git clone <repo> tajo && cd tajo
+bin/tajo up                # build from source + load the DB seed into empty DBs + start
 bin/tajo status
 ```
+
+No manual config: `infra/.env` (real values) and `infra/seed/` (Postgres dumps)
+are **committed on purpose** so a client host needs only `git pull && bin/tajo up`.
+PUBLIC_* URLs are derived from the host IP (override with `PUBLIC_HOST=` in `.env`).
+
+Other modes: `bin/tajo up --ghcr` (pull prebuilt GHCR images at `TAG`) and
+`bin/tajo up --dev` (hot-reload).
+
+### Refreshing the seed
+
+```bash
+bin/tajo dump --from root@65.21.97.113   # pg_dump every DB on our Hetzner server → infra/seed/
+git add infra/seed && git commit -m 'chore(seed): refresh database seed'
+```
+
+Data of `prediction_results` (~42 GB) and `aerial_precipitation_events` is left
+out (structure only) and `bkp_*` tables are skipped — see `seed_dump_args` in
+`bin/tajo`. Dumps over 45 MiB are split into `.part-*` files (GitHub's 100 MB
+limit). `tajo up` only seeds databases with no tables, so it never overwrites
+data; `tajo seed --force` replaces them explicitly.
 
 ## File map
 
 | File | Purpose |
 |------|---------|
-| `.env.example` | Template — copy to `.env` and customize. Single env source for the whole stack. |
+| `.env` | Committed platform config (values from production). Never holds GitHub/GHCR/Jenkins tokens. |
+| `.env.example` | Template documenting every variable. |
+| `seed/` | Committed `pg_dump -Fc` per Postgres + `MANIFEST`. Loaded into empty DBs by `tajo up`. |
 | `docker-compose.base.yml` | Data stores: Redis, RabbitMQ, MongoDB, 8 Postgres instances (one per service). Volumes are named & persistent. |
-| `docker-compose.apps.yml` | All application services + GeoServer + frontend. Pulls images from `${REGISTRY}/<svc>:${TAG}` by default. |
-| `docker-compose.prod.yml` | Prod override: `pull_policy: always`, `restart: always`, bounded log files. |
+| `docker-compose.apps.yml` | All application services + GeoServer + frontend. Image refs `${REGISTRY}/<svc>:${TAG}`. |
+| `docker-compose.prod.yml` | Prod override: `restart: always`, bounded log files. |
+| `docker-compose.build.yml` | Default override: builds every image from this checkout (`target: prod`); the frontend is cloned into `vendor/`. |
 | `docker-compose.dev.yml` | Dev override: builds locally with `target: dev`, bind-mounts source for hot-reload, runs migrations on start. |
 | `postgres/init-extensions.sql` | Loaded once per Postgres DB to enable `uuid-ossp` + `pgcrypto`. |
 | `postgres/init-postgis.sql` | Same for the GeoServer + meteo PostGIS DBs. |
@@ -41,7 +52,7 @@ docker compose \
     -p tajo \
     -f infra/docker-compose.base.yml \
     -f infra/docker-compose.apps.yml \
-    -f infra/docker-compose.<dev|prod>.yml \
+    -f infra/docker-compose.prod.yml -f infra/docker-compose.build.yml \   # or dev.yml / prod.yml alone (--ghcr)
     up -d
 ```
 

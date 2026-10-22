@@ -21,6 +21,7 @@ services:
     ms-user-api: { <<: *prod-defaults }
     ms-authentication-api: { <<: *prod-defaults }
     ms-sftp-api: { <<: *prod-defaults }
+    sftp-frontend: { <<: *prod-defaults }
     ms-logs-api: { <<: *prod-defaults }
     ms-logs-ui: { <<: *prod-defaults }
     ms-hydro-api: { <<: *prod-defaults }
@@ -28,5 +29,6 @@ services:
     ms-model-api: { <<: *prod-defaults }
     ms-notifications-api: { <<: *prod-defaults }
     ms-meteo-api: { <<: *prod-defaults }
+    ms-calculator-api: { <<: *prod-defaults }
     vsad-tajo-frontend: { <<: *prod-defaults }
     geoserver: { <<: *prod-defaults }

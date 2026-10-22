@@ -1,0 +1,78 @@
+# =============================================================================
+# Build-from-source override — the DEFAULT for `tajo up`.
+#
+# Builds every image locally from the code in this checkout (target `prod`)
+# instead of pulling from GHCR, so `git pull && tajo up` always runs exactly the
+# code in the repo. Layered after docker-compose.prod.yml (restart/log policy).
+#
+# vsad-tajo-frontend lives in its own repo: `tajo up` clones it into
+# vendor/vsad-tajo-frontend before building. Its API URL is baked at build time,
+# so it is built with this host's PUBLIC_* URLs (auto-detected by tajo).
+# =============================================================================
+
+x-local: &local
+    pull_policy: never
+
+services:
+    ms-gateway-api:
+        <<: *local
+        image: tajo-local/ms-gateway-api
+        build: { context: ../ms-gateway-api, target: prod }
+    ms-user-api:
+        <<: *local
+        image: tajo-local/ms-user-api
+        build: { context: ../ms-user-api, target: prod }
+    ms-authentication-api:
+        <<: *local
+        image: tajo-local/ms-authentication-api
+        build: { context: ../ms-authentication-api, target: prod }
+    ms-sftp-api:
+        <<: *local
+        image: tajo-local/ms-sftp-api
+        build: { context: ../ms-sftp-api, target: prod }
+    sftp-frontend:
+        <<: *local
+        image: tajo-local/sftp-frontend
+        build: { context: ../ms-sftp-api/frontend, target: prod }
+    ms-logs-api:
+        <<: *local
+        image: tajo-local/ms-logs-api
+        build: { context: ../ms-logs-api, target: prod }
+    ms-logs-ui:
+        <<: *local
+        image: tajo-local/ms-logs-ui
+        # Context is ms-logs-api (not ui/) because the Dockerfile COPYs use ui/ paths.
+        build: { context: ../ms-logs-api, dockerfile: ui/Dockerfile, target: prod }
+    ms-hydro-api:
+        <<: *local
+        image: tajo-local/ms-hydro-api
+        build: { context: ../ms-hydro-api, target: prod }
+    ms-predictions-api:
+        <<: *local
+        image: tajo-local/ms-predictions-api
+        build: { context: ../ms-predictions-api, target: prod }
+    ms-model-api:
+        <<: *local
+        image: tajo-local/ms-model-api
+        build: { context: ../ms-model-api, target: prod }
+    ms-notifications-api:
+        <<: *local
+        image: tajo-local/ms-notifications-api
+        build: { context: ../ms-notifications-api, target: prod }
+    ms-meteo-api:
+        <<: *local
+        image: tajo-local/ms-meteo-api
+        build: { context: ../ms-meteo-api, target: prod }
+    ms-calculator-api:
+        <<: *local
+        image: tajo-local/ms-calculator-api
+        build: { context: ../ms-calculator-api, target: prod }
+    vsad-tajo-frontend:
+        <<: *local
+        image: tajo-local/vsad-tajo-frontend
+        build:
+            context: ../vendor/vsad-tajo-frontend
+            target: prod
+            args:
+                VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
+                VITE_GEOSERVER_URL: ${PUBLIC_GEOSERVER_URL:-http://localhost:8085/geoserver}

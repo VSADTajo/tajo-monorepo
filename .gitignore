@@ -14,3 +14,11 @@ tajo-volume_calculator/
 
 # TypeScript incremental build cache — never versioned
 *.tsbuildinfo
+
+# Volume backups (tajo backup) — production data, never committed
+/backups/
+
+# Database seed (infra/seed/) and the platform config (infra/.env) are committed
+# on purpose — see infra/README.md. Volume backups and the cloned frontend are not.
+!infra/.env
+/vendor/
