@@ -280,7 +280,14 @@ cmd_up() {
             # Build from this checkout so the stack always runs the repo's code.
             ensure_frontend_src
             log "building images from source (the first run takes a while)"
-            compose build "$@"
+            # npm/Docker Hub downloads can time out on a flaky link; finished
+            # layers are cached, so a retry resumes where the build failed.
+            local attempt
+            for attempt in 1 2 3; do
+                compose build "$@" && break
+                [ "${attempt}" -lt 3 ] || die "build failed 3 times — check this host's access to npm/Docker Hub and re-run 'tajo up'"
+                warn "build failed (attempt ${attempt}/3) — retrying, finished images are cached"
+            done
             seed_empty
             compose up -d --remove-orphans "$@"
             ;;
