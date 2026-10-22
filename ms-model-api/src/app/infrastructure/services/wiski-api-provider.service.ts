@@ -11,6 +11,8 @@ import { WiskiObservedRecord, toNormalizedTimeSeries } from '@infrastructure/ser
 
 /** How many unresolved variables to name in the log before truncating. */
 const REPORTED_VARIABLE_SAMPLE = 10;
+/** How much of an error response body to log. */
+const RESPONSE_BODY_SNIPPET = 1000;
 
 @Injectable()
 export class WiskiApiProviderService implements IDataProvider {
@@ -80,8 +82,23 @@ export class WiskiApiProviderService implements IDataProvider {
         // list) becomes a config change instead of a release.
         const params = this.resolveQueryParams(settings.queryParams);
         const token = this.wiskiApiConfigService.token;
+        const headers: Record<string, string> = {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Token ${token}` } : {}),
+        };
 
-        this.logger.log({ msg: 'Fetching WISKI observed data', entity: 'Ingestion', url, params });
+        // The exact request as a curl, so a failing ingestion can be replayed by
+        // hand. The token is masked (edges + length) — enough to spot a wrong,
+        // truncated or quoted value without leaking it into the central logs.
+        this.logger.log({
+            msg: 'Fetching WISKI observed data',
+            entity: 'Ingestion',
+            url,
+            params,
+            tokenConfigured: token.length > 0,
+            tokenLength: token.length,
+            curl: this.toCurl(url, params, headers, token),
+        });
 
         try {
             const response = await axios.get(url, {
@@ -90,10 +107,15 @@ export class WiskiApiProviderService implements IDataProvider {
                 maxContentLength: this.wiskiApiConfigService.maxResponseBytes,
                 maxBodyLength: this.wiskiApiConfigService.maxResponseBytes,
                 responseType: 'json',
-                headers: {
-                    Accept: 'application/json',
-                    ...(token ? { Authorization: `Token ${token}` } : {}),
-                },
+                headers,
+            });
+
+            this.logger.log({
+                msg: 'WISKI API responded',
+                entity: 'Ingestion',
+                status: response.status,
+                contentType: response.headers?.['content-type'],
+                readingCount: Array.isArray(response.data) ? response.data.length : undefined,
             });
 
             const payload = response.data;
@@ -104,9 +126,42 @@ export class WiskiApiProviderService implements IDataProvider {
             return payload as WiskiObservedRecord[];
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            this.logger.error({ msg: 'WISKI API fetch failed', entity: 'Ingestion', url, error: message });
+            // What WISKI actually answered (status + body) or the network error
+            // code — "status code 401" alone does not say why.
+            const response = axios.isAxiosError(error) ? error.response : undefined;
+            this.logger.error({
+                msg: 'WISKI API fetch failed',
+                entity: 'Ingestion',
+                url,
+                error: message,
+                code: axios.isAxiosError(error) ? error.code : undefined,
+                status: response?.status,
+                statusText: response?.statusText,
+                responseHeaders: response?.headers,
+                responseBody: this.snippet(response?.data),
+                curl: this.toCurl(url, params, headers, token),
+            });
             throw new ProviderError(`WISKI API fetch failed: ${message}`);
         }
+    }
+
+    private toCurl(url: string, params: Record<string, string>, headers: Record<string, string>, token: string): string {
+        const query = new URLSearchParams(params).toString();
+        const fullUrl = query ? `${url}${url.includes('?') ? '&' : '?'}${query}` : url;
+        const headerArgs = Object.entries(headers)
+            .map(([name, value]) => `-H "${name}: ${token ? value.replace(token, this.maskToken(token)) : value}"`)
+            .join(' ');
+        return `curl -sS -i ${headerArgs} "${fullUrl}"`;
+    }
+
+    private maskToken(token: string): string {
+        return token.length <= 8 ? `<${token.length} chars>` : `${token.slice(0, 4)}…${token.slice(-4)}`;
+    }
+
+    private snippet(data: unknown): string | undefined {
+        if (data === undefined || data === null) return undefined;
+        const text = typeof data === 'string' ? data : JSON.stringify(data);
+        return text.length > RESPONSE_BODY_SNIPPET ? `${text.slice(0, RESPONSE_BODY_SNIPPET)}…` : text;
     }
 
     // ─────────────────────────────────────────────────────────────
