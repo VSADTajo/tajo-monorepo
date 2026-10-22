@@ -79,8 +79,7 @@ export class WiskiApiProviderService implements IDataProvider {
         // Free-form so a filter we do not know yet (a date range, a station
         // list) becomes a config change instead of a release.
         const params = this.resolveQueryParams(settings.queryParams);
-        const username = this.wiskiApiConfigService.username;
-        const password = this.wiskiApiConfigService.password;
+        const token = this.wiskiApiConfigService.token;
 
         this.logger.log({ msg: 'Fetching WISKI observed data', entity: 'Ingestion', url, params });
 
@@ -91,8 +90,10 @@ export class WiskiApiProviderService implements IDataProvider {
                 maxContentLength: this.wiskiApiConfigService.maxResponseBytes,
                 maxBodyLength: this.wiskiApiConfigService.maxResponseBytes,
                 responseType: 'json',
-                auth: username ? { username, password } : undefined,
-                headers: { Accept: 'application/json' },
+                headers: {
+                    Accept: 'application/json',
+                    ...(token ? { Authorization: `Token ${token}` } : {}),
+                },
             });
 
             const payload = response.data;

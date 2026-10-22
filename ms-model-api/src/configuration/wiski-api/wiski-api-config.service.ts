@@ -27,12 +27,8 @@ export class WiskiApiConfigService {
         return this.configService.getOrThrow('wiski-api.maxResponseBytes', { infer: true });
     }
 
-    public get username(): string {
-        return this.configService.getOrThrow('wiski-api.username', { infer: true });
-    }
-
-    public get password(): string {
-        return this.configService.getOrThrow('wiski-api.password', { infer: true });
+    public get token(): string {
+        return this.configService.getOrThrow('wiski-api.token', { infer: true });
     }
 
     public get mockBaseUrl(): string {
