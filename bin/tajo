@@ -22,6 +22,7 @@ DEV_COMPOSE="${INFRA_DIR}/docker-compose.dev.yml"
 PROD_COMPOSE="${INFRA_DIR}/docker-compose.prod.yml"
 BUILD_COMPOSE="${INFRA_DIR}/docker-compose.build.yml"
 ENV_FILE="${INFRA_DIR}/.env"
+ENV_LOCAL_FILE="${INFRA_DIR}/.env.local"
 # Postgres dumps committed to the repo; loaded into EMPTY databases by `tajo up`.
 SEED_DIR="${INFRA_DIR}/seed"
 # vsad-tajo-frontend lives in its own repo; cloned here to build it from source.
@@ -122,6 +123,10 @@ load_env() {
     # testing (e.g. TAG=v2026.09.10.42 in .env pins to a previous release).
     # shellcheck disable=SC1090
     [ -f "${ENV_FILE}" ] && { set -a; . "${ENV_FILE}"; set +a; }
+    # .env.local LAST: this host's own values and secrets (PUBLIC_HOST, WISKI
+    # credentials, ...). Not committed, so `git pull` never conflicts with it.
+    # shellcheck disable=SC1090
+    [ -f "${ENV_LOCAL_FILE}" ] && { set -a; . "${ENV_LOCAL_FILE}"; set +a; }
     [ -n "${shell_tag}" ] && export TAG="${shell_tag}"
     detect_public_urls
     ENV_LOADED=1
