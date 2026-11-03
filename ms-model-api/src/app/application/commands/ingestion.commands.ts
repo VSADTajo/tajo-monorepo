@@ -95,13 +95,25 @@ export class ExecuteIngestionHandler implements ICommandHandler<ExecuteIngestion
             throw new ApiError(HttpStatus.NOT_FOUND, `Provider config with id "${command.providerConfigId}" not found`);
         }
 
-        // 2. Concurrency guard — check for running ingestion
+        // 2. Concurrency guard — check for running ingestion. A run orphaned by a
+        //    process that died mid-fetch would otherwise block this provider forever.
         const runningRun = await this.ingestionRunRepository.findRunningByProviderConfigId(command.providerConfigId);
         if (runningRun) {
-            throw new ApiError(
-                HttpStatus.CONFLICT,
-                `Ingestion is already running for provider config "${command.providerConfigId}"`,
-            );
+            const now = new Date();
+            if (!runningRun.isStale(now)) {
+                throw new ApiError(
+                    HttpStatus.CONFLICT,
+                    `Ingestion is already running for provider config "${command.providerConfigId}"`,
+                );
+            }
+            runningRun.markAsInterrupted(now);
+            await this.ingestionRunRepository.update(runningRun);
+            this.logger.warn({
+                msg: 'Released stale RUNNING ingestion run',
+                runId: runningRun.id,
+                providerConfigId: command.providerConfigId,
+                startedAt: runningRun.startedAt,
+            });
         }
 
         // 3. Create IngestionRun with status=RUNNING
