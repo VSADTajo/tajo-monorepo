@@ -2,7 +2,16 @@ import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 't
 import { BaseAuditEntity } from '@app/infrastructure/persistence/base-entity';
 import { IValidable } from '@domain/types/validable.type';
 import { EntityError } from '@domain/errors/entity.error';
+import { IngestionStatus } from '@domain/types/ingestion-status.enum';
 import { ProviderConfig } from './provider-config.entity';
+
+/**
+ * A run still RUNNING after this long was orphaned: the process died mid-fetch
+ * (restart, deploy, crash) and nothing will ever close it. Real ingestions take
+ * seconds to a few minutes, so two hours leaves a wide margin while costing at
+ * most two hourly cycles.
+ */
+export const INGESTION_RUN_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 
 @Entity('ingestion_runs')
 export class IngestionRun extends BaseAuditEntity implements IValidable {
@@ -38,6 +47,21 @@ export class IngestionRun extends BaseAuditEntity implements IValidable {
 
     @Column('text', { nullable: true })
     errorMessage: string | null;
+
+    isStale(now: Date): boolean {
+        return (
+            this.status === IngestionStatus.RUNNING &&
+            now.getTime() - new Date(this.startedAt).getTime() > INGESTION_RUN_STALE_AFTER_MS
+        );
+    }
+
+    markAsInterrupted(now: Date): void {
+        this.status = IngestionStatus.FAILED;
+        this.completedAt = now;
+        this.errorMessage =
+            `Interrupted: still RUNNING since ${new Date(this.startedAt).toISOString()} ` +
+            '(the process stopped mid-ingestion); released by a newer ingestion';
+    }
 
     validate(): void {
         if (!this.providerConfigId) {
