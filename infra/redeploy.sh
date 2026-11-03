@@ -46,7 +46,7 @@ ALL_SERVICES="ms-gateway-api ms-user-api ms-authentication-api ms-sftp-api sftp-
 # Format: one "svc|dest|named" tuple per line.
 NAMED_VOLUMES='
 ms-sftp-api|/data/files|sftp-storage
-ms-sftp-api|/data/sftp|sftp-keys
+ms-sftp-api|/data/sftp|sftp-hostkey
 ms-logs-api|/app/dist/files_results|ms-logs-api-files
 '
 
