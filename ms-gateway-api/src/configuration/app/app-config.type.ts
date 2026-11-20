@@ -23,4 +23,6 @@ export type AppConfig = {
     rbacBypassRoles: string[];
     logsApiUrl: string;
     xApiKey: string;
+    allowedOrigins: string;
+    trustProxy: string;
 };

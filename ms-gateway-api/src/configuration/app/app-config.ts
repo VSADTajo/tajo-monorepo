@@ -38,6 +38,14 @@ class EnvVariablesValidator {
     @IsOptional()
     @IsString()
     X_API_KEY: string;
+
+    @IsOptional()
+    @IsString()
+    ALLOWED_ORIGINS: string;
+
+    @IsOptional()
+    @IsString()
+    TRUST_PROXY: string;
 }
 
 export default registerAs<AppConfig>('app', () => {
@@ -53,5 +61,10 @@ export default registerAs<AppConfig>('app', () => {
         rbacBypassRoles: (process.env.RBAC_BYPASS_ROLES || 'admin').split(',').map((r) => r.trim()),
         logsApiUrl: process.env.LOGS_API_URL || '',
         xApiKey: process.env.X_API_KEY || '',
+        // Comma-separated list, or '*' for any origin.
+        allowedOrigins: process.env.ALLOWED_ORIGINS ?? '*',
+        // Express 'trust proxy' value: which hops may set X-Forwarded-*. The
+        // default trusts private networks, where the reverse proxy lives.
+        trustProxy: process.env.TRUST_PROXY || 'loopback, linklocal, uniquelocal',
     };
 });
