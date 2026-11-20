@@ -74,5 +74,7 @@ services:
             context: ../vendor/vsad-tajo-frontend
             target: prod
             args:
-                VITE_API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
-                VITE_GEOSERVER_URL: ${PUBLIC_GEOSERVER_URL:-http://localhost:8085/geoserver}
+                # Relative (/api, /geoserver) behind a reverse proxy, absolute
+                # otherwise — set by tajo from PUBLIC_BASE_URL / PUBLIC_HOST.
+                VITE_API_URL: ${FRONTEND_API_URL:-http://localhost:3000}
+                VITE_GEOSERVER_URL: ${FRONTEND_GEOSERVER_URL:-http://localhost:8085/geoserver}

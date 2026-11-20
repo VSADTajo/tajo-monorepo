@@ -149,6 +149,26 @@ detect_public_urls() {
     # Both are served through the gateway (same default as apps.yml).
     export PUBLIC_PREDICTIONS_URL="${PUBLIC_PREDICTIONS_URL:-${PUBLIC_API_URL}}"
     export PUBLIC_SCHEDULER_URL="${PUBLIC_SCHEDULER_URL:-${PUBLIC_API_URL}}"
+
+    # Behind a reverse proxy (PUBLIC_BASE_URL=https://tajo.example.com, serving
+    # / → frontend, /api/ → gateway, /geoserver/ → GeoServer) the frontend uses
+    # paths relative to its own origin, so it works under HTTPS with no mixed
+    # content. The tooling UIs (logs, sftp) keep the direct host URLs above.
+    local base="${PUBLIC_BASE_URL:-}"
+    base="${base%/}"
+    if [ -n "${base}" ]; then
+        export FRONTEND_API_URL="${FRONTEND_API_URL:-/api}"
+        export FRONTEND_GEOSERVER_URL="${FRONTEND_GEOSERVER_URL:-/geoserver}"
+        export GEOSERVER_PROXY_BASE_URL="${GEOSERVER_PROXY_BASE_URL:-${base}/geoserver}"
+    else
+        export FRONTEND_API_URL="${FRONTEND_API_URL:-${PUBLIC_API_URL}}"
+        export FRONTEND_GEOSERVER_URL="${FRONTEND_GEOSERVER_URL:-${PUBLIC_GEOSERVER_URL}}"
+        export GEOSERVER_PROXY_BASE_URL="${GEOSERVER_PROXY_BASE_URL:-${PUBLIC_GEOSERVER_URL}}"
+    fi
+    # Hosts (no scheme/port) GeoServer's admin UI accepts form posts from.
+    local gs_host="${GEOSERVER_PROXY_BASE_URL#*://}"
+    gs_host="${gs_host%%[:/]*}"
+    export GEOSERVER_CSRF_WHITELIST="${GEOSERVER_CSRF_WHITELIST:-${gs_host},${host}}"
 }
 
 ensure_env() {

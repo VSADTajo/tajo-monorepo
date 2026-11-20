@@ -46,4 +46,12 @@ export class AppConfigService {
     public get xApiKey(): string {
         return this.configService.getOrThrow('app.xApiKey', { infer: true });
     }
+
+    public get allowedOrigins(): string {
+        return this.configService.getOrThrow('app.allowedOrigins', { infer: true });
+    }
+
+    public get trustProxy(): string {
+        return this.configService.getOrThrow('app.trustProxy', { infer: true });
+    }
 }

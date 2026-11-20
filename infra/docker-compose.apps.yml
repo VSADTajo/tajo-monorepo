@@ -74,6 +74,10 @@ services:
             METEO_API_URL: http://ms-meteo-api:3010
             RBAC_BYPASS_ROLES: ${RBAC_BYPASS_ROLES:-admin}
             REDIS_PERMISSION_TTL: ${REDIS_PERMISSION_TTL:-3600}
+            # Reverse proxy: CORS origins (comma-separated or *) and the hops
+            # trusted to set X-Forwarded-* (default: private networks).
+            ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+            TRUST_PROXY: ${TRUST_PROXY:-loopback, linklocal, uniquelocal}
         ports:
             - '3000:3000'
         depends_on:
@@ -469,12 +473,9 @@ services:
         <<: *app-defaults
         image: ${REGISTRY:-ghcr.io/vsadtajo}/vsad-tajo-frontend:${TAG:?TAG must be set — bumped by CI in infra/version.env, or export TAG=... to override}
         container_name: vsad-tajo-frontend
-        # Runtime config: the entrypoint substitutes these into the built assets
-        # at start, so ONE image works on any host (see the frontend's
-        # docker-entrypoint.sh).
-        environment:
-            API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
-            GEOSERVER_URL: ${PUBLIC_GEOSERVER_URL:-http://localhost:8085/geoserver}
+        # The API and GeoServer URLs are baked in at BUILD time (Vite), from
+        # FRONTEND_API_URL / FRONTEND_GEOSERVER_URL — see docker-compose.build.yml.
+        # Changing them takes a rebuild, which `tajo up` does.
         ports:
             - '8080:80'
         depends_on:
@@ -496,6 +497,11 @@ services:
             INSTALL_EXTENSIONS: 'false'
             CORS_ENABLED: 'true'
             CORS_ALLOWED_ORIGINS: '*'
+            # Public URL GeoServer writes into capabilities and its admin UI,
+            # and the hosts its admin UI accepts form posts from (CSRF). tajo
+            # derives both from PUBLIC_BASE_URL / PUBLIC_GEOSERVER_URL.
+            PROXY_BASE_URL: ${GEOSERVER_PROXY_BASE_URL:-http://localhost:8085/geoserver}
+            GEOSERVER_CSRF_WHITELIST: ${GEOSERVER_CSRF_WHITELIST:-localhost}
         # Data dir (workspaces, stores, styles) + datasets (rasters/vectors the
         # stores point at, incl. ms-meteo-api's GeoTIFFs). Both are loaded from
         # infra/seed/geoserver/ by `tajo up` while still empty.
